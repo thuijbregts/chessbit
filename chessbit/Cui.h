@@ -1,0 +1,118 @@
+#ifndef CUI_H
+#define CUI_H
+
+#include <string>
+#include <vector>
+
+using namespace std;
+
+class MoveArray;
+
+class Cui {
+
+public:
+	Cui();
+	~Cui();
+
+private:
+	void start();
+
+	void generateMoves();
+
+	void execute(vector<string>& command, MoveArray& moves);
+
+	bool isCommand(vector<string>& command, MoveArray& moves);
+	bool executeMove(string& move, MoveArray& moves);
+	void makeMove(MoveInfo& move);
+	void play();
+	void undo();
+	void showMoves();
+	void reset();
+	void printBoard();
+	void setBoard(vector<string>& cmd, int size);
+	void getFen();
+	void perft(string& option, string& depth);
+	void perftFast(int depth);
+	void perftDivide(int depth);
+	U64 divide(int depth);
+	void test();
+	void perftsuite();
+	void benchmark(string& depth, string& amount);
+	void compare();
+	void generateMoves(MoveArray& moves);
+	U64 generateMovesPerft(int depth);
+	//U64 generateMoves(int depth);
+	template <bool side, int casPerms>
+	U64 generateMoves(int depth);
+	void pieces();
+	void help();
+};
+
+struct Command {
+	string command;
+	string options;
+};
+
+struct PerftTest {
+	const char* fen;
+	int depth;
+	U64 result;
+};
+
+namespace cui {
+	const string EXIT = "exit";
+	const string HELP = "help";
+	const string SET_FEN = "setfen";
+	const string GET_FEN = "fen";
+	const string PERFT = "perft";
+	const string DIVIDE = "divide";
+	const string PRINT_BOARD = "print";
+	const string MOVES = "moves";
+	const string RESET = "reset";
+	const string PIECES = "pieces";
+	const string UNDO = "undo";
+	const string PLAY = "play";
+	const string TEST = "test";
+	const string PERFT_SUITE = "perftsuite";
+	const string BENCHMARK = "benchmark";
+	const string COMPARE = "cmp";
+
+	const string PERFT_D = "-d";
+	const string PERFT_A = "-a";
+
+	const string OPTIONS[]{
+		PERFT_D,
+		PERFT_A
+	};
+
+	const Command COMMANDS[]{
+		{ EXIT, {} },
+		{ HELP, {} },
+		{ SET_FEN, {} },
+		{ GET_FEN, {} },
+		{ PERFT, { PERFT_D }  },
+		{ DIVIDE, {} },
+		{ PRINT_BOARD, {} },
+		{ MOVES, {} },
+		{ RESET, {} },
+		{ PIECES, {} },
+		{ UNDO, {} },
+		{ PLAY,{} },
+		{ TEST,{} },
+		{ PERFT_SUITE,{} },
+		{ BENCHMARK,{} },
+		{ COMPARE,{} }
+	};
+
+	const PerftTest TESTS[]{
+		{ StartPosition, 7, 3195901860 },
+		{ KiwiPete, 6, 8031647685 },
+		{ EndGame, 6, 849167880 },
+		{ Pos3, 8, 3009794393 },
+		{ Pos4, 6, 706045033 },
+		{ Pos5, 5, 89941194 },
+		{ Pos6, 6, 6923051137 }
+	};
+}
+
+#endif

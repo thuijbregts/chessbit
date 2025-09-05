@@ -1,0 +1,589 @@
+#include "MoveArray.h"
+#include "MoveGenerator.h"
+#include "Test.hpp"
+#include "Cui.h"
+#include "Utils.h"
+#include <iostream>
+#include <fstream>
+#include <algorithm>
+#include <chrono>
+
+using namespace std::chrono;
+
+namespace {
+	MoveArray moves;
+}
+
+Cui::Cui()
+{
+	start();
+}
+
+Cui::~Cui()
+{
+
+}
+
+void Cui::start() {
+	string input;
+	vector<string> cmd;
+	generateMoves();
+	cout << "+---+---+---+---+---+---+---+---+---+---+" << endl;
+	cout << "|     chessbit by Thomas Huijbregts     |" << endl;
+	cout << "+---+---+---+---+---+---+---+---+---+---+" << endl;
+	do {
+		getline(cin, input);
+		cmd = utils::split(input, ' ');
+		execute(cmd, moves);
+
+	} while (true);
+}
+
+void Cui::generateMoves() {
+	moves.reset();
+	movegen::generateMoves(moves);
+}
+
+bool Cui::isCommand(vector<string>& cmd, MoveArray& moves) {
+	int size = cmd.size();
+	if (size == 0) {
+		return false;
+	}
+
+	if (cmd[0].length() == 0) {
+		return false;
+	}
+
+	string first = cmd[0];
+	for (Command CMD : cui::COMMANDS) {
+		if (CMD.command == first) {
+			return true;
+		}
+	}
+
+	if (utils::validMove(first)) {
+		if (executeMove(first, moves)) {
+			generateMoves();
+		}
+		else {
+			cout << "Move does not exist for this position" << endl;
+		}
+		return true;
+	}
+
+	cout << "Invalid command... type 'help' for command list" << endl;
+	return false;
+}
+
+void Cui::execute(vector<string>& cmd, MoveArray& moves) {
+
+	if (!isCommand(cmd, moves)) {
+		return;
+	}
+
+	string first = cmd[0];
+	int size = cmd.size();
+	string param1, param2;
+
+	if (size > 1) {
+		if (size == 2) {
+			param1 = cmd[1];
+		}
+		else {
+			param1 = cmd[1];
+			param2 = cmd[2];
+		}
+	}
+
+	if (first == cui::PLAY) {
+		play();
+		return;
+	}
+
+	if (first == cui::UNDO) {
+		undo();
+		return;
+	}
+
+	if (first == cui::MOVES) {
+		showMoves();
+		return;
+	}
+
+	if (first == cui::RESET) {
+		reset();
+		return;
+	}
+
+	if (first == cui::PRINT_BOARD) {
+		printBoard();
+		return;
+	}
+
+	if (first == cui::GET_FEN) {
+		getFen();
+		return;
+	}
+
+	if (first == cui::SET_FEN) {
+		setBoard(cmd, size);
+		return;
+	}
+
+	if (first == cui::PERFT) {
+		if (size == 2) {
+			string empty;
+			perft(empty, param1);
+		}
+		else {
+			perft(param1, param2);
+		}
+		
+		return;
+	}
+
+	if (first == cui::TEST) {
+		test();
+		return;
+	}
+
+	if (first == cui::PERFT_SUITE) {
+		perftsuite();
+		return;
+	}
+
+	if (first == cui::BENCHMARK) {
+		benchmark(param1, param2);
+		return;
+	}
+
+	if (first == cui::COMPARE) {
+		compare();
+		return;
+	}
+
+	if (first == cui::PIECES) {
+		pieces();
+		return;
+	}
+
+	if (first == cui::HELP) {
+		help();
+		return;
+	}
+
+	if (first == cui::EXIT) {
+		exit(0);
+	}
+}
+
+bool Cui::executeMove(string& move, MoveArray& moves) {
+	int size = moves.size();
+	MoveInfo** mv = moves.moves();
+
+	for (int i = 0; i < size; ++i) {
+		if (move == utils::getMoveSimple(*mv[i])) {
+			movegen::makeMove( *mv[i]);
+			return true;
+		}
+	}
+	return false;
+}
+
+void Cui::play() {
+	/*game::makeMove(search::searchMove());
+	generateMoves();*/
+}
+
+void Cui::undo() {
+	if (game::moveCount > 0) {
+		movegen::unmakeMove( movesPlayed[game::moveCount - 1]);
+		generateMoves();
+	}
+	else {
+		cout << "No move to undo" << endl;
+	}
+}
+
+void Cui::showMoves() {
+	int size = moves.size();
+	MoveInfo** mv = moves.moves();
+	for (int i = 0; i < size; ++i) {
+		cout << utils::getMoveSimple(*mv[i]) << endl;
+	}
+	cout << "Moves:\t" << size << endl;
+}
+
+void Cui::printBoard() {
+	game::printBoard();
+}
+
+void Cui::reset() {
+	setFen(StartPosition);
+
+	generateMoves();
+}
+
+void Cui::setBoard(vector<string>& cmd, int size) {
+	string fen;
+	for (int i = 1; i < size; ++i) {
+		fen += cmd[i];
+		if (i < size - 1) {
+			fen += " ";
+		}
+	}
+	try {
+		setFen(fen.c_str());
+		generateMoves();
+	}
+	catch (invalid_argument& e) {
+		cout << "Error while setting fen: " << e.what() << endl;
+	}
+}
+
+void Cui::getFen() {
+	cout << game::getFen() << endl;
+}
+
+void Cui::perft(string& option, string& depth) {
+	if (depth.length() > 0 && utils::isPositiveDigits(depth) && stoi(depth) > 0) {
+		int d = stoi(depth);
+		if (option.length() > 0) {
+			if (option == "-d") {
+				perftDivide(d);
+			}
+			else {
+				cout << "incorrect perft option" << endl;
+			}
+		}
+		else {
+			perftFast(d);
+		}
+	}
+	else {
+		cout << "incorrect depth value" << endl;
+	}
+}
+
+void Cui::perftFast(int depth) {
+	string fen = game::getFen();
+
+	high_resolution_clock::time_point start, end;
+
+	start = high_resolution_clock::now();
+	U64 nodes = generateMoves(depth);
+	end = high_resolution_clock::now();
+
+	duration<int, std::milli> total = duration_cast<duration<int, std::milli>>(end - start);
+
+	cout << "Depth:\t\t" << depth << endl;
+	cout << "Nodes:\t\t" << nodes << endl;
+	cout << "Time:\t\t" << total.count() << " ms" << endl;
+	if (total.count() > 0) {
+		cout << "Average:\t" << (nodes / total.count()) / (float) 1000 << " Mn/s" << endl;
+	}
+
+	game::setFen(fen.c_str());
+}
+
+void Cui::perftDivide(int depth) {
+	string fen = game::getFen();
+
+	high_resolution_clock::time_point start, end;
+
+	start = high_resolution_clock::now();
+	U64 nodes = divide(depth);
+	end = high_resolution_clock::now();
+
+	duration<int, std::milli> total = duration_cast<duration<int, std::milli>>(end - start);
+
+	cout << "Depth:\t\t" << depth << endl;
+	cout << "Nodes:\t\t" << nodes << endl;
+	cout << "Time:\t\t" << total.count() << " ms" << endl;
+	if (total.count() > 0) {
+		cout << "Average:\t" << (nodes / total.count()) / (float)1000 << " Mn/s" << endl;
+	}
+
+	game::setFen(fen.c_str());
+}
+
+U64 Cui::divide(int depth) {
+	U64 nodes = 0;
+	U64 current = 0;
+	MoveArray m;
+	m.reset();
+	movegen::generateMoves(m);
+	int size = m.size();
+	if (depth == 1) {
+		return size;
+	}
+	MoveInfo** moves = m.moves();
+	for (int i = 0; i < size; i++)
+	{
+		movegen::makeMove(*moves[i]);
+		current = generateMoves(depth - 1);
+		nodes += current;
+		printf("%s %llu\n", utils::getMoveSimple(*moves[i]).c_str(), current);
+		movegen::unmakeMove(*moves[i]);
+	}
+	return nodes;
+}
+
+void Cui::test() {
+	string fen = game::getFen();
+
+	high_resolution_clock::time_point start, end;
+	U64 nodes;
+	int success = 0;
+	int tests = 0;
+
+	for (PerftTest test : cui::TESTS) {
+		cout << "Position:\t\t" << test.fen << endl;
+		cout << "Depth:\t\t\t" << test.depth << endl;
+		setFen(test.fen);
+		start = high_resolution_clock::now();
+		nodes = generateMoves(test.depth);
+		end = high_resolution_clock::now();
+
+		duration<int, std::milli> total = duration_cast<duration<int, std::milli>>(end - start);
+
+		cout << "Nodes:\t\t\t" << nodes << endl;
+		cout << "Expected nodes:\t\t" << test.result << endl;
+		cout << "Time:\t\t\t" << total.count() << " ms" << endl;
+		if (nodes == test.result) {
+			cout << "Test Succeeded!" << endl;
+			success++;
+		}
+		else {
+			cout << "Test Failed!" << endl;
+		}
+		cout << "--------------------------" << endl;
+
+		tests++;
+	}
+
+	cout << "Final results:\t\t" << success << "/" << tests << endl;
+
+	game::setFen(fen.c_str());
+}
+
+void Cui::perftsuite() {
+	string fenS = game::getFen();
+
+	int success = 0;
+	int tests = 0;
+	for (auto pos : test::Positions)
+	{
+		auto v = test::GetElements(pos, ';');
+		std::string fen = v[0];
+		cout << fen << endl;
+		int to = v.size();
+		for (int i = 1; i < to; i++) {
+			game::setFen(fen.c_str());
+
+			auto perftvals = test::GetElements(v[i], ' ');
+			U64 expected = static_cast<U64>(std::strtol(perftvals[1].c_str(), NULL, 10));
+			U64 result = generateMoves(i);
+			std::string status = expected == result ? "OK" : "ERROR";
+			if (expected == result) {
+				cout << "   " << i << ": " << result << " " << status << endl;
+				success++;
+			}
+			else  cout << "xxx -> " << i << ": " << result << " vs " << expected << " " << status << endl;
+
+			tests++;
+		}
+	}
+	cout << "Final results:\t\t" << success << "/" << tests << endl;
+
+	game::setFen(fenS.c_str());
+}
+
+void Cui::benchmark(string& depth, string& amount) {
+	int d = 6;
+	int a = 25;
+
+	if (depth.length() > 0) {
+		if (utils::isPositiveDigits(depth) && stoi(depth) > 0) {
+			d = stoi(depth);
+		}
+		else {
+			cout << "Incorrect depth value" << endl;
+			return;
+		}
+	}
+
+	if (amount.length() > 0) {
+		if (utils::isPositiveDigits(amount) && stoi(amount) > 0) {
+			a = stoi(amount);
+		}
+		else {
+			cout << "Incorrect amount value" << endl;
+			return;
+		}
+	}
+	string fen = game::getFen();
+
+	high_resolution_clock::time_point start, end;
+	duration<int, std::milli> total, best;
+
+	for (int i = 0; i < a; i++) {
+		start = high_resolution_clock::now();
+		auto volatile result = generateMoves(d);
+		end = high_resolution_clock::now();
+
+		total = duration_cast<duration<int, std::milli>>(end - start);
+		printf("Time:\t\t%d\t%llu\n", total.count(), result);
+		if (i == 0) {
+			best = total;
+		}
+		else if (total.count() < best.count()) {
+			best = total;
+		}
+	}
+
+	printf("Best time:\t\t%d\n", best.count());
+
+	game::setFen(fen.c_str());
+}
+
+void Cui::compare() {
+	string fen = game::getFen();
+
+	high_resolution_clock::time_point start, end;
+	U64 result;
+	long long total;
+
+	auto ts = std::chrono::steady_clock::now();
+	setFen(StartPosition);
+	for (int i = 1; i <= 7; i++)
+	{
+		start = high_resolution_clock::now();
+		result = generateMoves(i);
+		end = high_resolution_clock::now();
+		total = duration_cast<duration<int, std::milli>>(end - start).count();
+		std::cout << "Perft Start " << i << ": " << result << " " << total << "ms " << result * 1.0 / (total * 1000) << " MNodes/s\n";
+	}
+	if (result == 3195901860ull) std::cout << "OK\n\n";
+	else std::cout << "ERROR!\n\n";
+
+	setFen(KiwiPete);
+	for (int i = 1; i <= 6; i++)
+	{
+		start = high_resolution_clock::now();
+		result = generateMoves(i);
+		end = high_resolution_clock::now();
+		total = duration_cast<duration<int, std::milli>>(end - start).count();
+		std::cout << "Perft Start " << i << ": " << result << " " << total << "ms " << result * 1.0 / (total * 1000) << " MNodes/s\n";
+	}
+	if (result == 8031647685ull) std::cout << "OK\n\n";
+	else std::cout << "ERROR!\n\n";
+
+	setFen(Pos6);
+	for (int i = 1; i <= 6; i++)
+	{
+		start = high_resolution_clock::now();
+		result = generateMoves(i);
+		end = high_resolution_clock::now();
+		total = duration_cast<duration<int, std::milli>>(end - start).count();
+		std::cout << "Perft Start " << i << ": " << result << " " << total << "ms " << result * 1.0 / (total * 1000) << " MNodes/s\n";
+	}
+	if (result == 6923051137ull) std::cout << "OK\n\n";
+	else std::cout << "ERROR!\n\n";
+
+	setFen(EndGame);
+	for (int i = 1; i <= 6; i++)
+	{
+		start = high_resolution_clock::now();
+		result = generateMoves(i);
+		end = high_resolution_clock::now();
+		total = duration_cast<duration<int, std::milli>>(end - start).count();
+		std::cout << "Perft Start " << i << ": " << result << " " << total << "ms " << result * 1.0 / (total * 1000) << " MNodes/s\n";
+	}
+	if (result == 849167880ull) std::cout << "OK\n\n";
+	else std::cout << "ERROR!\n\n";
+
+	//Total nodes
+	U64 nodes = (3195901860ull + 8031647685ull + 6923051137ull + 849167880ull);
+	auto te = std::chrono::steady_clock::now();
+	total = std::chrono::duration_cast<std::chrono::microseconds>(te - ts).count();
+	std::cout << "Perft aggregate: " << nodes
+		<< " " << total / 1000 << "ms " << nodes * 1.0 / total << " MNodes/s\n";
+
+	game::setFen(fen.c_str());
+}
+
+U64 Cui::generateMoves(int depth) {
+	U64 pM = game::pieces[side][p];
+	U64 nM = game::pieces[side][n];
+	U64 bM = game::pieces[side][b];
+	U64 rM = game::pieces[side][r];
+	U64 qM = game::pieces[side][q];
+	U64 kM = game::pieces[side][k];
+
+	U64 pE = game::pieces[!side][p];
+	U64 nE = game::pieces[!side][n];
+	U64 bE = game::pieces[!side][b];
+	U64 rE = game::pieces[!side][r];
+	U64 qE = game::pieces[!side][q];
+	U64 kE = game::pieces[!side][k];
+
+	switch (depth) {
+	case 18: return movegen::generateMovesPerft<18>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 17: return movegen::generateMovesPerft<17>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 16: return movegen::generateMovesPerft<16>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 15: return movegen::generateMovesPerft<15>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 14: return movegen::generateMovesPerft<14>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 13: return movegen::generateMovesPerft<13>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 12: return movegen::generateMovesPerft<12>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 11: return movegen::generateMovesPerft<11>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 10: return movegen::generateMovesPerft<10>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 9: return movegen::generateMovesPerft<9>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 8: return movegen::generateMovesPerft<8>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 7: return movegen::generateMovesPerft<7>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 6: return movegen::generateMovesPerft<6>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 5: return movegen::generateMovesPerft<5>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 4: return movegen::generateMovesPerft<4>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 3: return movegen::generateMovesPerft<3>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	case 2: return movegen::generateMovesPerft<2>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	default: return movegen::generateMovesPerft<1>(side, enPassant, castlingPermissions, occupancies[side], occupancies[!side], occupancies[both], checks, pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE);
+	}
+}
+
+
+void Cui::pieces() {
+	cout << "WHITE:" << endl;
+	cout << "Type: PAWN\t\tCount: " << Bitcount(game::pieces[white][p]) << endl;
+	cout << "Type: KNIGHT\t\tCount: " << Bitcount(game::pieces[white][n]) << endl;
+	cout << "Type: BISHOP\t\tCount: " << Bitcount(game::pieces[white][b]) << endl;
+	cout << "Type: ROOK\t\tCount: " << Bitcount(game::pieces[white][r]) << endl;
+	cout << "Type: QUEEN\t\tCount: " << Bitcount(game::pieces[white][q]) << endl;
+
+	cout << "BLACK:" << endl;
+	cout << "Type: PAWN\t\tCount: " << Bitcount(game::pieces[black][p]) << endl;
+	cout << "Type: KNIGHT\t\tCount: " << Bitcount(game::pieces[black][n]) << endl;
+	cout << "Type: BISHOP\t\tCount: " << Bitcount(game::pieces[black][b]) << endl;
+	cout << "Type: ROOK\t\tCount: " << Bitcount(game::pieces[black][r]) << endl;
+	cout << "Type: QUEEN\t\tCount: " << Bitcount(game::pieces[black][q]) << endl;
+}
+
+void Cui::help() {
+	cout << "\n******Moves******\n" << endl;
+	cout << "Make a move by entering the source and destination square" << endl;
+	cout << "Example: a2a3\tAdd Q,R,B,N for promotions" << endl;
+	cout << "\n******Commands******\n" << endl;
+	cout << "undo\t\tCancels the last move made" << endl;
+	cout << "moves\t\tPrints the legal moves of the current position" << endl;
+	cout << "reset\t\tResets the game to its initial position" << endl;
+	cout << "print\t\tPrints the board representation of the current position" << endl;
+	cout << "fen\t\tPrints the FEN record of the current position" << endl;
+	cout << "setfen\t\tSets the position given by a FEN record" << endl;
+	cout << "perft\t\tGenerates all moves down to a given depth" << endl;
+	cout << "\t-d\tShows total of moves for each current legal move" << endl;
+	cout << "test\t\tTests popular positions to validate perft results" << endl;
+	cout << "perftsuite\tTests full list of positions to validate perft results" << endl;
+	cout << "benchmark\tPerforms a series of perft and returns the best time" << endl;
+	cout << "\t\tSpecify depth then amount. Default is 6 and 25" << endl;
+	cout << "pieces\t\tPrints the pieces' count for each side" << endl;
+	cout << "exit\t\tExit the application" << endl;
+}
