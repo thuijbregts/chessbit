@@ -42,7 +42,7 @@ private:
 	void generateMoves(MoveArray& moves);
 	U64 generateMovesPerft(int depth);
 	//U64 generateMoves(int depth);
-	template <bool side, int casPerms>
+	template <bool side, bool wKMoved, bool bKMoveds>
 	U64 generateMoves(int depth);
 	void pieces();
 	void help();
