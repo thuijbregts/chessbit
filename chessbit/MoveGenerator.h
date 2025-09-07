@@ -630,7 +630,7 @@ namespace movegen {
 
     template <bool side, bool wKMoved, bool bKMoved>
     static inline void generateMoves(MoveArray& moves) {
-        int sourceSquare, targetSquare, deadPiece;
+        int from, to, deadPiece;
         U64 bitboard, attacks, pinMask;
         U64 castleAttacks = 0ULL;
 
@@ -650,9 +650,9 @@ namespace movegen {
             filterKingAttacks<side, true, true>(occupancies[side], occupancies[both], kingSquare, attacks, castleAttacks, pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], eKing, mask);
             Bitloop(attacks)
             {
-                targetSquare = SquareOf(attacks);
-                deadPiece = boardPieces[targetSquare];
-                moves.king(kingSquare, targetSquare, deadPiece);
+                to = SquareOf(attacks);
+                deadPiece = boardPieces[to];
+                moves.king(kingSquare, to, deadPiece);
             }
 
             //if there is no second check, we need to check for other pieces
@@ -669,41 +669,41 @@ namespace movegen {
                        PAWN MOVES
 
                     */
-                    targetSquare = checkSquare;
-                    deadPiece = boardPieces[targetSquare];
+                    to = checkSquare;
+                    deadPiece = boardPieces[to];
 
                     //en passant
                     bitboard = pieces[side][p] & PASSANT_CAPTURES[enPassant] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
                         if (checkSquare == enPassant + PAWN_PUSH[!side]) {
-                            moves.enPassant(sourceSquare, enPassant);
+                            moves.enPassant(from, enPassant);
                         }
                     }
 
                     bitboard = pieces[side][p] & PROMO_RANKS[side] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
-                        attacks = PAWN_CAPTURES[side][sourceSquare] & checks;
+                        attacks = PAWN_CAPTURES[side][from] & checks;
                         if (attacks)
                         {
-                            moves.promotion(sourceSquare, targetSquare, deadPiece);
+                            moves.promotion(from, to, deadPiece);
                         }
                     }
 
                     bitboard = pieces[side][p] & ~PROMO_RANKS[side] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
-                        attacks = PAWN_CAPTURES[side][sourceSquare] & checks;
+                        attacks = PAWN_CAPTURES[side][from] & checks;
                         if (attacks)
                         {
-                            moves.pawn(sourceSquare, targetSquare, deadPiece);
+                            moves.pawn(from, to, deadPiece);
                         }
                     }
 
@@ -715,11 +715,11 @@ namespace movegen {
                     bitboard = pieces[side][n] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
-                        attacks = getKnightAttacks(sourceSquare) & checks;
+                        attacks = getKnightAttacks(from) & checks;
                         if (attacks) {
-                            moves.knight(sourceSquare, targetSquare, deadPiece);
+                            moves.knight(from, to, deadPiece);
                         }
                     }
 
@@ -731,11 +731,11 @@ namespace movegen {
                     bitboard = pieces[side][b] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
-                        attacks = getBishopAttacks(sourceSquare, occupancies[both]) & checks;
+                        attacks = getBishopAttacks(from, occupancies[both]) & checks;
                         if (attacks) {
-                            moves.bishop(sourceSquare, targetSquare, deadPiece);
+                            moves.bishop(from, to, deadPiece);
                         }
                     }
 
@@ -747,11 +747,11 @@ namespace movegen {
                     bitboard = pieces[side][r] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
-                        attacks = getRookAttacks(sourceSquare, occupancies[both]) & checks;
+                        attacks = getRookAttacks(from, occupancies[both]) & checks;
                         if (attacks) {
-                            moves.rook(sourceSquare, targetSquare, deadPiece);
+                            moves.rook(from, to, deadPiece);
                         }
                     }
 
@@ -763,11 +763,11 @@ namespace movegen {
                     bitboard = pieces[side][q] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
-                        attacks = getQueenAttacks(sourceSquare, occupancies[both]) & checks;
+                        attacks = getQueenAttacks(from, occupancies[both]) & checks;
                         if (attacks) {
-                            moves.queen(sourceSquare, targetSquare, deadPiece);
+                            moves.queen(from, to, deadPiece);
                         }
                     }
                 }
@@ -784,28 +784,28 @@ namespace movegen {
                     bitboard = pieces[side][p] & PROMO_RANKS[side] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
-                        attacks = getPawnAttacks<side>(sourceSquare, occupancies[both], occupancies[!side]) & validSquares;
+                        attacks = getPawnAttacks<side>(from, occupancies[both], occupancies[!side]) & validSquares;
                         Bitloop(attacks) {
-                            targetSquare = SquareOf(attacks);
-                            deadPiece = boardPieces[targetSquare];
+                            to = SquareOf(attacks);
+                            deadPiece = boardPieces[to];
 
-                            moves.promotion(sourceSquare, targetSquare, deadPiece);
+                            moves.promotion(from, to, deadPiece);
                         }
                     }
 
                     bitboard = pieces[side][p] & ~PROMO_RANKS[side] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
-                        attacks = getPawnAttacks<side>(sourceSquare, occupancies[both], occupancies[!side]) & validSquares;
+                        attacks = getPawnAttacks<side>(from, occupancies[both], occupancies[!side]) & validSquares;
                         Bitloop(attacks) {
-                            targetSquare = SquareOf(attacks);
-                            deadPiece = boardPieces[targetSquare];
+                            to = SquareOf(attacks);
+                            deadPiece = boardPieces[to];
 
-                            moves.pawn(sourceSquare, targetSquare, deadPiece);
+                            moves.pawn(from, to, deadPiece);
                         }
                     }
 
@@ -817,14 +817,14 @@ namespace movegen {
                     bitboard = pieces[side][n] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
-                        attacks = getKnightAttacks(sourceSquare) & validSquares;
+                        attacks = getKnightAttacks(from) & validSquares;
                         Bitloop(attacks) {
-                            targetSquare = SquareOf(attacks);
-                            deadPiece = boardPieces[targetSquare];
+                            to = SquareOf(attacks);
+                            deadPiece = boardPieces[to];
 
-                            moves.knight(sourceSquare, targetSquare, deadPiece);
+                            moves.knight(from, to, deadPiece);
                         }
                     }
 
@@ -836,14 +836,14 @@ namespace movegen {
                     bitboard = pieces[side][b] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
-                        attacks = getBishopAttacks(sourceSquare, occupancies[both]) & validSquares;
+                        attacks = getBishopAttacks(from, occupancies[both]) & validSquares;
                         Bitloop(attacks) {
-                            targetSquare = SquareOf(attacks);
-                            deadPiece = boardPieces[targetSquare];
+                            to = SquareOf(attacks);
+                            deadPiece = boardPieces[to];
 
-                            moves.bishop(sourceSquare, targetSquare, deadPiece);
+                            moves.bishop(from, to, deadPiece);
                         }
                     }
 
@@ -855,14 +855,14 @@ namespace movegen {
                     bitboard = pieces[side][r] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
-                        attacks = getRookAttacks(sourceSquare, occupancies[both]) & validSquares;
+                        attacks = getRookAttacks(from, occupancies[both]) & validSquares;
                         Bitloop(attacks) {
-                            targetSquare = SquareOf(attacks);
-                            deadPiece = boardPieces[targetSquare];
+                            to = SquareOf(attacks);
+                            deadPiece = boardPieces[to];
 
-                            moves.rook(sourceSquare, targetSquare, deadPiece);
+                            moves.rook(from, to, deadPiece);
                         }
                     }
 
@@ -874,14 +874,14 @@ namespace movegen {
                     bitboard = pieces[side][q] & ~allPins;
                     Bitloop(bitboard)
                     {
-                        sourceSquare = SquareOf(bitboard);
+                        from = SquareOf(bitboard);
 
-                        attacks = getQueenAttacks(sourceSquare, occupancies[both]) & validSquares;
+                        attacks = getQueenAttacks(from, occupancies[both]) & validSquares;
                         Bitloop(attacks) {
-                            targetSquare = SquareOf(attacks);
-                            deadPiece = boardPieces[targetSquare];
+                            to = SquareOf(attacks);
+                            deadPiece = boardPieces[to];
 
-                            moves.queen(sourceSquare, targetSquare, deadPiece);
+                            moves.queen(from, to, deadPiece);
                         }
                     }
                 }
@@ -900,79 +900,79 @@ namespace movegen {
         //en passant
         bitboard = PASSANT_CAPTURES[enPassant] & pieces[side][p] & ~allPins;
         Bitloop(bitboard) {
-            sourceSquare = SquareOf(bitboard);
+            from = SquareOf(bitboard);
 
-            if ((1ULL << enPassant) & passantPinMask<side>(enPassant, sourceSquare, occupancies[both], pieces[side][k], pieces[!side][r], pieces[!side][q], kingSquare)) {
-                moves.enPassant(sourceSquare, enPassant);
+            if ((1ULL << enPassant) & passantPinMask<side>(enPassant, from, occupancies[both], pieces[side][k], pieces[!side][r], pieces[!side][q], kingSquare)) {
+                moves.enPassant(from, enPassant);
             }
         }
 
         bitboard = pieces[side][p] & PROMO_RANKS[side] & ~allPins;
         Bitloop(bitboard)
         {
-            sourceSquare = SquareOf(bitboard);
+            from = SquareOf(bitboard);
 
-            attacks = getPawnAttacks<side>(sourceSquare, occupancies[both], occupancies[!side]);
+            attacks = getPawnAttacks<side>(from, occupancies[both], occupancies[!side]);
             Bitloop(attacks) {
-                targetSquare = SquareOf(attacks);
-                deadPiece = boardPieces[targetSquare];
+                to = SquareOf(attacks);
+                deadPiece = boardPieces[to];
 
-                moves.promotion(sourceSquare, targetSquare, deadPiece);
+                moves.promotion(from, to, deadPiece);
             }
         }
 
         bitboard = pieces[side][p] & ~PROMO_RANKS[side] & ~allPins;
         Bitloop(bitboard)
         {
-            sourceSquare = SquareOf(bitboard);
+            from = SquareOf(bitboard);
 
-            attacks = getPawnAttacks<side>(sourceSquare, occupancies[both], occupancies[!side]);
+            attacks = getPawnAttacks<side>(from, occupancies[both], occupancies[!side]);
             Bitloop(attacks) {
-                targetSquare = SquareOf(attacks);
-                deadPiece = boardPieces[targetSquare];
+                to = SquareOf(attacks);
+                deadPiece = boardPieces[to];
 
-                moves.pawn(sourceSquare, targetSquare, deadPiece);
+                moves.pawn(from, to, deadPiece);
             }
         }
 
         //en passant
         bitboard = PASSANT_CAPTURES[enPassant] & pieces[side][p] & allPins;
         Bitloop(bitboard) {
-            sourceSquare = SquareOf(bitboard);
-            pinMask = validAttacksMasks[0][sourceSquare];
+            from = SquareOf(bitboard);
+            pinMask = validAttacksMasks[0][from];
 
-            if ((1ULL << enPassant) & pinMask & passantPinMask<side>(enPassant, sourceSquare, occupancies[both], pieces[side][k], pieces[!side][r], pieces[!side][q], kingSquare)) {
-                moves.enPassant(sourceSquare, enPassant);
+            if ((1ULL << enPassant) & pinMask & passantPinMask<side>(enPassant, from, occupancies[both], pieces[side][k], pieces[!side][r], pieces[!side][q], kingSquare)) {
+                moves.enPassant(from, enPassant);
             }
         }
 
         bitboard = pieces[side][p] & PROMO_RANKS[side] & allPins;
         Bitloop(bitboard)
         {
-            sourceSquare = SquareOf(bitboard);
-            pinMask = validAttacksMasks[0][sourceSquare];
+            from = SquareOf(bitboard);
+            pinMask = validAttacksMasks[0][from];
 
-            attacks = getPawnAttacks<side>(sourceSquare, occupancies[both], occupancies[!side]) & pinMask;
+            attacks = getPawnAttacks<side>(from, occupancies[both], occupancies[!side]) & pinMask;
             Bitloop(attacks) {
-                targetSquare = SquareOf(attacks);
-                deadPiece = boardPieces[targetSquare];
+                to = SquareOf(attacks);
+                deadPiece = boardPieces[to];
 
-                moves.promotion(sourceSquare, targetSquare, deadPiece);
+                moves.promotion(from, to, deadPiece);
             }
         }
 
         bitboard = pieces[side][p] & ~PROMO_RANKS[side] & allPins;
         Bitloop(bitboard)
         {
-            sourceSquare = SquareOf(bitboard);
-            pinMask = validAttacksMasks[0][sourceSquare];
+            from = SquareOf(bitboard);
+            pinMask = validAttacksMasks[0][from];
 
-            attacks = getPawnAttacks<side>(sourceSquare, occupancies[both], occupancies[!side]) & pinMask;
+            attacks = getPawnAttacks<side>(from, occupancies[both], occupancies[!side]) & pinMask;
             Bitloop(attacks) {
-                targetSquare = SquareOf(attacks);
-                deadPiece = boardPieces[targetSquare];
+                to = SquareOf(attacks);
+                deadPiece = boardPieces[to];
 
-                moves.pawn(sourceSquare, targetSquare, deadPiece);
+                moves.pawn(from, to, deadPiece);
             }
         }
 
@@ -984,15 +984,15 @@ namespace movegen {
         bitboard = pieces[side][n] & ~allPins;
         Bitloop(bitboard)
         {
-            sourceSquare = SquareOf(bitboard);
+            from = SquareOf(bitboard);
 
-            attacks = getKnightAttacks(sourceSquare) & ~occupancies[side];
+            attacks = getKnightAttacks(from) & ~occupancies[side];
             Bitloop(attacks)
             {
-                targetSquare = SquareOf(attacks);
-                deadPiece = boardPieces[targetSquare];
+                to = SquareOf(attacks);
+                deadPiece = boardPieces[to];
 
-                moves.knight(sourceSquare, targetSquare, deadPiece);
+                moves.knight(from, to, deadPiece);
             }
         }
 
@@ -1004,31 +1004,31 @@ namespace movegen {
         bitboard = pieces[side][b] & ~allPins;
         Bitloop(bitboard)
         {
-            sourceSquare = SquareOf(bitboard);
+            from = SquareOf(bitboard);
 
-            attacks = getBishopAttacks(sourceSquare, occupancies[both]) & ~occupancies[side];
+            attacks = getBishopAttacks(from, occupancies[both]) & ~occupancies[side];
             Bitloop(attacks)
             {
-                targetSquare = SquareOf(attacks);
-                deadPiece = boardPieces[targetSquare];
+                to = SquareOf(attacks);
+                deadPiece = boardPieces[to];
 
-                moves.bishop(sourceSquare, targetSquare, deadPiece);
+                moves.bishop(from, to, deadPiece);
             }
         }
 
         bitboard = pieces[side][b] & allPins;
         Bitloop(bitboard)
         {
-            sourceSquare = SquareOf(bitboard);
-            pinMask = validAttacksMasks[0][sourceSquare];
+            from = SquareOf(bitboard);
+            pinMask = validAttacksMasks[0][from];
 
-            attacks = getBishopAttacks(sourceSquare, occupancies[both]) & ~occupancies[side] & pinMask;
+            attacks = getBishopAttacks(from, occupancies[both]) & ~occupancies[side] & pinMask;
             Bitloop(attacks)
             {
-                targetSquare = SquareOf(attacks);
-                deadPiece = boardPieces[targetSquare];
+                to = SquareOf(attacks);
+                deadPiece = boardPieces[to];
 
-                moves.bishop(sourceSquare, targetSquare, deadPiece);
+                moves.bishop(from, to, deadPiece);
             }
         }
 
@@ -1040,31 +1040,31 @@ namespace movegen {
         bitboard = pieces[side][r] & ~allPins;
         Bitloop(bitboard)
         {
-            sourceSquare = SquareOf(bitboard);
+            from = SquareOf(bitboard);
 
-            attacks = getRookAttacks(sourceSquare, occupancies[both]) & ~occupancies[side];
+            attacks = getRookAttacks(from, occupancies[both]) & ~occupancies[side];
             Bitloop(attacks)
             {
-                targetSquare = SquareOf(attacks);
-                deadPiece = boardPieces[targetSquare];
+                to = SquareOf(attacks);
+                deadPiece = boardPieces[to];
 
-                moves.rook(sourceSquare, targetSquare, deadPiece);
+                moves.rook(from, to, deadPiece);
             }
         }
 
         bitboard = pieces[side][r] & allPins;
         Bitloop(bitboard)
         {
-            sourceSquare = SquareOf(bitboard);
-            pinMask = validAttacksMasks[0][sourceSquare];
+            from = SquareOf(bitboard);
+            pinMask = validAttacksMasks[0][from];
 
-            attacks = getRookAttacks(sourceSquare, occupancies[both]) & ~occupancies[side] & pinMask;
+            attacks = getRookAttacks(from, occupancies[both]) & ~occupancies[side] & pinMask;
             Bitloop(attacks)
             {
-                targetSquare = SquareOf(attacks);
-                deadPiece = boardPieces[targetSquare];
+                to = SquareOf(attacks);
+                deadPiece = boardPieces[to];
 
-                moves.rook(sourceSquare, targetSquare, deadPiece);
+                moves.rook(from, to, deadPiece);
             }
         }
 
@@ -1076,31 +1076,31 @@ namespace movegen {
         bitboard = pieces[side][q] & ~allPins;
         Bitloop(bitboard)
         {
-            sourceSquare = SquareOf(bitboard);
+            from = SquareOf(bitboard);
 
-            attacks = getQueenAttacks(sourceSquare, occupancies[both]) & ~occupancies[side];
+            attacks = getQueenAttacks(from, occupancies[both]) & ~occupancies[side];
             Bitloop(attacks)
             {
-                targetSquare = SquareOf(attacks);
-                deadPiece = boardPieces[targetSquare];
+                to = SquareOf(attacks);
+                deadPiece = boardPieces[to];
 
-                moves.queen(sourceSquare, targetSquare, deadPiece);
+                moves.queen(from, to, deadPiece);
             }
         }
 
         bitboard = pieces[side][q] & allPins;
         Bitloop(bitboard)
         {
-            sourceSquare = SquareOf(bitboard);
-            pinMask = validAttacksMasks[0][sourceSquare];
+            from = SquareOf(bitboard);
+            pinMask = validAttacksMasks[0][from];
 
-            attacks = getQueenAttacks(sourceSquare, occupancies[both]) & ~occupancies[side] & pinMask;
+            attacks = getQueenAttacks(from, occupancies[both]) & ~occupancies[side] & pinMask;
             Bitloop(attacks)
             {
-                targetSquare = SquareOf(attacks);
-                deadPiece = boardPieces[targetSquare];
+                to = SquareOf(attacks);
+                deadPiece = boardPieces[to];
 
-                moves.queen(sourceSquare, targetSquare, deadPiece);
+                moves.queen(from, to, deadPiece);
             }
         }
 
@@ -1114,10 +1114,10 @@ namespace movegen {
         filterKingAttacks<side, wKMoved, bKMoved>(occupancies[side], occupancies[both], kingSquare, attacks, castleAttacks, pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], eKing, mask);
         Bitloop(attacks)
         {
-            targetSquare = SquareOf(attacks);
-            deadPiece = boardPieces[targetSquare];
+            to = SquareOf(attacks);
+            deadPiece = boardPieces[to];
 
-            moves.king(kingSquare, targetSquare, deadPiece);
+            moves.king(kingSquare, to, deadPiece);
         }
 
         //castling moves
@@ -1145,60 +1145,60 @@ namespace movegen {
     struct PerftGenerator;
 
     template <int depth, bool side, bool wKMoved, bool bKMoved, Piece piece>
-    Inline void makeMoves(U64& nodes, U64 attacks, int sourceSquare, BoardState& board, int eKing) {
-        int targetSquare;
+    Inline void makeMoves(U64& nodes, U64 attacks, int from, BoardState& board, int eKing) {
+        int to;
         U64 moves = attacks & ~board.occE;
         Bitloop(moves) {
-            targetSquare = SquareOf(moves);
+            to = SquareOf(moves);
 
-            BoardState newBoard = board.make<piece, side, false>(sourceSquare, targetSquare, board, eKing);
+            BoardState newBoard = board.make<piece, side, false>(from, to, board, eKing);
             if constexpr (piece == Piece::Pawn) nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
             else                                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
         }
 
         moves = attacks & board.occE;
         Bitloop(moves) {
-            targetSquare = SquareOf(moves);
+            to = SquareOf(moves);
 
-            BoardState newBoard = board.make<piece, side, true>(sourceSquare, targetSquare, board, eKing);
+            BoardState newBoard = board.make<piece, side, true>(from, to, board, eKing);
             nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
         }
     }
 
     template <int depth, bool side, bool wKMoved, bool bKMoved>
-    ForceInline void makePromotionMoves(U64& nodes, U64 attacks, int sourceSquare, BoardState& board, int eKing) {
-        int targetSquare;
+    ForceInline void makePromotionMoves(U64& nodes, U64 attacks, int from, BoardState& board, int eKing) {
+        int to;
         U64 moves = attacks & ~board.occE;
         Bitloop(moves) {
-            targetSquare = SquareOf(moves);
+            to = SquareOf(moves);
 
-            BoardState newBoardN = board.makePromotion<Piece::Knight, false>(sourceSquare, targetSquare, board, eKing);
+            BoardState newBoardN = board.makePromotion<Piece::Knight, false>(from, to, board, eKing);
             nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardN);
 
-            BoardState newBoardB = board.makePromotion<Piece::Bishop, false>(sourceSquare, targetSquare, board, eKing);
+            BoardState newBoardB = board.makePromotion<Piece::Bishop, false>(from, to, board, eKing);
             nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardB);
 
-            BoardState newBoardR = board.makePromotion<Piece::Rook, false>(sourceSquare, targetSquare, board, eKing);
+            BoardState newBoardR = board.makePromotion<Piece::Rook, false>(from, to, board, eKing);
             nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardR);
 
-            BoardState newBoardQ = board.makePromotion<Piece::Queen, false>(sourceSquare, targetSquare, board, eKing);
+            BoardState newBoardQ = board.makePromotion<Piece::Queen, false>(from, to, board, eKing);
             nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardQ);
         }
 
         moves = attacks & board.occE;
         Bitloop(moves) {
-            targetSquare = SquareOf(moves);
+            to = SquareOf(moves);
 
-            BoardState newBoardN = board.makePromotion<Piece::Knight, true>(sourceSquare, targetSquare, board, eKing);
+            BoardState newBoardN = board.makePromotion<Piece::Knight, true>(from, to, board, eKing);
             nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardN);
 
-            BoardState newBoardB = board.makePromotion<Piece::Bishop, true>(sourceSquare, targetSquare, board, eKing);
+            BoardState newBoardB = board.makePromotion<Piece::Bishop, true>(from, to, board, eKing);
             nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardB);
 
-            BoardState newBoardR = board.makePromotion<Piece::Rook, true>(sourceSquare, targetSquare, board, eKing);
+            BoardState newBoardR = board.makePromotion<Piece::Rook, true>(from, to, board, eKing);
             nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardR);
 
-            BoardState newBoardQ = board.makePromotion<Piece::Queen, true>(sourceSquare, targetSquare, board, eKing);
+            BoardState newBoardQ = board.makePromotion<Piece::Queen, true>(from, to, board, eKing);
             nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardQ);
         }
     }
@@ -1206,7 +1206,7 @@ namespace movegen {
     template <int depth, bool side, bool wKMoved, bool bKMoved>
     struct PerftGenerator {
         static inline U64 generateMoves(BoardState& board) {
-            int sourceSquare, targetSquare;
+            int from, to;
             U64 bitboard, attacks, pinMask, moves;
 
             U64 nodes = 0ULL;
@@ -1230,18 +1230,18 @@ namespace movegen {
 
                 moves = attacks & ~board.occE;
                 Bitloop(moves) {
-                    targetSquare = SquareOf(moves);
+                    to = SquareOf(moves);
 
-                    BoardState newBoard = board.make<Piece::King, side, false>(kingSquare, targetSquare, board, eKing);
+                    BoardState newBoard = board.make<Piece::King, side, false>(kingSquare, to, board, eKing);
                     if constexpr (side == white)    nodes += PerftGenerator<depth - 1, !side, true, bKMoved>::generateMoves(newBoard);
                     else                            nodes += PerftGenerator<depth - 1, !side, wKMoved, true>::generateMoves(newBoard);
                 }
 
                 moves = attacks & board.occE;
                 Bitloop(moves) {
-                    targetSquare = SquareOf(moves);
+                    to = SquareOf(moves);
 
-                    BoardState newBoard = board.make<Piece::King, side, true>(kingSquare, targetSquare, board, eKing);
+                    BoardState newBoard = board.make<Piece::King, side, true>(kingSquare, to, board, eKing);
                     if constexpr (side == white)    nodes += PerftGenerator<depth - 1, !side, true, bKMoved>::generateMoves(newBoard);
                     else                            nodes += PerftGenerator<depth - 1, !side, wKMoved, true>::generateMoves(newBoard);
                 }
@@ -1258,16 +1258,16 @@ namespace movegen {
                            PAWN MOVES
 
                         */
-                        targetSquare = checkSquare;
+                        to = checkSquare;
 
                         //en passant
                         bitboard = board.pM & PASSANT_CAPTURES[board.enPassant] & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
                             if (checkSquare == board.enPassant + PAWN_PUSH[!side]) {
-                                BoardState newBoard = board.makeEnPassant<side>(sourceSquare, board.enPassant, board, eKing);
+                                BoardState newBoard = board.makeEnPassant<side>(from, board.enPassant, board, eKing);
                                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                             }
                         }
@@ -1275,21 +1275,21 @@ namespace movegen {
                         bitboard = board.pM & PROMO_RANKS[side] & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = PAWN_CAPTURES[side][sourceSquare] & board.checks;
+                            attacks = PAWN_CAPTURES[side][from] & board.checks;
                             if (attacks)
                             {
-                                BoardState newBoardN = board.makePromotion<Piece::Knight, true>(sourceSquare, targetSquare, board, eKing);
+                                BoardState newBoardN = board.makePromotion<Piece::Knight, true>(from, to, board, eKing);
                                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardN);
 
-                                BoardState newBoardB = board.makePromotion<Piece::Bishop, true>(sourceSquare, targetSquare, board, eKing);
+                                BoardState newBoardB = board.makePromotion<Piece::Bishop, true>(from, to, board, eKing);
                                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardB);
 
-                                BoardState newBoardR = board.makePromotion<Piece::Rook, true>(sourceSquare, targetSquare, board, eKing);
+                                BoardState newBoardR = board.makePromotion<Piece::Rook, true>(from, to, board, eKing);
                                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardR);
 
-                                BoardState newBoardQ = board.makePromotion<Piece::Queen, true>(sourceSquare, targetSquare, board, eKing);
+                                BoardState newBoardQ = board.makePromotion<Piece::Queen, true>(from, to, board, eKing);
                                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardQ);
                             }
                         }
@@ -1297,12 +1297,12 @@ namespace movegen {
                         bitboard = board.pM & ~PROMO_RANKS[side] & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = PAWN_CAPTURES[side][sourceSquare] & board.checks;
+                            attacks = PAWN_CAPTURES[side][from] & board.checks;
                             if (attacks)
                             {
-                                BoardState newBoard = board.make<Piece::Pawn, side, true>(sourceSquare, targetSquare, board, eKing);
+                                BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, eKing);
                                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                             }
                         }
@@ -1315,11 +1315,11 @@ namespace movegen {
                         bitboard = board.nM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getKnightAttacks(sourceSquare) & board.checks;
+                            attacks = getKnightAttacks(from) & board.checks;
                             if (attacks) {
-                                BoardState newBoard = board.make<Piece::Knight, side, true>(sourceSquare, targetSquare, board, eKing);
+                                BoardState newBoard = board.make<Piece::Knight, side, true>(from, to, board, eKing);
                                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                             }
                         }
@@ -1332,11 +1332,11 @@ namespace movegen {
                         bitboard = board.bM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getBishopAttacks(sourceSquare, board.occB) & board.checks;
+                            attacks = getBishopAttacks(from, board.occB) & board.checks;
                             if (attacks) {
-                                BoardState newBoard = board.make<Piece::Bishop, side, true>(sourceSquare, targetSquare, board, eKing);
+                                BoardState newBoard = board.make<Piece::Bishop, side, true>(from, to, board, eKing);
                                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                             }
                         }
@@ -1349,11 +1349,11 @@ namespace movegen {
                         bitboard = board.rM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getRookAttacks(sourceSquare, board.occB) & board.checks;
+                            attacks = getRookAttacks(from, board.occB) & board.checks;
                             if (attacks) {
-                                BoardState newBoard = board.make<Piece::Rook, side, true>(sourceSquare, targetSquare, board, eKing);
+                                BoardState newBoard = board.make<Piece::Rook, side, true>(from, to, board, eKing);
                                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                             }
                         }
@@ -1366,11 +1366,11 @@ namespace movegen {
                         bitboard = board.qM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getQueenAttacks(sourceSquare, board.occB) & board.checks;
+                            attacks = getQueenAttacks(from, board.occB) & board.checks;
                             if (attacks) {
-                                BoardState newBoard = board.make<Piece::Queen, side, true>(sourceSquare, targetSquare, board, eKing);
+                                BoardState newBoard = board.make<Piece::Queen, side, true>(from, to, board, eKing);
                                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                             }
                         }
@@ -1389,19 +1389,19 @@ namespace movegen {
                         bitboard = board.pM & PROMO_RANKS[side] & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getPawnAttacks<side>(sourceSquare, board.occB, board.occE) & validSquares;
-                            makePromotionMoves<depth, side, wKMoved, bKMoved>(nodes, attacks, sourceSquare, board, eKing);
+                            attacks = getPawnAttacks<side>(from, board.occB, board.occE) & validSquares;
+                            makePromotionMoves<depth, side, wKMoved, bKMoved>(nodes, attacks, from, board, eKing);
                         }
 
                         bitboard = board.pM & ~PROMO_RANKS[side] & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getPawnAttacks<side>(sourceSquare, board.occB, board.occE) & validSquares;
-                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Pawn>(nodes, attacks, sourceSquare, board, eKing);
+                            attacks = getPawnAttacks<side>(from, board.occB, board.occE) & validSquares;
+                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Pawn>(nodes, attacks, from, board, eKing);
                         }
 
                         /*
@@ -1412,10 +1412,10 @@ namespace movegen {
                         bitboard = board.nM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getKnightAttacks(sourceSquare) & validSquares;
-                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Knight>(nodes, attacks, sourceSquare, board, eKing);
+                            attacks = getKnightAttacks(from) & validSquares;
+                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Knight>(nodes, attacks, from, board, eKing);
                         }
 
                         /*
@@ -1426,10 +1426,10 @@ namespace movegen {
                         bitboard = board.bM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getBishopAttacks(sourceSquare, board.occB) & validSquares;
-                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Bishop>(nodes, attacks, sourceSquare, board, eKing);
+                            attacks = getBishopAttacks(from, board.occB) & validSquares;
+                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Bishop>(nodes, attacks, from, board, eKing);
                         }
 
                         /*
@@ -1440,10 +1440,10 @@ namespace movegen {
                         bitboard = board.rM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getRookAttacks(sourceSquare, board.occB) & validSquares;
-                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Rook>(nodes, attacks, sourceSquare, board, eKing);
+                            attacks = getRookAttacks(from, board.occB) & validSquares;
+                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Rook>(nodes, attacks, from, board, eKing);
                         }
 
                         /*
@@ -1454,10 +1454,10 @@ namespace movegen {
                         bitboard = board.qM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getQueenAttacks(sourceSquare, board.occB) & validSquares;
-                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, sourceSquare, board, eKing);
+                            attacks = getQueenAttacks(from, board.occB) & validSquares;
+                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, from, board, eKing);
                         }
                     }
                 }
@@ -1475,16 +1475,16 @@ namespace movegen {
             //en passant
             bitboard = PASSANT_CAPTURES[board.enPassant] & board.pM & ~allPins;
             Bitloop(bitboard) {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
                 if constexpr ((side == white && wKMoved) || (side == black && bKMoved)) {
-                    if ((1ULL << board.enPassant) & passantPinMask<side>(board.enPassant, sourceSquare, board.occB, board.kM, board.rE, board.qE, kingSquare)) {
-                        BoardState newBoard = board.makeEnPassant<side>(sourceSquare, board.enPassant, board, eKing);
+                    if ((1ULL << board.enPassant) & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kingSquare)) {
+                        BoardState newBoard = board.makeEnPassant<side>(from, board.enPassant, board, eKing);
                         nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                     }
                 }
                 else {
-                    BoardState newBoard = board.makeEnPassant<side>(sourceSquare, board.enPassant, board, eKing);
+                    BoardState newBoard = board.makeEnPassant<side>(from, board.enPassant, board, eKing);
                     nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                 }
             }
@@ -1492,36 +1492,36 @@ namespace movegen {
             bitboard = board.pM & PROMO_RANKS[side] & ~allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
-                attacks = getPawnAttacks<side>(sourceSquare, board.occB, board.occE) & ~board.occM;
-                makePromotionMoves<depth, side, wKMoved, bKMoved>(nodes, attacks, sourceSquare, board, eKing);
+                attacks = getPawnAttacks<side>(from, board.occB, board.occE) & ~board.occM;
+                makePromotionMoves<depth, side, wKMoved, bKMoved>(nodes, attacks, from, board, eKing);
             }
 
             bitboard = board.pM & ~PROMO_RANKS[side] & ~allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
-                attacks = getPawnAttacks<side>(sourceSquare, board.occB, board.occE) & ~board.occM;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Pawn>(nodes, attacks, sourceSquare, board, eKing);
+                attacks = getPawnAttacks<side>(from, board.occB, board.occE) & ~board.occM;
+                makeMoves<depth, side, wKMoved, bKMoved, Piece::Pawn>(nodes, attacks, from, board, eKing);
             }
 
             //en passant
             bitboard = PASSANT_CAPTURES[board.enPassant] & board.pM & allPins;
             Bitloop(bitboard) {
-                sourceSquare = SquareOf(bitboard);
-                pinMask = validAttacksMasks[depth][sourceSquare];
+                from = SquareOf(bitboard);
+                pinMask = validAttacksMasks[depth][from];
 
                 if constexpr ((side == white && wKMoved) || (side == black && bKMoved)) {
-                    if ((1ULL << board.enPassant) & pinMask & passantPinMask<side>(board.enPassant, sourceSquare, board.occB, board.kM, board.rE, board.qE, kingSquare)) {
-                        BoardState newBoard = board.makeEnPassant<side>(sourceSquare, board.enPassant, board, eKing);
+                    if ((1ULL << board.enPassant) & pinMask & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kingSquare)) {
+                        BoardState newBoard = board.makeEnPassant<side>(from, board.enPassant, board, eKing);
                         nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                     }
                 }
                 else {
                     if ((1ULL << board.enPassant) & pinMask) {
-                        BoardState newBoard = board.makeEnPassant<side>(sourceSquare, board.enPassant, board, eKing);
+                        BoardState newBoard = board.makeEnPassant<side>(from, board.enPassant, board, eKing);
                         nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                     }
                 }
@@ -1530,21 +1530,21 @@ namespace movegen {
             bitboard = board.pM & PROMO_RANKS[side] & allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
-                pinMask = validAttacksMasks[depth][sourceSquare];
+                from = SquareOf(bitboard);
+                pinMask = validAttacksMasks[depth][from];
 
-                attacks = getPawnAttacks<side>(sourceSquare, board.occB, board.occE) & ~board.occM & pinMask;
-                makePromotionMoves<depth, side, wKMoved, bKMoved>(nodes, attacks, sourceSquare, board, eKing);
+                attacks = getPawnAttacks<side>(from, board.occB, board.occE) & ~board.occM & pinMask;
+                makePromotionMoves<depth, side, wKMoved, bKMoved>(nodes, attacks, from, board, eKing);
             }
 
             bitboard = board.pM & ~PROMO_RANKS[side] & allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
-                pinMask = validAttacksMasks[depth][sourceSquare];
+                from = SquareOf(bitboard);
+                pinMask = validAttacksMasks[depth][from];
 
-                attacks = getPawnAttacks<side>(sourceSquare, board.occB, board.occE) & ~board.occM & pinMask;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Pawn>(nodes, attacks, sourceSquare, board, eKing);
+                attacks = getPawnAttacks<side>(from, board.occB, board.occE) & ~board.occM & pinMask;
+                makeMoves<depth, side, wKMoved, bKMoved, Piece::Pawn>(nodes, attacks, from, board, eKing);
             }
 
             /*
@@ -1555,10 +1555,10 @@ namespace movegen {
             bitboard = board.nM & ~allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
-                attacks = getKnightAttacks(sourceSquare) & ~board.occM;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Knight>(nodes, attacks, sourceSquare, board, eKing);
+                attacks = getKnightAttacks(from) & ~board.occM;
+                makeMoves<depth, side, wKMoved, bKMoved, Piece::Knight>(nodes, attacks, from, board, eKing);
             }
 
             /*
@@ -1569,20 +1569,20 @@ namespace movegen {
             bitboard = board.bM & ~allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
-                attacks = getBishopAttacks(sourceSquare, board.occB) & ~board.occM;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Bishop>(nodes, attacks, sourceSquare, board, eKing);
+                attacks = getBishopAttacks(from, board.occB) & ~board.occM;
+                makeMoves<depth, side, wKMoved, bKMoved, Piece::Bishop>(nodes, attacks, from, board, eKing);
             }
 
             bitboard = board.bM & allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
-                pinMask = validAttacksMasks[depth][sourceSquare];
+                from = SquareOf(bitboard);
+                pinMask = validAttacksMasks[depth][from];
 
-                attacks = getBishopAttacks(sourceSquare, board.occB) & ~board.occM & pinMask;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Bishop>(nodes, attacks, sourceSquare, board, eKing);
+                attacks = getBishopAttacks(from, board.occB) & ~board.occM & pinMask;
+                makeMoves<depth, side, wKMoved, bKMoved, Piece::Bishop>(nodes, attacks, from, board, eKing);
             }
 
             /*
@@ -1593,20 +1593,20 @@ namespace movegen {
             bitboard = board.rM & ~allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
-                attacks = getRookAttacks(sourceSquare, board.occB) & ~board.occM;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Rook>(nodes, attacks, sourceSquare, board, eKing);
+                attacks = getRookAttacks(from, board.occB) & ~board.occM;
+                makeMoves<depth, side, wKMoved, bKMoved, Piece::Rook>(nodes, attacks, from, board, eKing);
             }
 
             bitboard = board.rM & allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
-                pinMask = validAttacksMasks[depth][sourceSquare];
+                from = SquareOf(bitboard);
+                pinMask = validAttacksMasks[depth][from];
 
-                attacks = getRookAttacks(sourceSquare, board.occB) & ~board.occM & pinMask;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Rook>(nodes, attacks, sourceSquare, board, eKing);
+                attacks = getRookAttacks(from, board.occB) & ~board.occM & pinMask;
+                makeMoves<depth, side, wKMoved, bKMoved, Piece::Rook>(nodes, attacks, from, board, eKing);
             }
 
             /*
@@ -1617,20 +1617,20 @@ namespace movegen {
             bitboard = board.qM & ~allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
-                attacks = getQueenAttacks(sourceSquare, board.occB) & ~board.occM;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, sourceSquare, board, eKing);
+                attacks = getQueenAttacks(from, board.occB) & ~board.occM;
+                makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, from, board, eKing);
             }
 
             bitboard = board.qM & allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
-                pinMask = validAttacksMasks[depth][sourceSquare];
+                from = SquareOf(bitboard);
+                pinMask = validAttacksMasks[depth][from];
 
-                attacks = getQueenAttacks(sourceSquare, board.occB) & ~board.occM & pinMask;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, sourceSquare, board, eKing);
+                attacks = getQueenAttacks(from, board.occB) & ~board.occM & pinMask;
+                makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, from, board, eKing);
             }
 
             /*
@@ -1643,18 +1643,18 @@ namespace movegen {
             filterKingAttacks<side, wKMoved, bKMoved>(board.occM, board.occB, kingSquare, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, eKing, mask);
             moves = attacks & ~board.occE;
             Bitloop(moves) {
-                targetSquare = SquareOf(moves);
+                to = SquareOf(moves);
 
-                BoardState newBoard = board.make<Piece::King, side, false>(kingSquare, targetSquare, board, eKing);
+                BoardState newBoard = board.make<Piece::King, side, false>(kingSquare, to, board, eKing);
                 if constexpr (side == white)    nodes += PerftGenerator<depth - 1, !side, true, bKMoved>::generateMoves(newBoard);
                 else                            nodes += PerftGenerator < depth - 1, !side, wKMoved, true> ::generateMoves(newBoard);
             }
 
             moves = attacks & board.occE;
             Bitloop(moves) {
-                targetSquare = SquareOf(moves);
+                to = SquareOf(moves);
 
-                BoardState newBoard = board.make<Piece::King, side, true>(kingSquare, targetSquare, board, eKing);
+                BoardState newBoard = board.make<Piece::King, side, true>(kingSquare, to, board, eKing);
                 if constexpr (side == white)    nodes += PerftGenerator<depth - 1, !side, true, bKMoved>::generateMoves(newBoard);
                 else                            nodes += PerftGenerator<depth - 1, !side, wKMoved, true>::generateMoves(newBoard);
             }
@@ -1689,7 +1689,7 @@ namespace movegen {
     template <bool side, bool wKMoved, bool bKMoved>
     struct PerftGenerator<1, side, wKMoved, bKMoved> {
         ForceInline U64 generateMoves(BoardState& board) {
-            int sourceSquare;
+            int from;
             U64 bitboard, attacks, pinMask;
 
             U64 nodes = 0ULL;
@@ -1727,7 +1727,7 @@ namespace movegen {
                         bitboard = board.pM & PASSANT_CAPTURES[board.enPassant] & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
                             nodes += Bitcount(board.checks & (1ULL << (board.enPassant + PAWN_PUSH[!side])));
                         }
@@ -1735,12 +1735,12 @@ namespace movegen {
                         bitboard = board.pM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            /*attacks = PAWN_CAPTURES[side][sourceSquare] & board.checks;
-                            nodes += Bitcount(attacks) * RANK_MULTIPLIER[side][sourceSquare];*/
-                            //nodes += getPawnAttacksCountCheckLeaper<side>(sourceSquare, board.checks);
-                            nodes += PAWN_ATTACK_COUNT_CHECK[SquareOf(PAWN_CAPTURES[side][sourceSquare] & board.checks)];
+                            /*attacks = PAWN_CAPTURES[side][from] & board.checks;
+                            nodes += Bitcount(attacks) * RANK_MULTIPLIER[side][from];*/
+                            //nodes += getPawnAttacksCountCheckLeaper<side>(from, board.checks);
+                            nodes += PAWN_ATTACK_COUNT_CHECK[SquareOf(PAWN_CAPTURES[side][from] & board.checks)];
                         }
 
                         /*
@@ -1751,9 +1751,9 @@ namespace movegen {
                         bitboard = board.nM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getKnightAttacks(sourceSquare) & board.checks;
+                            attacks = getKnightAttacks(from) & board.checks;
                             nodes += Bitcount(attacks);
                         }
 
@@ -1765,9 +1765,9 @@ namespace movegen {
                         bitboard = board.bM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getBishopAttacks(sourceSquare, board.occB) & board.checks;
+                            attacks = getBishopAttacks(from, board.occB) & board.checks;
                             nodes += Bitcount(attacks);
                         }
 
@@ -1779,9 +1779,9 @@ namespace movegen {
                         bitboard = board.rM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getRookAttacks(sourceSquare, board.occB) & board.checks;
+                            attacks = getRookAttacks(from, board.occB) & board.checks;
                             nodes += Bitcount(attacks);
                         }
 
@@ -1793,9 +1793,9 @@ namespace movegen {
                         bitboard = board.qM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getQueenAttacks(sourceSquare, board.occB) & board.checks;
+                            attacks = getQueenAttacks(from, board.occB) & board.checks;
                             nodes += Bitcount(attacks);
                         }
                     }
@@ -1812,10 +1812,10 @@ namespace movegen {
                         bitboard = board.pM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getPawnAttacks<side>(sourceSquare, board.occB, board.occE) & validSquares;
-                            nodes += Bitcount(attacks) * RANK_MULTIPLIER[side][sourceSquare];
+                            attacks = getPawnAttacks<side>(from, board.occB, board.occE) & validSquares;
+                            nodes += Bitcount(attacks) * RANK_MULTIPLIER[side][from];
                         }
 
                         /*
@@ -1826,9 +1826,9 @@ namespace movegen {
                         bitboard = board.nM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getKnightAttacks(sourceSquare) & validSquares;
+                            attacks = getKnightAttacks(from) & validSquares;
                             nodes += Bitcount(attacks);
                         }
 
@@ -1840,9 +1840,9 @@ namespace movegen {
                         bitboard = board.bM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getBishopAttacks(sourceSquare, board.occB) & validSquares;
+                            attacks = getBishopAttacks(from, board.occB) & validSquares;
                             nodes += Bitcount(attacks);
                         }
 
@@ -1854,9 +1854,9 @@ namespace movegen {
                         bitboard = board.rM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getRookAttacks(sourceSquare, board.occB) & validSquares;
+                            attacks = getRookAttacks(from, board.occB) & validSquares;
                             nodes += Bitcount(attacks);
                         }
 
@@ -1868,9 +1868,9 @@ namespace movegen {
                         bitboard = board.qM & ~allPins;
                         Bitloop(bitboard)
                         {
-                            sourceSquare = SquareOf(bitboard);
+                            from = SquareOf(bitboard);
 
-                            attacks = getQueenAttacks(sourceSquare, board.occB) & validSquares;
+                            attacks = getQueenAttacks(from, board.occB) & validSquares;
                             nodes += Bitcount(attacks);
                         }
                     }
@@ -1890,34 +1890,34 @@ namespace movegen {
             U64 passant = PASSANT_CAPTURES[board.enPassant] & board.pM;
             bitboard = passant & ~allPins;
             Bitloop(bitboard) {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
-                nodes += Bitcount((1ULL << board.enPassant) & passantPinMask<side>(board.enPassant, sourceSquare, board.occB, board.kM, board.rE, board.qE, kingSquare));
+                nodes += Bitcount((1ULL << board.enPassant) & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kingSquare));
             }
 
             bitboard = passant & allPins;
             Bitloop(bitboard) {
-                sourceSquare = SquareOf(bitboard);
-                pinMask = validAttacksMasks[1][sourceSquare];
+                from = SquareOf(bitboard);
+                pinMask = validAttacksMasks[1][from];
 
-                nodes += Bitcount((1ULL << board.enPassant) & pinMask & passantPinMask<side>(board.enPassant, sourceSquare, board.occB, board.kM, board.rE, board.qE, kingSquare));
+                nodes += Bitcount((1ULL << board.enPassant) & pinMask & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kingSquare));
             }
 
             bitboard = board.pM & ~allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
-                nodes += getPawnAttacksCount<side>(sourceSquare, board.occB, board.occM);
+                nodes += getPawnAttacksCount<side>(from, board.occB, board.occM);
             }
 
             bitboard = board.pM & allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
-                pinMask = validAttacksMasks[1][sourceSquare];
+                from = SquareOf(bitboard);
+                pinMask = validAttacksMasks[1][from];
 
-                nodes += getPawnAttacksCountPinned<side>(sourceSquare, board.occB, board.occE, pinMask);
+                nodes += getPawnAttacksCountPinned<side>(from, board.occB, board.occE, pinMask);
             }
 
             /*
@@ -1928,9 +1928,9 @@ namespace movegen {
             bitboard = board.nM & ~allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
-                attacks = getKnightAttacks(sourceSquare) & ~board.occM;
+                attacks = getKnightAttacks(from) & ~board.occM;
                 nodes += Bitcount(attacks);
             }
 
@@ -1942,19 +1942,19 @@ namespace movegen {
             bitboard = board.bM & ~allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
-                attacks = getBishopAttacks(sourceSquare, board.occB) & ~board.occM;
+                attacks = getBishopAttacks(from, board.occB) & ~board.occM;
                 nodes += Bitcount(attacks);
             }
 
             bitboard = board.bM & allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
-                pinMask = validAttacksMasks[1][sourceSquare];
+                from = SquareOf(bitboard);
+                pinMask = validAttacksMasks[1][from];
 
-                attacks = getBishopAttacks(sourceSquare, board.occB) & ~board.occM & pinMask;
+                attacks = getBishopAttacks(from, board.occB) & ~board.occM & pinMask;
                 nodes += Bitcount(attacks);
             }
 
@@ -1966,19 +1966,19 @@ namespace movegen {
             bitboard = board.rM & ~allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
-                attacks = getRookAttacks(sourceSquare, board.occB) & ~board.occM;
+                attacks = getRookAttacks(from, board.occB) & ~board.occM;
                 nodes += Bitcount(attacks);
             }
 
             bitboard = board.rM & allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
-                pinMask = validAttacksMasks[1][sourceSquare];
+                from = SquareOf(bitboard);
+                pinMask = validAttacksMasks[1][from];
 
-                attacks = getRookAttacks(sourceSquare, board.occB) & ~board.occM & pinMask;
+                attacks = getRookAttacks(from, board.occB) & ~board.occM & pinMask;
                 nodes += Bitcount(attacks);
             }
 
@@ -1990,19 +1990,19 @@ namespace movegen {
             bitboard = board.qM & ~allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
+                from = SquareOf(bitboard);
 
-                attacks = getQueenAttacks(sourceSquare, board.occB) & ~board.occM;
+                attacks = getQueenAttacks(from, board.occB) & ~board.occM;
                 nodes += Bitcount(attacks);
             }
 
             bitboard = board.qM & allPins;
             Bitloop(bitboard)
             {
-                sourceSquare = SquareOf(bitboard);
-                pinMask = validAttacksMasks[1][sourceSquare];
+                from = SquareOf(bitboard);
+                pinMask = validAttacksMasks[1][from];
 
-                attacks = getQueenAttacks(sourceSquare, board.occB) & ~board.occM & pinMask;
+                attacks = getQueenAttacks(from, board.occB) & ~board.occM & pinMask;
                 nodes += Bitcount(attacks);
             }
 
