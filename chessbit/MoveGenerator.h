@@ -516,21 +516,15 @@ namespace movegen {
 
     template <bool side, bool wKMoved, bool bKMoved>
     ForceInline void filterKingAttacks(U64 occM, U64 occB, int kMS, U64& kingAttacks, U64& castleAttacks, U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, int kES, U64 mask) {
-        U64 attacks;
+        U64 attacks = 0ULL;
         if constexpr ((side == white && !wKMoved) || (side == black && !bKMoved)) {
-            attacks = getPawnKingAttacksCastle<side>(pE);
-            castleAttacks |= ~attacks;
+            attacks |= ~getPawnKingAttacksCastle<side>(pE);
         }
         else {
-            attacks = getPawnKingAttacks<!side>(kMS, pE);
+            attacks |= ~getPawnKingAttacks<!side>(kMS, pE);
         }
-        kingAttacks &= attacks;
 
-        attacks = getKingAttacks(kES);
-        kingAttacks &= ~attacks;
-        if constexpr ((side == white && !wKMoved) || (side == black && !bKMoved)) {
-            castleAttacks |= attacks;
-        }
+        attacks |= getKingAttacks(kES);
 
         //remove king to avoid collisions, as it should not be considered when checking for threats
         PopBit(occB, kMS);
@@ -543,11 +537,7 @@ namespace movegen {
             bitboard = nE & KNIGHT_ATTACK_ZONES[kMS];
         }
         Bitloop(bitboard) {
-            attacks = getKnightAttacks(SquareOf(bitboard));
-            kingAttacks &= ~attacks;
-            if constexpr ((side == white && !wKMoved) || (side == black && !bKMoved)) {
-                castleAttacks |= attacks;
-            }
+            attacks |= getKnightAttacks(SquareOf(bitboard));
         }
 
         if constexpr ((side == white && !wKMoved) || (side == black && !bKMoved)) {
@@ -557,11 +547,7 @@ namespace movegen {
             bitboard = (bE | qE) & getBishopAttackZone(kMS, occM, mask);
         }
         Bitloop(bitboard) {
-            attacks = getBishopAttacks(SquareOf(bitboard), occB);
-            kingAttacks &= ~attacks;
-            if constexpr ((side == white && !wKMoved) || (side == black && !bKMoved)) {
-                castleAttacks |= attacks;
-            }
+            attacks |= getBishopAttacks(SquareOf(bitboard), occB);
         }
 
         if constexpr ((side == white && !wKMoved) || (side == black && !bKMoved)) {
@@ -571,11 +557,13 @@ namespace movegen {
             bitboard = (rE | qE) & getRookAttackZone(kMS, occM, mask);
         }
         Bitloop(bitboard) {
-            attacks = getRookAttacks(SquareOf(bitboard), occB);
-            kingAttacks &= ~attacks;
-            if constexpr ((side == white && !wKMoved) || (side == black && !bKMoved)) {
-                castleAttacks |= attacks;
-            }
+            attacks |= getRookAttacks(SquareOf(bitboard), occB);
+        }
+
+        kingAttacks &= ~attacks;
+
+        if constexpr ((side == white && !wKMoved) || (side == black && !bKMoved)) {
+            castleAttacks = attacks;
         }
     }
 
