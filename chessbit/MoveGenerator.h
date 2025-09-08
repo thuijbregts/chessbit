@@ -1152,8 +1152,7 @@ namespace movegen {
             to = SquareOf(moves);
 
             BoardState newBoard = board.make<piece, side, false>(from, to, board, eKing);
-            if constexpr (piece == Piece::Pawn) nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
-            else                                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
         }
 
         moves = attacks & board.occE;
