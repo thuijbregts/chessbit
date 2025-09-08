@@ -629,14 +629,14 @@ U64 Cui::generateMoves(int depth) {
 	BoardState board = BoardState(pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE, occupancies[side], occupancies[!side], occupancies[both], checks, castlingPermissions, enPassant);
 
 	switch (depth) {
-	case 18: return PerftGenerator<18, side, wKMoved, bKMoved>::generateMoves(board);
+	/*case 18: return PerftGenerator<18, side, wKMoved, bKMoved>::generateMoves(board);
 	case 17: return PerftGenerator<17, side, wKMoved, bKMoved>::generateMoves(board);
 	case 16: return PerftGenerator<16, side, wKMoved, bKMoved>::generateMoves(board);
 	case 15: return PerftGenerator<15, side, wKMoved, bKMoved>::generateMoves(board);
 	case 14: return PerftGenerator<14, side, wKMoved, bKMoved>::generateMoves(board);
 	case 13: return PerftGenerator<13, side, wKMoved, bKMoved>::generateMoves(board);
 	case 12: return PerftGenerator<12, side, wKMoved, bKMoved>::generateMoves(board);
-	case 11: return PerftGenerator<11, side, wKMoved, bKMoved>::generateMoves(board);
+	case 11: return PerftGenerator<11, side, wKMoved, bKMoved>::generateMoves(board);*/
 	case 10: return PerftGenerator<10, side, wKMoved, bKMoved>::generateMoves(board);
 	case 9: return PerftGenerator<9, side, wKMoved, bKMoved>::generateMoves(board);
 	case 8: return PerftGenerator<8, side, wKMoved, bKMoved>::generateMoves(board);
