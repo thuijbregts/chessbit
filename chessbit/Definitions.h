@@ -26,7 +26,7 @@ namespace defs {
 #define MoveBit(X, F, T) (X ^= 1ULL << F | 1ULL << T)// faster than U64 matrix
 
 //#define ForceInline inline static
-#define ForceInline __forceinline static constexpr
+#define ForceInline __forceinline static
 #define Inline inline static
 
 	enum Pieces { p, n, b, r, q, k, noPiece };

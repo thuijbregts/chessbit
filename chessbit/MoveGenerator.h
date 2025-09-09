@@ -217,7 +217,7 @@ namespace movegen {
         }
 
         template <int castlingSide>
-        ForceInline U64 rookSwitch() {
+        ForceInline constexpr U64 rookSwitch() {
             if constexpr (castlingSide == 0) return 0xa000000000000000;
             if constexpr (castlingSide == 1) return 0x900000000000000;
             if constexpr (castlingSide == 2) return 0xa0;
@@ -225,7 +225,7 @@ namespace movegen {
         }
 
         template <int castlingSide>
-        ForceInline U64 kingSwitch() {
+        ForceInline constexpr U64 kingSwitch() {
             if constexpr (castlingSide == 0) return 0x5000000000000000;
             if constexpr (castlingSide == 1) return 0x1400000000000000;
             if constexpr (castlingSide == 2) return 0x50;
@@ -233,7 +233,7 @@ namespace movegen {
         }
 
         template <int castlingSide>
-        ForceInline U64 bothSwitch() {
+        ForceInline constexpr U64 bothSwitch() {
             if constexpr (castlingSide == 0) return 0xa000000000000000 | 0x5000000000000000;
             if constexpr (castlingSide == 1) return 0x900000000000000 | 0x1400000000000000;
             if constexpr (castlingSide == 2) return 0xa0 | 0x50;
@@ -1160,6 +1160,7 @@ namespace movegen {
                 BoardState empty = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                 PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(empty);
             }
+            
         }
 
         moves = attacks & board.occE;
