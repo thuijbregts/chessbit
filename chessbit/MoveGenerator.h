@@ -72,6 +72,9 @@ namespace movegen {
         const U64 qE;
         const U64 kE;
 
+        const U64 kMA;
+        const U64 kEA;
+
         const U64 occM;
         const U64 occE;
         const U64 occB;
@@ -83,10 +86,12 @@ namespace movegen {
         constexpr BoardState(
             U64 pM, U64 nM, U64 bM, U64 rM, U64 qM, U64 kM,
             U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, U64 kE,
+            U64 kMA, U64 kEA,
             U64 occM, U64 occE, U64 occB,
             U64 checks, int casPerms, int enPassant) :
             pM(pM), nM(nM), bM(bM), rM(rM), qM(qM), kM(kM),
             pE(pE), nE(nE), bE(bE), rE(rE), qE(qE), kE(kE),
+            kMA(kMA), kEA(kEA),
             occM(occM),
             occE(occE),
             occB(occB),
@@ -141,14 +146,16 @@ namespace movegen {
 
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, kES);
-                return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, occE, occM, occB, checks, casPerms, noSquare);
+                if constexpr (Piece::King == piece)         return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare);
+                else                                        return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare);
             }
             else {
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, kES);
 
-                if constexpr (Piece::Pawn == piece)  return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, occE, occM, occB, checks, board.casPerms, EN_PASSANT_SQUARES[from][to]);
-                else return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, occE, occM, occB, checks, casPerms, noSquare);
+                if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare);
+                else if constexpr (Piece::Pawn == piece)    return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, EN_PASSANT_SQUARES[from][to]);
+                else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare);
             }
         }
 
@@ -182,12 +189,12 @@ namespace movegen {
 
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, kES);
-                return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, occE, occM, occB, checks, casPerms, noSquare);
+                return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare);
             }
             else {
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, kES);
-                return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, occE, occM, occB, checks, board.casPerms, noSquare);
+                return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare);
             }
         }
 
@@ -206,7 +213,7 @@ namespace movegen {
 
             const U64 checks = (PAWN_CAPTURES[!side][kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, kES);
 
-            return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, occE, occM, occB, checks, board.casPerms, noSquare);
+            return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare);
         }
 
         template <int castlingSide>
@@ -243,7 +250,9 @@ namespace movegen {
 
             const U64 checks = getRookAttacks(kES, occB) & rM;
 
-            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.occE, occM, occB, checks, board.casPerms, noSquare);
+            const int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
+
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kEA, getKingAttacks(to), board.occE, occM, occB, checks, board.casPerms, noSquare);
         }
     };
 
@@ -515,7 +524,7 @@ namespace movegen {
     }
 
     template <bool side, bool wKMoved, bool bKMoved>
-    ForceInline void filterKingAttacks(U64 occM, U64 occB, int kMS, U64& kingAttacks, U64& castleAttacks, U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, int kES, U64 mask) {
+    ForceInline void filterKingAttacks(U64 occM, U64 occB, int kMS, U64& kingAttacks, U64& castleAttacks, U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, U64 kEA, U64 mask) {
         U64 attacks = 0ULL;
         if constexpr ((side == white && !wKMoved) || (side == black && !bKMoved)) {
             attacks |= ~getPawnKingAttacksCastle<side>(pE);
@@ -524,7 +533,7 @@ namespace movegen {
             attacks |= ~getPawnKingAttacks<!side>(kMS, pE);
         }
 
-        attacks |= getKingAttacks(kES);
+        attacks |= kEA;
 
         //remove king to avoid collisions, as it should not be considered when checking for threats
         PopBit(occB, kMS);
@@ -624,6 +633,7 @@ namespace movegen {
 
         int kMS = SquareOf(pieces[side][k]);
         int kES = SquareOf(pieces[!side][k]);
+
         if (checks) {
 
             /*
@@ -635,7 +645,7 @@ namespace movegen {
             U64 mask = getKingAttacks(kMS);
             //inverted PIN_MASKS, because the king cannot move in the attack ray of the check pieces
             attacks = mask & ~occupancies[side] & ~PIN_MASKS[checkSquare][kMS] & ~PIN_MASKS[Ms1b(checks)][kMS];
-            filterKingAttacks<side, true, true>(occupancies[side], occupancies[both], kMS, attacks, castleAttacks, pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], kES, mask);
+            filterKingAttacks<side, true, true>(occupancies[side], occupancies[both], kMS, attacks, castleAttacks, pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], getKingAttacks(kES), mask);
             Bitloop(attacks)
             {
                 to = SquareOf(attacks);
@@ -1099,7 +1109,7 @@ namespace movegen {
         */
         U64 mask = getKingAttacks(kMS);
         attacks = mask & ~occupancies[side];
-        filterKingAttacks<side, wKMoved, bKMoved>(occupancies[side], occupancies[both], kMS, attacks, castleAttacks, pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], kES, mask);
+        filterKingAttacks<side, wKMoved, bKMoved>(occupancies[side], occupancies[both], kMS, attacks, castleAttacks, pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], getKingAttacks(kES), mask);
         Bitloop(attacks)
         {
             to = SquareOf(attacks);
@@ -1147,7 +1157,7 @@ namespace movegen {
             else {
                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
 
-                BoardState empty = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                BoardState empty = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                 PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(empty);
             }
         }
@@ -1164,7 +1174,7 @@ namespace movegen {
             else {
                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
 
-                BoardState empty = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                BoardState empty = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                 PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(empty);
             }
         }
@@ -1229,10 +1239,10 @@ namespace movegen {
                 */
                 int checkSquare = SquareOf(board.checks);
 
-                U64 mask = getKingAttacks(kMS);
+                U64 mask = board.kMA;
                 //inverted PIN_MASKS, because the king cannot move in the attack ray of the check pieces
                 attacks = mask & ~board.occM & ~PIN_MASKS[checkSquare][kMS] & ~PIN_MASKS[Ms1b(board.checks)][kMS];
-                filterKingAttacks<side, true, true>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, kES, mask);
+                filterKingAttacks<side, true, true>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
                 makeMoves<depth, side, wKMoved, bKMoved, Piece::King>(nodes, attacks, kMS, board, kES);
 
                 //if there is no second check, we need to check for other pieces
@@ -1613,9 +1623,9 @@ namespace movegen {
                KING MOVES
 
             */
-            U64 mask = getKingAttacks(kMS);
+            U64 mask = board.kMA;
             attacks = mask & ~board.occM;
-            filterKingAttacks<side, wKMoved, bKMoved>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, kES, mask);
+            filterKingAttacks<side, wKMoved, bKMoved>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
             makeMoves<depth, side, wKMoved, bKMoved, Piece::King>(nodes, attacks, kMS, board, kES);
 
             if constexpr ((side == white && !wKMoved)) {
@@ -1655,8 +1665,7 @@ namespace movegen {
             U64 castleAttacks = 0ULL;
 
             int kMS = SquareOf(board.kM);
-            int kES = SquareOf(board.kE);
-
+   
             if (board.checks) {
                 /*
 
@@ -1665,10 +1674,10 @@ namespace movegen {
                 */
 
                 int checkSquare = SquareOf(board.checks);
-                U64 mask = getKingAttacks(kMS);
+                U64 mask = board.kMA;
                 //inverted PIN_MASKS, because the king cannot move in the attack ray of the check pieces
                 attacks = mask & ~board.occM & ~PIN_MASKS[checkSquare][kMS] & ~PIN_MASKS[Ms1b(board.checks)][kMS];
-                filterKingAttacks<side, true, true>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, kES, mask);
+                filterKingAttacks<side, true, true>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
                 nodes += Bitcount(attacks);
 
                 //if there is no second check, we need to check for other pieces
@@ -1970,9 +1979,9 @@ namespace movegen {
                KING MOVES
 
             */
-            U64 mask = getKingAttacks(kMS);
+            U64 mask = board.kMA;
             attacks = mask & ~board.occM;
-            filterKingAttacks<side, wKMoved, bKMoved>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, kES, mask);
+            filterKingAttacks<side, wKMoved, bKMoved>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
             nodes += Bitcount(attacks);
 
             if constexpr ((side == white && !wKMoved) || (side == black && !bKMoved)) {

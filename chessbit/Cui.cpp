@@ -525,42 +525,42 @@ void Cui::compare() {
 void Cui::generateMoves(MoveArray& moves) {
 	if (side == white) {
 		switch (castlingPermissions) {
-		case 0b0000: movegen::generateMoves<white, true, true>(moves);
-		case 0b0001: movegen::generateMoves<white, false, true>(moves);
-		case 0b0010: movegen::generateMoves<white, false, true>(moves);
-		case 0b0011: movegen::generateMoves<white, false, true>(moves);
-		case 0b0100: movegen::generateMoves<white, true, false>(moves);
-		case 0b0101: movegen::generateMoves<white, false, false>(moves);
-		case 0b0110: movegen::generateMoves<white, false, false>(moves);
-		case 0b0111: movegen::generateMoves<white, false, false>(moves);
-		case 0b1000: movegen::generateMoves<white, true, false>(moves);
-		case 0b1001: movegen::generateMoves<white, false, false>(moves);
-		case 0b1010: movegen::generateMoves<white, false, false>(moves);
-		case 0b1011: movegen::generateMoves<white, false, false>(moves);
-		case 0b1100: movegen::generateMoves<white, true, false>(moves);
-		case 0b1101: movegen::generateMoves<white, false, false>(moves);
-		case 0b1110: movegen::generateMoves<white, false, false>(moves);
+		case 0b0000: movegen::generateMoves<white, true, true>(moves); break;
+		case 0b0001: movegen::generateMoves<white, false, true>(moves); break;
+		case 0b0010: movegen::generateMoves<white, false, true>(moves); break;
+		case 0b0011: movegen::generateMoves<white, false, true>(moves); break;
+		case 0b0100: movegen::generateMoves<white, true, false>(moves); break;
+		case 0b0101: movegen::generateMoves<white, false, false>(moves); break;
+		case 0b0110: movegen::generateMoves<white, false, false>(moves); break;
+		case 0b0111: movegen::generateMoves<white, false, false>(moves); break;
+		case 0b1000: movegen::generateMoves<white, true, false>(moves); break;
+		case 0b1001: movegen::generateMoves<white, false, false>(moves); break;
+		case 0b1010: movegen::generateMoves<white, false, false>(moves); break;
+		case 0b1011: movegen::generateMoves<white, false, false>(moves); break;
+		case 0b1100: movegen::generateMoves<white, true, false>(moves); break;
+		case 0b1101: movegen::generateMoves<white, false, false>(moves); break;
+		case 0b1110: movegen::generateMoves<white, false, false>(moves); break;
 		default: movegen::generateMoves<white, false, false>(moves);
 		}
 
 	}
 	else {
 		switch (castlingPermissions) {
-		case 0b0000: movegen::generateMoves<black, true, true>(moves);
-		case 0b0001: movegen::generateMoves<black, false, true>(moves);
-		case 0b0010: movegen::generateMoves<black, false, true>(moves);
-		case 0b0011: movegen::generateMoves<black, false, true>(moves);
-		case 0b0100: movegen::generateMoves<black, true, false>(moves);
-		case 0b0101: movegen::generateMoves<black, false, false>(moves);
-		case 0b0110: movegen::generateMoves<black, false, false>(moves);
-		case 0b0111: movegen::generateMoves<black, false, false>(moves);
-		case 0b1000: movegen::generateMoves<black, true, false>(moves);
-		case 0b1001: movegen::generateMoves<black, false, false>(moves);
-		case 0b1010: movegen::generateMoves<black, false, false>(moves);
-		case 0b1011: movegen::generateMoves<black, false, false>(moves);
-		case 0b1100: movegen::generateMoves<black, true, false>(moves);
-		case 0b1101: movegen::generateMoves<black, false, false>(moves);
-		case 0b1110: movegen::generateMoves<black, false, false>(moves);
+		case 0b0000: movegen::generateMoves<black, true, true>(moves); break;
+		case 0b0001: movegen::generateMoves<black, false, true>(moves); break;
+		case 0b0010: movegen::generateMoves<black, false, true>(moves); break;
+		case 0b0011: movegen::generateMoves<black, false, true>(moves); break;
+		case 0b0100: movegen::generateMoves<black, true, false>(moves); break;
+		case 0b0101: movegen::generateMoves<black, false, false>(moves); break;
+		case 0b0110: movegen::generateMoves<black, false, false>(moves); break;
+		case 0b0111: movegen::generateMoves<black, false, false>(moves); break;
+		case 0b1000: movegen::generateMoves<black, true, false>(moves); break;
+		case 0b1001: movegen::generateMoves<black, false, false>(moves); break;
+		case 0b1010: movegen::generateMoves<black, false, false>(moves); break;
+		case 0b1011: movegen::generateMoves<black, false, false>(moves); break;
+		case 0b1100: movegen::generateMoves<black, true, false>(moves); break;
+		case 0b1101: movegen::generateMoves<black, false, false>(moves); break;
+		case 0b1110: movegen::generateMoves<black, false, false>(moves); break;
 		default: movegen::generateMoves<black, false, false>(moves);
 		}
 	}
@@ -626,7 +626,13 @@ U64 Cui::generateMoves(int depth) {
 	U64 qE = game::pieces[!side][q];
 	U64 kE = game::pieces[!side][k];
 
-	BoardState board = BoardState(pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE, occupancies[side], occupancies[!side], occupancies[both], checks, castlingPermissions, enPassant);
+	int kMS = SquareOf(kM);
+	int kES = SquareOf(kE);
+
+	U64 kMA = getKingAttacks(kMS);
+	U64 kEA = getKingAttacks(kES);
+
+	BoardState board = BoardState(pM, nM, bM, rM, qM, kM, pE, nE, bE, rE, qE, kE, kMA, kEA, occupancies[side], occupancies[!side], occupancies[both], checks, castlingPermissions, enPassant);
 
 	switch (depth) {
 	/*case 18: return PerftGenerator<18, side, wKMoved, bKMoved>::generateMoves(board);
