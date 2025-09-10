@@ -107,7 +107,7 @@ namespace movegen {
         }
 
         template <Piece piece, bool side, bool capture>
-        ForceInline BoardState make(int from, int to, BoardState& board, int kES) {
+        ForceInline BoardState make(int from, int to, const BoardState& board, int kES) {
             const U64 move = (1ULL << from) | (1ULL << to);
 
             U64 pM = board.pM;
@@ -160,7 +160,7 @@ namespace movegen {
         }
 
         template <Piece piece, bool capture>
-        ForceInline BoardState makePromotion(int from, int to, BoardState& board, int kES) {
+        ForceInline BoardState makePromotion(int from, int to, const BoardState& board, int kES) {
             const U64 f = (1ULL << from);
             const U64 t = (1ULL << to);
 
@@ -199,7 +199,7 @@ namespace movegen {
         }
 
         template <bool side>
-        ForceInline BoardState makeEnPassant(int from, int to, BoardState& board, int kES) {
+        ForceInline BoardState makeEnPassant(int from, int to, const BoardState& board, int kES) {
             const U64 move = (1ULL << from) | (1ULL << to);
 
             const U64 pM = board.pM ^ move;
@@ -241,7 +241,7 @@ namespace movegen {
         }
 
         template <int castlingSide>
-        ForceInline BoardState makeCastling(BoardState& board, int kES) {
+        ForceInline BoardState makeCastling(const BoardState& board, int kES) {
             const U64 kM = board.kM ^ kingSwitch<castlingSide>();
             const U64 rM = board.rM ^ rookSwitch<castlingSide>();
 
@@ -1142,8 +1142,10 @@ namespace movegen {
     template <int depth, bool side, bool wKMoved, bool bKMoved>
     struct PerftGenerator;
     
+    inline constexpr BoardState empty = BoardState(0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
     template <int depth, bool side, bool wKMoved, bool bKMoved, Piece piece>
-    ForceInline void makeMoves(U64& nodes, U64 attacks, int from, BoardState& board, int kES) {
+    ForceInline void makeMoves(U64& nodes, U64 attacks, int from, const BoardState& board, int kES) {
         int to;
         U64 moves = attacks & ~board.occE;
         Bitloop(moves) {
@@ -1155,10 +1157,8 @@ namespace movegen {
                 else                            nodes += PerftGenerator<depth - 1, !side, wKMoved, true>::generateMoves(newBoard);
             }
             else {
-                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
-
-                BoardState empty = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-                PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(empty);
+                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);                
+                PerftGenerator<depth - 1, !side, false, false>::generateMoves(empty);
             }
             
         }
@@ -1174,15 +1174,13 @@ namespace movegen {
             }
             else {
                 nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
-
-                BoardState empty = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-                PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(empty);
+                PerftGenerator<depth - 1, !side, false, false>::generateMoves(empty);
             }
         }
     }
 
     template <int depth, bool side, bool wKMoved, bool bKMoved>
-    ForceInline void makePromotionMoves(U64& nodes, U64 attacks, int from, BoardState& board, int kES) {
+    ForceInline void makePromotionMoves(U64& nodes, U64 attacks, int from, const BoardState& board, int kES) {
         int to;
         U64 moves = attacks & ~board.occE;
         Bitloop(moves) {
@@ -1221,7 +1219,7 @@ namespace movegen {
 
     template <int depth, bool side, bool wKMoved, bool bKMoved>
     struct PerftGenerator {
-        static inline U64 generateMoves(BoardState& board) {
+        static inline U64 generateMoves(const BoardState& board) {
             if (!board.occB) return 0;
             int from, to;
             U64 bitboard, attacks, pinMask;
@@ -1658,7 +1656,8 @@ namespace movegen {
 
     template <bool side, bool wKMoved, bool bKMoved>
     struct PerftGenerator<1, side, wKMoved, bKMoved> {
-        ForceInline U64 generateMoves(BoardState& board) {
+        ForceInline U64 generateMoves(const BoardState& board) {
+            if (!board.occB) return 0;
             int from;
             U64 bitboard, attacks, pinMask;
 
@@ -1997,8 +1996,8 @@ namespace movegen {
 
             return nodes;
         }
-
     };
+
 }
 
 #endif
