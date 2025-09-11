@@ -38,6 +38,7 @@ private:
 	void test();
 	void perftsuite();
 	void benchmark(string& depth, string& amount);
+	void executeBenchmark(int depth, int amount, bool print);
 	void compare();
 	void generateMoves(MoveArray& moves);
 	U64 generateMovesPerft(int depth);

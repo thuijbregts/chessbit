@@ -412,9 +412,26 @@ void Cui::perftsuite() {
 void Cui::benchmark(string& depth, string& amount) {
 	int d = 6;
 	int a = 25;
+	bool print = true;
 
 	if (depth.length() > 0) {
-		if (utils::isPositiveDigits(depth) && stoi(depth) > 0) {
+		if (depth == "all") {
+			a = 15;
+			print = false;
+			string fen = game::getFen();
+			
+			setFen(StartPosition); cout << StartPosition << endl; executeBenchmark(6, a, print);
+			setFen(KiwiPete); cout << KiwiPete << endl; executeBenchmark(5, a, print);
+			setFen(Pos3); cout << Pos3 << endl; executeBenchmark(7, a, print);
+			setFen(Pos4); cout << Pos4 << endl; executeBenchmark(6, a, print);
+			setFen(Pos5); cout << Pos5 << endl; executeBenchmark(5, a, print);
+			setFen(Pos6); cout << Pos6 << endl; executeBenchmark(5, a, print);
+			setFen(EndGame); cout << EndGame << endl; executeBenchmark(6, a, print);
+
+			game::setFen(fen.c_str());
+			return;
+		}
+		else if (utils::isPositiveDigits(depth) && stoi(depth) > 0) {
 			d = stoi(depth);
 		}
 		else {
@@ -432,18 +449,23 @@ void Cui::benchmark(string& depth, string& amount) {
 			return;
 		}
 	}
+	
+	executeBenchmark(d, a, print);
+}
+
+void Cui::executeBenchmark(int depth, int amount, bool print) {
 	string fen = game::getFen();
 
 	high_resolution_clock::time_point start, end;
 	long long total, best;
 
-	for (int i = 0; i < a; i++) {
+	for (int i = 0; i < amount; i++) {
 		start = high_resolution_clock::now();
-		auto volatile result = generateMovesPerft(d);
+		auto volatile result = generateMovesPerft(depth);
 		end = high_resolution_clock::now();
 
 		total = duration_cast<microseconds>(end - start).count();
-		printf("Time:\t\t%lld\t%llu\n", total / 1000, result);
+		if (print) printf("Time:\t\t%lld\t%llu\n", total / 1000, result);
 		if (i == 0) {
 			best = total;
 		}
