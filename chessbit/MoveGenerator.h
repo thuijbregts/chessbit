@@ -1144,10 +1144,30 @@ namespace movegen {
     
     inline constexpr BoardState empty = BoardState(0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
+    template <int depth, bool side, bool wKMoved, bool bKMoved, Piece piece, bool capture>
+    ForceInline void enumMoves(U64& nodes, U64 moves, int from, const BoardState& board, int kES) {
+        if (moves) {
+            int to = SquareOf(moves);
+
+            BoardState newBoard = board.make<piece, side, capture>(from, to, board, kES);
+            if constexpr (piece == Piece::King) {
+                if constexpr (side == white)    nodes += PerftGenerator<depth - 1, !side, true, bKMoved>::generateMoves(newBoard);
+                else                            nodes += PerftGenerator<depth - 1, !side, wKMoved, true>::generateMoves(newBoard);
+            }
+            else {
+                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                //PerftGenerator<depth - 1, !side, false, false>::generateMoves(empty);
+            }
+
+            enumMoves<depth, side, wKMoved, bKMoved, piece, capture>(nodes, _blsr_u64(moves), from, board, kES);
+        }
+    }
+
     template <int depth, bool side, bool wKMoved, bool bKMoved, Piece piece>
     ForceInline void makeMoves(U64& nodes, U64 attacks, int from, const BoardState& board, int kES) {
         int to;
         U64 moves = attacks & ~board.occE;
+        //enumMoves<depth, side, wKMoved, bKMoved, piece, false>(nodes, moves, from, board, kES);
         Bitloop(moves) {
             to = SquareOf(moves);
 
@@ -1164,6 +1184,7 @@ namespace movegen {
         }
 
         moves = attacks & board.occE;
+        //enumMoves<depth, side, wKMoved, bKMoved, piece, true>(nodes, moves, from, board, kES);
         Bitloop(moves) {
             to = SquareOf(moves);
 
