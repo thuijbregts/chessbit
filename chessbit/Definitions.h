@@ -91,6 +91,9 @@ namespace defs {
 		1, 1, 1, 1, 1, 1, 1, 1
 	};
 
+	constexpr U64 FIRST_COL = 0x101010101010101;
+	constexpr U64 LAST_COL = 0x8080808080808080;
+
 	constexpr U64 RANK_BIT[64] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff00, 0xff00, 0xff00, 0xff00, 0xff00, 0xff00, 0xff00, 0xff00,
@@ -105,6 +108,8 @@ namespace defs {
 	constexpr U64 EN_PASSANT_RANK[2] = {
 		0xff000000, 0xff00000000
 	};
+
+	constexpr U64 FIRST_PUSH_RANK[2] = { 0xff0000000000, 0xff0000 };
 
 	constexpr int FILES[64] = {
 		1, 2, 3, 4, 5, 6, 7, 8,
@@ -220,6 +225,9 @@ namespace defs {
 	};
 
 	constexpr int PAWN_PUSH[2] = { -8, 8 };
+	constexpr int PAWN_DOUBLE_PUSH[2] = { -16, 16 };
+	constexpr int PAWN_LEFT[2] = { -9, 7 };
+	constexpr int PAWN_RIGHT[2] = { -7, 9 };
 	const bool* const PROMO_RANK[2] = { RANK_7, RANK_2 };
 	const bool* const DOUBLE_PUSH_RANK[2] = { RANK_2, RANK_7 };
 
@@ -254,6 +262,10 @@ namespace defs {
 
 	constexpr U64 FIRST_RANKS[2] = {
 		71776119061217280ULL, 65280ULL
+	};
+
+	constexpr U64 LAST_RANKS[2] = {
+		0xff, 0xff00000000000000
 	};
 
 	constexpr U64 MIDDLE_RANKS = 0xffffffff0000;

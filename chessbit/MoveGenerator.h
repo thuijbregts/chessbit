@@ -154,7 +154,6 @@ namespace movegen {
                 checks |= sliderChecks(bM, rM, qM, occB, kES);
 
                 if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare);
-                else if constexpr (Piece::Pawn == piece)    return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, EN_PASSANT_SQUARES[from][to]);
                 else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare);
             }
         }
@@ -196,6 +195,20 @@ namespace movegen {
                 checks |= sliderChecks(bM, rM, qM, occB, kES);
                 return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare);
             }
+        }
+
+        template <bool side>
+        ForceInline BoardState makeDoublePush(int from, int to, const BoardState& board, int kES) {
+            const U64 move = (1ULL << from) | (1ULL << to);
+
+            const U64 pM = board.pM ^ move;
+            const U64 occM = board.occM ^ move;
+
+            const U64 occB = occM | board.occE;
+
+            const U64 checks = (PAWN_CAPTURES[!side][kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, kES);
+
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, from + PAWN_PUSH[side]);
         }
 
         template <bool side>
@@ -632,6 +645,24 @@ namespace movegen {
         return iteratePieces<depth>(((rE | qE) & ROOK_XRAYS[kMS]), occB, kMS);
     }
 
+    template <bool side>
+    ForceInline constexpr U64 pawnsAtkLeft(U64 pM) {
+        if constexpr (side == white) return pM >> 9;
+        return pM << 7;
+    }
+
+    template <bool side>
+    ForceInline constexpr U64 pawnsAtkRight(U64 pM) {
+        if constexpr (side == white) return pM >> 7;
+        return pM << 9;
+    }
+
+    template <bool side>
+    ForceInline constexpr U64 pawnsAtkForward(U64 pM) {
+        if constexpr (side == white) return pM >> 8;
+        return pM << 8;
+    }
+
     template <bool side, bool wKMoved, bool bKMoved>
     static inline void generateMoves(MoveArray& moves) {
         int from, to, deadPiece;
@@ -788,32 +819,53 @@ namespace movegen {
                        PAWN MOVES
 
                     */
-                    bitboard = pieces[side][p] & PROMO_RANKS[side] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
+                    U64 pawns = pieces[side][p] & ~allPins;
 
-                        attacks = getPawnAttacks<side>(from, occupancies[both], occupancies[!side]) & validSquares;
-                        Bitloop(attacks) {
-                            to = SquareOf(attacks);
-                            deadPiece = boardPieces[to];
+                    U64 pawnsLeft = pawnsAtkLeft<side>(pawns & ~FIRST_COL) & occupancies[!side] & validSquares;
+                    U64 pawnsRight = pawnsAtkRight<side>(pawns & ~LAST_COL) & occupancies[!side] & validSquares;
+                    U64 pawnsFwd = pawnsAtkForward<side>(pawns) & ~occupancies[both];
+                    U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~occupancies[both] & validSquares;
+                    //mask after double push, to not ignore possible moves
+                    pawnsFwd &= validSquares;
 
-                            moves.promotion(from, to, deadPiece);
-                        }
+                    if ((pawnsLeft | pawnsRight | pawnsFwd) & LAST_RANKS[side]) {
+                        U64 promosLeft = pawnsLeft & LAST_RANKS[side];
+                        U64 promosRight = pawnsRight & LAST_RANKS[side];
+                        U64 promosFwd = pawnsFwd & LAST_RANKS[side];
+
+                        pawnsLeft ^= promosLeft;
+                        pawnsRight ^= promosRight;
+                        pawnsFwd ^= promosFwd;
+
+                        Bitloop(promosLeft) { to = SquareOf(promosLeft);  from = to + PAWN_RIGHT[!side]; deadPiece = boardPieces[to]; moves.promotion(from, to, deadPiece); }
+                        Bitloop(promosRight) { to = SquareOf(promosRight); from = to + PAWN_LEFT[!side]; deadPiece = boardPieces[to]; moves.promotion(from, to, deadPiece); }
+                        Bitloop(promosFwd) { to = SquareOf(promosFwd);   from = to + PAWN_PUSH[!side];   deadPiece = boardPieces[to]; moves.promotion(from, to, deadPiece); }
                     }
 
-                    bitboard = pieces[side][p] & ~PROMO_RANKS[side] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
+                    Bitloop(pawnsLeft) {
+                        to = SquareOf(pawnsLeft);
+                        from = to + PAWN_RIGHT[!side];
+                        deadPiece = boardPieces[to];
+                        moves.pawn(from, to, deadPiece);
+                    }
 
-                        attacks = getPawnAttacks<side>(from, occupancies[both], occupancies[!side]) & validSquares;
-                        Bitloop(attacks) {
-                            to = SquareOf(attacks);
-                            deadPiece = boardPieces[to];
+                    Bitloop(pawnsRight) {
+                        to = SquareOf(pawnsRight);
+                        from = to + PAWN_LEFT[!side];
+                        deadPiece = boardPieces[to];
+                        moves.pawn(from, to, deadPiece);
+                    }
 
-                            moves.pawn(from, to, deadPiece);
-                        }
+                    Bitloop(pawnsFwd) {
+                        to = SquareOf(pawnsFwd);
+                        from = to + PAWN_PUSH[!side];
+                        moves.pawn(from, to, noPiece);
+                    }
+
+                    Bitloop(pawnsDouble) {
+                        to = SquareOf(pawnsDouble);
+                        from = to + PAWN_DOUBLE_PUSH[!side];
+                        moves.pawn(from, to, noPiece);
                     }
 
                     /*
@@ -916,35 +968,6 @@ namespace movegen {
             }
         }
 
-        bitboard = pieces[side][p] & PROMO_RANKS[side] & ~allPins;
-        Bitloop(bitboard)
-        {
-            from = SquareOf(bitboard);
-
-            attacks = getPawnAttacks<side>(from, occupancies[both], occupancies[!side]);
-            Bitloop(attacks) {
-                to = SquareOf(attacks);
-                deadPiece = boardPieces[to];
-
-                moves.promotion(from, to, deadPiece);
-            }
-        }
-
-        bitboard = pieces[side][p] & ~PROMO_RANKS[side] & ~allPins;
-        Bitloop(bitboard)
-        {
-            from = SquareOf(bitboard);
-
-            attacks = getPawnAttacks<side>(from, occupancies[both], occupancies[!side]);
-            Bitloop(attacks) {
-                to = SquareOf(attacks);
-                deadPiece = boardPieces[to];
-
-                moves.pawn(from, to, deadPiece);
-            }
-        }
-
-        //en passant
         bitboard = PASSANT_CAPTURES[enPassant] & pieces[side][p] & allPins;
         Bitloop(bitboard) {
             from = SquareOf(bitboard);
@@ -955,34 +978,52 @@ namespace movegen {
             }
         }
 
-        bitboard = pieces[side][p] & PROMO_RANKS[side] & allPins;
-        Bitloop(bitboard)
-        {
-            from = SquareOf(bitboard);
-            pinMask = validAttacksMasks[0][from];
+        U64 pawnsAtk = pieces[side][p] & ~rPins;
+        U64 pawnsPush = pieces[side][p] & ~bPins;
 
-            attacks = getPawnAttacks<side>(from, occupancies[both], occupancies[!side]) & pinMask;
-            Bitloop(attacks) {
-                to = SquareOf(attacks);
-                deadPiece = boardPieces[to];
+        U64 pawnsLeft = (pawnsAtkLeft<side>(pawnsAtk & ~bPins & ~FIRST_COL) & occupancies[!side]) | (pawnsAtkLeft<side>(pawnsAtk & bPins & ~FIRST_COL) & occupancies[!side] & bPins);
+        U64 pawnsRight = (pawnsAtkRight<side>(pawnsAtk & ~bPins & ~LAST_COL) & occupancies[!side]) | (pawnsAtkRight<side>(pawnsAtk & bPins & ~LAST_COL) & occupancies[!side] & bPins);
+        U64 pawnsFwd = (pawnsAtkForward<side>(pawnsPush & ~rPins) & ~occupancies[both]) | (pawnsAtkForward<side>(pawnsPush & rPins) & ~occupancies[both] & rPins);
+        U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~occupancies[both];
 
-                moves.promotion(from, to, deadPiece);
-            }
+        if ((pawnsLeft | pawnsRight | pawnsFwd) & LAST_RANKS[side]) {
+            U64 promosLeft = pawnsLeft & LAST_RANKS[side];
+            U64 promosRight = pawnsRight & LAST_RANKS[side];
+            U64 promosFwd = pawnsFwd & LAST_RANKS[side];
+
+            pawnsLeft ^= promosLeft;
+            pawnsRight ^= promosRight;
+            pawnsFwd ^= promosFwd;
+
+            Bitloop(promosLeft) { to = SquareOf(promosLeft);  from = to + PAWN_RIGHT[!side]; deadPiece = boardPieces[to]; moves.promotion(from, to, deadPiece); }
+            Bitloop(promosRight) { to = SquareOf(promosRight); from = to + PAWN_LEFT[!side]; deadPiece = boardPieces[to]; moves.promotion(from, to, deadPiece); }
+            Bitloop(promosFwd) { to = SquareOf(promosFwd);   from = to + PAWN_PUSH[!side];   deadPiece = boardPieces[to]; moves.promotion(from, to, deadPiece); }
         }
 
-        bitboard = pieces[side][p] & ~PROMO_RANKS[side] & allPins;
-        Bitloop(bitboard)
-        {
-            from = SquareOf(bitboard);
-            pinMask = validAttacksMasks[0][from];
+        Bitloop(pawnsLeft) {
+            to = SquareOf(pawnsLeft);
+            from = to + PAWN_RIGHT[!side];
+            deadPiece = boardPieces[to];
+            moves.pawn(from, to, deadPiece);
+        }
 
-            attacks = getPawnAttacks<side>(from, occupancies[both], occupancies[!side]) & pinMask;
-            Bitloop(attacks) {
-                to = SquareOf(attacks);
-                deadPiece = boardPieces[to];
+        Bitloop(pawnsRight) {
+            to = SquareOf(pawnsRight);
+            from = to + PAWN_LEFT[!side];
+            deadPiece = boardPieces[to];
+            moves.pawn(from, to, deadPiece);
+        }
 
-                moves.pawn(from, to, deadPiece);
-            }
+        Bitloop(pawnsFwd) {
+            to = SquareOf(pawnsFwd);
+            from = to + PAWN_PUSH[!side];
+            moves.pawn(from, to, noPiece);
+        }
+
+        Bitloop(pawnsDouble) {
+            to = SquareOf(pawnsDouble);
+            from = to + PAWN_DOUBLE_PUSH[!side];
+            moves.pawn(from, to, noPiece);
         }
 
         /*
@@ -1211,6 +1252,21 @@ namespace movegen {
         }
     }
 
+    template <int depth, bool side, bool wKMoved, bool bKMoved, bool capture>
+    ForceInline void makePromotionMoves(U64& nodes, int from, int to, const BoardState& board, int kES) {
+        BoardState newBoardN = board.makePromotion<Piece::Knight, capture>(from, to, board, kES);
+        nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardN);
+
+        BoardState newBoardB = board.makePromotion<Piece::Bishop, capture>(from, to, board, kES);
+        nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardB);
+
+        BoardState newBoardR = board.makePromotion<Piece::Rook, capture>(from, to, board, kES);
+        nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardR);
+
+        BoardState newBoardQ = board.makePromotion<Piece::Queen, capture>(from, to, board, kES);
+        nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardQ);
+    }
+
     template <int depth, bool side, bool wKMoved, bool bKMoved>
     ForceInline void makePromotionMoves(U64& nodes, U64 attacks, int from, const BoardState& board, int kES) {
         int to;
@@ -1218,34 +1274,14 @@ namespace movegen {
         Bitloop(moves) {
             to = SquareOf(moves);
 
-            BoardState newBoardN = board.makePromotion<Piece::Knight, false>(from, to, board, kES);
-            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardN);
-
-            BoardState newBoardB = board.makePromotion<Piece::Bishop, false>(from, to, board, kES);
-            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardB);
-
-            BoardState newBoardR = board.makePromotion<Piece::Rook, false>(from, to, board, kES);
-            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardR);
-
-            BoardState newBoardQ = board.makePromotion<Piece::Queen, false>(from, to, board, kES);
-            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardQ);
+            makePromotionMoves<depth, side, wKMoved, bKMoved, false>(nodes, from, to, board, kES);
         }
 
         moves = attacks & board.occE;
         Bitloop(moves) {
             to = SquareOf(moves);
 
-            BoardState newBoardN = board.makePromotion<Piece::Knight, true>(from, to, board, kES);
-            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardN);
-
-            BoardState newBoardB = board.makePromotion<Piece::Bishop, true>(from, to, board, kES);
-            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardB);
-
-            BoardState newBoardR = board.makePromotion<Piece::Rook, true>(from, to, board, kES);
-            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardR);
-
-            BoardState newBoardQ = board.makePromotion<Piece::Queen, true>(from, to, board, kES);
-            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardQ);
+            makePromotionMoves<depth, side, wKMoved, bKMoved, true>(nodes, from, to, board, kES);
         }
     }
 
@@ -1311,17 +1347,7 @@ namespace movegen {
                             attacks = PAWN_CAPTURES[side][from] & board.checks;
                             if (attacks)
                             {
-                                BoardState newBoardN = board.makePromotion<Piece::Knight, true>(from, to, board, kES);
-                                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardN);
-
-                                BoardState newBoardB = board.makePromotion<Piece::Bishop, true>(from, to, board, kES);
-                                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardB);
-
-                                BoardState newBoardR = board.makePromotion<Piece::Rook, true>(from, to, board, kES);
-                                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardR);
-
-                                BoardState newBoardQ = board.makePromotion<Piece::Queen, true>(from, to, board, kES);
-                                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardQ);
+                                makePromotionMoves<depth, side, wKMoved, bKMoved, true>(nodes, from, to, board, kES);
                             }
                         }
 
@@ -1417,22 +1443,59 @@ namespace movegen {
                            PAWN MOVES
 
                         */
-                        bitboard = board.pM & PROMO_RANKS[side] & ~allPins;
-                        Bitloop(bitboard)
-                        {
-                            from = SquareOf(bitboard);
+                        U64 pawns = board.pM & ~allPins;
 
-                            attacks = getPawnAttacks<side>(from, board.occB, board.occE) & validSquares;
-                            makePromotionMoves<depth, side, wKMoved, bKMoved>(nodes, attacks, from, board, kES);
+                        U64 pawnsLeft = pawnsAtkLeft<side>(pawns & ~FIRST_COL) & board.occE & validSquares;
+                        U64 pawnsRight = pawnsAtkRight<side>(pawns & ~LAST_COL) & board.occE & validSquares;
+                        U64 pawnsFwd = pawnsAtkForward<side>(pawns) & ~board.occB;
+                        U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~board.occB & validSquares;
+                        //mask after double push, to not ignore possible moves
+                        pawnsFwd &= validSquares;
+
+                        if ((pawnsLeft | pawnsRight | pawnsFwd) & LAST_RANKS[side]) {
+                            U64 promosLeft = pawnsLeft & LAST_RANKS[side];
+                            U64 promosRight = pawnsRight & LAST_RANKS[side];
+                            U64 promosFwd = pawnsFwd & LAST_RANKS[side];
+
+                            pawnsLeft ^= promosLeft;
+                            pawnsRight ^= promosRight;
+                            pawnsFwd ^= promosFwd;
+
+                            Bitloop(promosLeft) { to = SquareOf(promosLeft);  from = to + PAWN_RIGHT[!side];  makePromotionMoves<depth, side, wKMoved, bKMoved, true>(nodes, from, to, board, kES); }
+                            Bitloop(promosRight) { to = SquareOf(promosRight); from = to + PAWN_LEFT[!side];   makePromotionMoves<depth, side, wKMoved, bKMoved, true>(nodes, from, to, board, kES); }
+                            Bitloop(promosFwd) { to = SquareOf(promosFwd);   from = to + PAWN_PUSH[!side];   makePromotionMoves<depth, side, wKMoved, bKMoved, false>(nodes, from, to, board, kES); }
                         }
 
-                        bitboard = board.pM & ~PROMO_RANKS[side] & ~allPins;
-                        Bitloop(bitboard)
-                        {
-                            from = SquareOf(bitboard);
+                        Bitloop(pawnsLeft) {
+                            to = SquareOf(pawnsLeft);
+                            from = to + PAWN_RIGHT[!side];
 
-                            attacks = getPawnAttacks<side>(from, board.occB, board.occE) & validSquares;
-                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Pawn>(nodes, attacks, from, board, kES);
+                            BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, kES);
+                            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                        }
+
+                        Bitloop(pawnsRight) {
+                            to = SquareOf(pawnsRight);
+                            from = to + PAWN_LEFT[!side];
+
+                            BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, kES);
+                            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                        }
+
+                        Bitloop(pawnsFwd) {
+                            to = SquareOf(pawnsFwd);
+                            from = to + PAWN_PUSH[!side];
+
+                            BoardState newBoard = board.make<Piece::Pawn, side, false>(from, to, board, kES);
+                            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                        }
+
+                        Bitloop(pawnsDouble) {
+                            to = SquareOf(pawnsDouble);
+                            from = to + PAWN_DOUBLE_PUSH[!side];
+
+                            BoardState newBoard = board.makeDoublePush<side>(from, to, board, kES);
+                            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                         }
 
                         /*
@@ -1506,7 +1569,8 @@ namespace movegen {
 
             */
             //en passant
-            bitboard = PASSANT_CAPTURES[board.enPassant] & board.pM & ~allPins;
+            U64 enPassant = PASSANT_CAPTURES[board.enPassant] & board.pM;
+            bitboard = enPassant & ~allPins;
             Bitloop(bitboard) {
                 from = SquareOf(bitboard);
 
@@ -1516,26 +1580,7 @@ namespace movegen {
                 }
             }
 
-            bitboard = board.pM & PROMO_RANKS[side] & ~allPins;
-            Bitloop(bitboard)
-            {
-                from = SquareOf(bitboard);
-
-                attacks = getPawnAttacks<side>(from, board.occB, board.occE) & ~board.occM;
-                makePromotionMoves<depth, side, wKMoved, bKMoved>(nodes, attacks, from, board, kES);
-            }
-
-            bitboard = board.pM & ~PROMO_RANKS[side] & ~allPins;
-            Bitloop(bitboard)
-            {
-                from = SquareOf(bitboard);
-
-                attacks = getPawnAttacks<side>(from, board.occB, board.occE) & ~board.occM;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Pawn>(nodes, attacks, from, board, kES);
-            }
-
-            //en passant
-            bitboard = PASSANT_CAPTURES[board.enPassant] & board.pM & bPins;
+            bitboard = enPassant & bPins;
             Bitloop(bitboard) {
                 from = SquareOf(bitboard);
 
@@ -1545,22 +1590,58 @@ namespace movegen {
                 }
             }
 
-            bitboard = board.pM & PROMO_RANKS[side] & allPins;
-            Bitloop(bitboard)
-            {
-                from = SquareOf(bitboard);
-  
-                attacks = getPawnAttacks<side>(from, board.occB, board.occE) & ~board.occM & allPins;
-                makePromotionMoves<depth, side, wKMoved, bKMoved>(nodes, attacks, from, board, kES);
+            U64 pawnsAtk = board.pM & ~rPins;
+            U64 pawnsPush = board.pM & ~bPins;
+
+            U64 pawnsLeft = (pawnsAtkLeft<side>(pawnsAtk & ~bPins & ~FIRST_COL) & board.occE) | (pawnsAtkLeft<side>(pawnsAtk & bPins & ~FIRST_COL) & board.occE & bPins);
+            U64 pawnsRight = (pawnsAtkRight<side>(pawnsAtk & ~bPins & ~LAST_COL) & board.occE) | (pawnsAtkRight<side>(pawnsAtk & bPins & ~LAST_COL) & board.occE & bPins);
+            U64 pawnsFwd = (pawnsAtkForward<side>(pawnsPush & ~rPins) & ~board.occB) | (pawnsAtkForward<side>(pawnsPush & rPins) & ~board.occB & rPins);
+            U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~board.occB;
+
+            if ((pawnsLeft | pawnsRight | pawnsFwd) & LAST_RANKS[side]) {
+                U64 promosLeft = pawnsLeft & LAST_RANKS[side];
+                U64 promosRight = pawnsRight & LAST_RANKS[side];
+                U64 promosFwd = pawnsFwd & LAST_RANKS[side];
+
+                pawnsLeft ^= promosLeft;
+                pawnsRight ^= promosRight;
+                pawnsFwd ^= promosFwd;
+
+                Bitloop(promosLeft) {   to = SquareOf(promosLeft);  from = to + PAWN_RIGHT[!side];  makePromotionMoves<depth, side, wKMoved, bKMoved, true>(nodes, from, to, board, kES); }
+                Bitloop(promosRight) {  to = SquareOf(promosRight); from = to + PAWN_LEFT[!side];   makePromotionMoves<depth, side, wKMoved, bKMoved, true>(nodes, from, to, board, kES); }
+                Bitloop(promosFwd) {    to = SquareOf(promosFwd);   from = to + PAWN_PUSH[!side];   makePromotionMoves<depth, side, wKMoved, bKMoved, false>(nodes, from, to, board, kES); } 
             }
 
-            bitboard = board.pM & ~PROMO_RANKS[side] & allPins;
-            Bitloop(bitboard)
-            {
-                from = SquareOf(bitboard);
- 
-                attacks = getPawnAttacks<side>(from, board.occB, board.occE) & ~board.occM & validAttacksMasks[depth][from];
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Pawn>(nodes, attacks, from, board, kES);
+            Bitloop(pawnsLeft) {
+                to = SquareOf(pawnsLeft);
+                from = to + PAWN_RIGHT[!side];
+
+                BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, kES);
+                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+            }
+
+            Bitloop(pawnsRight) {
+                to = SquareOf(pawnsRight);
+                from = to + PAWN_LEFT[!side];
+
+                BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, kES);
+                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+            }
+
+            Bitloop(pawnsFwd) {
+                to = SquareOf(pawnsFwd);
+                from = to + PAWN_PUSH[!side];
+
+                BoardState newBoard = board.make<Piece::Pawn, side, false>(from, to, board, kES);
+                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+            }
+
+            Bitloop(pawnsDouble) {
+                to = SquareOf(pawnsDouble);
+                from = to + PAWN_DOUBLE_PUSH[!side];
+
+                BoardState newBoard = board.makeDoublePush<side>(from, to, board, kES);
+                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
             }
 
             /*
@@ -1800,13 +1881,30 @@ namespace movegen {
                            PAWN MOVES
 
                         */
-                        bitboard = board.pM & ~allPins;
-                        Bitloop(bitboard)
-                        {
-                            from = SquareOf(bitboard);
+                        U64 pawns = board.pM & ~allPins;
 
-                            attacks = getPawnAttacks<side>(from, board.occB, board.occE) & validSquares;
-                            nodes += Bitcount(attacks) * RANK_MULTIPLIER[side][from];
+                        U64 pawnsLeft = pawnsAtkLeft<side>(pawns & ~FIRST_COL) & board.occE & validSquares;
+                        U64 pawnsRight = pawnsAtkRight<side>(pawns & ~LAST_COL) & board.occE & validSquares;
+                        U64 pawnsFwd = pawnsAtkForward<side>(pawns) & ~board.occB;
+                        U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~board.occB & validSquares;
+                        //mask after double push, to not ignore possible moves
+                        pawnsFwd &= validSquares;
+
+                        if ((pawnsLeft | pawnsRight | pawnsFwd) & LAST_RANKS[side]) {
+                            U64 promosLeft = pawnsLeft & LAST_RANKS[side];
+                            U64 promosRight = pawnsRight & LAST_RANKS[side];
+                            U64 promosFwd = pawnsFwd & LAST_RANKS[side];
+
+                            nodes += (Bitcount(promosLeft) + Bitcount(promosRight) + Bitcount(promosFwd)) * 4;
+
+                            nodes += Bitcount(pawnsLeft ^ promosLeft);
+                            nodes += Bitcount(pawnsRight ^ promosRight);
+                            nodes += Bitcount((pawnsFwd ^ promosFwd) | pawnsDouble);
+                        }
+                        else {
+                            nodes += Bitcount(pawnsLeft);
+                            nodes += Bitcount(pawnsRight);
+                            nodes += Bitcount(pawnsFwd | pawnsDouble);
                         }
 
                         /*
@@ -1895,20 +1993,29 @@ namespace movegen {
                 nodes += Bitcount((1ULL << board.enPassant) & bPins & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS));
             }
 
-            bitboard = board.pM & ~allPins;
-            Bitloop(bitboard)
-            {
-                from = SquareOf(bitboard);
+            U64 pawnsAtk = board.pM & ~rPins;
+            U64 pawnsPush = board.pM & ~bPins;
 
-                nodes += getPawnAttacksCount<side>(from, board.occB, board.occM);
+            U64 pawnsLeft = (pawnsAtkLeft<side>(pawnsAtk & ~bPins & ~FIRST_COL) & board.occE) | (pawnsAtkLeft<side>(pawnsAtk & bPins & ~FIRST_COL) & board.occE & bPins);
+            U64 pawnsRight = (pawnsAtkRight<side>(pawnsAtk & ~bPins & ~LAST_COL) & board.occE) | (pawnsAtkRight<side>(pawnsAtk & bPins & ~LAST_COL) & board.occE & bPins);
+            U64 pawnsFwd = (pawnsAtkForward<side>(pawnsPush & ~rPins) & ~board.occB) | (pawnsAtkForward<side>(pawnsPush & rPins) & ~board.occB & rPins);
+            U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~board.occB;
+
+            if ((pawnsLeft | pawnsRight | pawnsFwd) & LAST_RANKS[side]) {
+                U64 promosLeft = pawnsLeft & LAST_RANKS[side];
+                U64 promosRight = pawnsRight & LAST_RANKS[side];
+                U64 promosFwd = pawnsFwd & LAST_RANKS[side];
+
+                nodes += (Bitcount(promosLeft) + Bitcount(promosRight) + Bitcount(promosFwd)) * 4;
+                
+                nodes += Bitcount(pawnsLeft ^ promosLeft);
+                nodes += Bitcount(pawnsRight ^ promosRight);
+                nodes += Bitcount((pawnsFwd ^ promosFwd) | pawnsDouble);
             }
-
-            bitboard = board.pM & allPins;
-            Bitloop(bitboard)
-            {
-                from = SquareOf(bitboard);
-
-                nodes += getPawnAttacksCountPinned<side>(from, board.occB, board.occE, validAttacksMasks[1][from]);
+            else {
+                nodes += Bitcount(pawnsLeft);
+                nodes += Bitcount(pawnsRight);
+                nodes += Bitcount(pawnsFwd | pawnsDouble);
             }
 
             /*
