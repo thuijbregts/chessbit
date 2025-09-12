@@ -602,27 +602,34 @@ namespace movegen {
     }
 
     template <int depth>
-    ForceInline U64 findPins(U64 occM, U64 occB, U64 bE, U64 rE, U64 qE, int kMS) {
+    ForceInline U64 iteratePieces(U64 pieces, U64 occB, int kMS) {
         U64 pins = 0ULL;
-        int sliderSquare;
-        U64 pinMask, pinnedPieces;
-
-        U64 pieces = ((bE | qE) & BISHOP_XRAYS[kMS]) | ((rE | qE) & ROOK_XRAYS[kMS]);
 
         Bitloop(pieces)
         {
-            sliderSquare = SquareOf(pieces);
+            int sliderSquare = SquareOf(pieces);
 
-            pinMask = PIN_MASKS[sliderSquare][kMS];
-            pinnedPieces = pinMask & occB;
+            U64 pinMask = PIN_MASKS[sliderSquare][kMS];
+            U64 pinnedPieces = pinMask & occB;
 
             if (Bitcount(pinnedPieces) == 1) {
-                validAttacksMasks[depth][SquareOf(pinnedPieces)] = pinMask | SQUARE_BITS[sliderSquare];
-                pins |= pinnedPieces;
+                U64 attacks = pinMask | SQUARE_BITS[sliderSquare];
+                validAttacksMasks[depth][SquareOf(pinnedPieces)] = attacks ^ pinnedPieces;
+                pins |= attacks;
             }
         }
 
         return pins;
+    }
+
+    template <int depth>
+    ForceInline U64 findBishopPins(U64 occB, U64 bE, U64 qE, int kMS) {
+        return iteratePieces<depth>(((bE | qE) & BISHOP_XRAYS[kMS]), occB, kMS);
+    }
+
+    template <int depth>
+    ForceInline U64 findRookPins(U64 occB, U64 rE, U64 qE, int kMS) {
+        return iteratePieces<depth>(((rE | qE) & ROOK_XRAYS[kMS]), occB, kMS);
     }
 
     template <bool side, bool wKMoved, bool bKMoved>
@@ -657,7 +664,9 @@ namespace movegen {
             if (Bitcount(checks) == 1) {
                 //remove the bit of the check piece for performance, because it cannot possibly pin a piece
                 //PopBit(pieces[!side][checkPiece], checkSquare);
-                U64 allPins = findPins<0>(occupancies[side], occupancies[both], pieces[!side][b], pieces[!side][r], pieces[!side][q], kMS);
+                U64 bPins = findBishopPins<0>(occupancies[both], pieces[!side][b], pieces[!side][q], kMS);
+                U64 rPins = findRookPins<0>(occupancies[both], pieces[!side][r], pieces[!side][q], kMS);
+                U64 allPins = bPins | rPins;
                 //SetBit(pieces[!side][checkPiece], checkSquare);
 
                 //if check piece is pawn or knight, only possible moves are capture of the check piece (+ king moves)
@@ -888,7 +897,9 @@ namespace movegen {
             return;
         }
 
-        U64 allPins = findPins<0>(occupancies[side], occupancies[both], pieces[!side][b], pieces[!side][r], pieces[!side][q], kMS);
+        U64 bPins = findBishopPins<0>(occupancies[both], pieces[!side][b], pieces[!side][q], kMS);
+        U64 rPins = findRookPins<0>(occupancies[both], pieces[!side][r], pieces[!side][q], kMS);
+        U64 allPins = bPins | rPins;
 
         /*
 
@@ -1243,7 +1254,7 @@ namespace movegen {
         static inline U64 generateMoves(const BoardState& board) {
             if (!board.occB) return 0;
             int from, to;
-            U64 bitboard, attacks, pinMask;
+            U64 bitboard, attacks;
 
             U64 nodes = 0ULL;
             U64 castleAttacks = 0ULL;
@@ -1268,8 +1279,9 @@ namespace movegen {
                 //if there is no second check, we need to check for other pieces
                 if (Bitcount(board.checks) == 1) {
                     //remove the bit of the check piece for performance, because it cannot possibly pin a piece
-                    U64 allPins = findPins<depth>(board.occM, board.occB, board.bE, board.rE, board.qE, kMS);
-
+                    U64 bPins = findBishopPins<depth>(board.occB, board.bE, board.qE, kMS);
+                    U64 rPins = findRookPins<depth>(board.occB, board.rE, board.qE, kMS);
+                    U64 allPins = bPins | rPins;
                     //if check piece is pawn or knight, only possible moves are capture of the check piece (+ king moves)
                     if (board.checks & (board.pE | board.nE)) {
                         /*
@@ -1484,7 +1496,9 @@ namespace movegen {
                 return nodes;
             }
 
-            U64 allPins = findPins<depth>(board.occM, board.occB, board.bE, board.rE, board.qE, kMS);
+            U64 bPins = findBishopPins<depth>(board.occB, board.bE, board.qE, kMS);
+            U64 rPins = findRookPins<depth>(board.occB, board.rE, board.qE, kMS);
+            U64 allPins = bPins | rPins;
 
             /*
 
@@ -1521,12 +1535,11 @@ namespace movegen {
             }
 
             //en passant
-            bitboard = PASSANT_CAPTURES[board.enPassant] & board.pM & allPins;
+            bitboard = PASSANT_CAPTURES[board.enPassant] & board.pM & bPins;
             Bitloop(bitboard) {
                 from = SquareOf(bitboard);
-                pinMask = validAttacksMasks[depth][from];
 
-                if ((1ULL << board.enPassant) & pinMask & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS)) {
+                if ((1ULL << board.enPassant) & bPins & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS)) {
                     BoardState newBoard = board.makeEnPassant<side>(from, board.enPassant, board, kES);
                     nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                 }
@@ -1536,9 +1549,8 @@ namespace movegen {
             Bitloop(bitboard)
             {
                 from = SquareOf(bitboard);
-                pinMask = validAttacksMasks[depth][from];
-
-                attacks = getPawnAttacks<side>(from, board.occB, board.occE) & ~board.occM & pinMask;
+  
+                attacks = getPawnAttacks<side>(from, board.occB, board.occE) & ~board.occM & allPins;
                 makePromotionMoves<depth, side, wKMoved, bKMoved>(nodes, attacks, from, board, kES);
             }
 
@@ -1546,9 +1558,8 @@ namespace movegen {
             Bitloop(bitboard)
             {
                 from = SquareOf(bitboard);
-                pinMask = validAttacksMasks[depth][from];
-
-                attacks = getPawnAttacks<side>(from, board.occB, board.occE) & ~board.occM & pinMask;
+ 
+                attacks = getPawnAttacks<side>(from, board.occB, board.occE) & ~board.occM & validAttacksMasks[depth][from];
                 makeMoves<depth, side, wKMoved, bKMoved, Piece::Pawn>(nodes, attacks, from, board, kES);
             }
 
@@ -1580,14 +1591,14 @@ namespace movegen {
                 makeMoves<depth, side, wKMoved, bKMoved, Piece::Bishop>(nodes, attacks, from, board, kES);
             }
 
-            bitboard = board.bM & allPins;
+            bitboard = (board.bM | board.qM) & bPins;
             Bitloop(bitboard)
             {
                 from = SquareOf(bitboard);
-                pinMask = validAttacksMasks[depth][from];
-
-                attacks = getBishopAttacks(from, board.occB) & ~board.occM & pinMask;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Bishop>(nodes, attacks, from, board, kES);
+    
+                attacks = validAttacksMasks[depth][from];
+                if ((1ULL << from) & board.qM)  makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, from, board, kES);
+                else                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Bishop>(nodes, attacks, from, board, kES);
             }
 
             /*
@@ -1604,14 +1615,14 @@ namespace movegen {
                 makeMoves<depth, side, wKMoved, bKMoved, Piece::Rook>(nodes, attacks, from, board, kES);
             }
 
-            bitboard = board.rM & allPins;
+            bitboard = (board.rM | board.qM) & rPins;
             Bitloop(bitboard)
             {
                 from = SquareOf(bitboard);
-                pinMask = validAttacksMasks[depth][from];
-
-                attacks = getRookAttacks(from, board.occB) & ~board.occM & pinMask;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Rook>(nodes, attacks, from, board, kES);
+  
+                attacks = validAttacksMasks[depth][from];
+                if ((1ULL << from) & board.qM)  makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, from, board, kES);
+                else                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Rook>(nodes, attacks, from, board, kES);
             }
 
             /*
@@ -1625,16 +1636,6 @@ namespace movegen {
                 from = SquareOf(bitboard);
 
                 attacks = getQueenAttacks(from, board.occB) & ~board.occM;
-                makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, from, board, kES);
-            }
-
-            bitboard = board.qM & allPins;
-            Bitloop(bitboard)
-            {
-                from = SquareOf(bitboard);
-                pinMask = validAttacksMasks[depth][from];
-
-                attacks = getQueenAttacks(from, board.occB) & ~board.occM & pinMask;
                 makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, from, board, kES);
             }
 
@@ -1680,7 +1681,7 @@ namespace movegen {
         ForceInline U64 generateMoves(const BoardState& board) {
             if (!board.occB) return 0;
             int from;
-            U64 bitboard, attacks, pinMask;
+            U64 bitboard, attacks;
 
             U64 nodes = 0ULL;
             U64 castleAttacks = 0ULL;
@@ -1703,8 +1704,9 @@ namespace movegen {
 
                 //if there is no second check, we need to check for other pieces
                 if (Bitcount(board.checks) == 1) {
-                    //remove the bit of the check piece for performance, because it cannot possibly pin a piece
-                    U64 allPins = findPins<1>(board.occM, board.occB, board.bE, board.rE, board.qE, kMS);
+                    U64 bPins = findBishopPins<1>(board.occB, board.bE, board.qE, kMS);
+                    U64 rPins = findRookPins<1>(board.occB, board.rE, board.qE, kMS);
+                    U64 allPins = bPins | rPins;
 
                     //if check piece is pawn or knight, only possible moves are capture of the check piece (+ king moves)
                     if (board.checks & (board.pE | board.nE)) {
@@ -1868,7 +1870,9 @@ namespace movegen {
                 return nodes;
             }
 
-            U64 allPins = findPins<1>(board.occM, board.occB, board.bE, board.rE, board.qE, kMS);
+            U64 bPins = findBishopPins<1>(board.occB, board.bE, board.qE, kMS);
+            U64 rPins = findRookPins<1>(board.occB, board.rE, board.qE, kMS);
+            U64 allPins = bPins | rPins;
 
             /*
 
@@ -1884,12 +1888,11 @@ namespace movegen {
                 nodes += Bitcount((1ULL << board.enPassant) & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS));
             }
 
-            bitboard = passant & allPins;
+            bitboard = passant & bPins;
             Bitloop(bitboard) {
                 from = SquareOf(bitboard);
-                pinMask = validAttacksMasks[1][from];
-
-                nodes += Bitcount((1ULL << board.enPassant) & pinMask & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS));
+            
+                nodes += Bitcount((1ULL << board.enPassant) & bPins & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS));
             }
 
             bitboard = board.pM & ~allPins;
@@ -1904,9 +1907,8 @@ namespace movegen {
             Bitloop(bitboard)
             {
                 from = SquareOf(bitboard);
-                pinMask = validAttacksMasks[1][from];
 
-                nodes += getPawnAttacksCountPinned<side>(from, board.occB, board.occE, pinMask);
+                nodes += getPawnAttacksCountPinned<side>(from, board.occB, board.occE, validAttacksMasks[1][from]);
             }
 
             /*
@@ -1937,13 +1939,12 @@ namespace movegen {
                 nodes += Bitcount(attacks);
             }
 
-            bitboard = board.bM & allPins;
+            bitboard = (board.bM | board.qM) & bPins;
             Bitloop(bitboard)
             {
                 from = SquareOf(bitboard);
-                pinMask = validAttacksMasks[1][from];
 
-                attacks = getBishopAttacks(from, board.occB) & ~board.occM & pinMask;
+                attacks = validAttacksMasks[1][from];
                 nodes += Bitcount(attacks);
             }
 
@@ -1961,13 +1962,12 @@ namespace movegen {
                 nodes += Bitcount(attacks);
             }
 
-            bitboard = board.rM & allPins;
+            bitboard = (board.rM | board.qM) & rPins;
             Bitloop(bitboard)
             {
                 from = SquareOf(bitboard);
-                pinMask = validAttacksMasks[1][from];
-
-                attacks = getRookAttacks(from, board.occB) & ~board.occM & pinMask;
+ 
+                attacks = validAttacksMasks[1][from];
                 nodes += Bitcount(attacks);
             }
 
@@ -1982,16 +1982,6 @@ namespace movegen {
                 from = SquareOf(bitboard);
 
                 attacks = getQueenAttacks(from, board.occB) & ~board.occM;
-                nodes += Bitcount(attacks);
-            }
-
-            bitboard = board.qM & allPins;
-            Bitloop(bitboard)
-            {
-                from = SquareOf(bitboard);
-                pinMask = validAttacksMasks[1][from];
-
-                attacks = getQueenAttacks(from, board.occB) & ~board.occM & pinMask;
                 nodes += Bitcount(attacks);
             }
 
