@@ -17,8 +17,7 @@ namespace movegen {
     * pM -> kM	|	pawn to king, current side
     * pE -> kE	|	pawn to king, opposite side
     * occM|E|B	|	occupancies (current, opposite, both)
-    * bDis|rDis	|	bishop & rook potential discovers
-    * checkSquare|chP	|	check square & check piece
+    * 
     *****************************************************/
 
     //union of pinMask and the slider piece square, where index is the square of the pinned piece
@@ -241,7 +240,7 @@ namespace movegen {
             int checkSquare = SquareOf(board.checks);
 
             U64 mask = board.kMA;
-            attacks = mask & ~board.occM & ~PIN_MASKS[checkSquare][kMS] & ~PIN_MASKS[Ms1b(board.checks)][kMS];
+            attacks = mask & ~board.occM;
             filterKingAttacks<side, true, true>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
             if constexpr (depth == 1) nodes += Bitcount(attacks);
             else makeMoves<depth, side, wKMoved, bKMoved, Piece::King>(nodes, attacks, kMS, board, kES);
@@ -266,7 +265,7 @@ namespace movegen {
 
                     if constexpr (depth == 1) {
                         nodes += Bitcount(enPassant | (caps ^ promos));
-                        nodes += Bitcount(promos) * 4;
+                        if (promos) nodes += Bitcount(promos) * 4;
                     }
                     else {
                         Bitloop(enPassant)
@@ -295,14 +294,14 @@ namespace movegen {
 
                     */
                     bitboard = board.nM & ~allPins;
-                    Bitloop(bitboard)
+                    if (bitboard)
                     {
-                        from = SquareOf(bitboard);
-
-                        attacks = getKnightAttacks(from) & board.checks;
+                        attacks = getKnightAttacks(checkSquare) & bitboard;
                         if constexpr (depth == 1) nodes += Bitcount(attacks);
                         else {
-                            if (attacks) {
+                            Bitloop(attacks) {
+                                from = SquareOf(attacks);
+
                                 BoardState newBoard = board.make<Piece::Knight, side, true>(from, to, board, kES);
                                 if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
                                 else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
@@ -399,7 +398,7 @@ namespace movegen {
                         pawnsRight ^= promosRight;
                         pawnsFwd ^= promosFwd;
 
-                        if constexpr (depth == 1) nodes += (Bitcount(promosLeft) + Bitcount(promosRight) + Bitcount(promosFwd)) * 4;
+                        if constexpr (depth == 1) nodes += (Bitcount(promosLeft) + Bitcount(promosRight | promosFwd)) * 4;
                         else {
                             Bitloop(promosLeft) { to = SquareOf(promosLeft);  from = to + PAWN_RIGHT[!side];  makePromotionMoves<depth, side, wKMoved, bKMoved, true>(nodes, from, to, board, kES); }
                             Bitloop(promosRight) { to = SquareOf(promosRight); from = to + PAWN_LEFT[!side];   makePromotionMoves<depth, side, wKMoved, bKMoved, true>(nodes, from, to, board, kES); }
@@ -409,8 +408,7 @@ namespace movegen {
 
                     if constexpr (depth == 1) {
                         nodes += Bitcount(pawnsLeft);
-                        nodes += Bitcount(pawnsRight);
-                        nodes += Bitcount(pawnsFwd | pawnsDouble);
+                        nodes += Bitcount(pawnsRight | pawnsFwd | pawnsDouble);
                     }
                     else {
                         Bitloop(pawnsLeft) {
@@ -569,7 +567,7 @@ namespace movegen {
             pawnsRight ^= promosRight;
             pawnsFwd ^= promosFwd;
 
-            if constexpr (depth == 1) nodes += (Bitcount(promosLeft) + Bitcount(promosRight) + Bitcount(promosFwd)) * 4;
+            if constexpr (depth == 1) nodes += (Bitcount(promosLeft) + Bitcount(promosRight | promosFwd)) * 4;
             else {
                 Bitloop(promosLeft) { to = SquareOf(promosLeft);  from = to + PAWN_RIGHT[!side];  makePromotionMoves<depth, side, wKMoved, bKMoved, true>(nodes, from, to, board, kES); }
                 Bitloop(promosRight) { to = SquareOf(promosRight); from = to + PAWN_LEFT[!side];   makePromotionMoves<depth, side, wKMoved, bKMoved, true>(nodes, from, to, board, kES); }
@@ -579,8 +577,7 @@ namespace movegen {
 
         if constexpr (depth == 1) {
             nodes += Bitcount(pawnsLeft);
-            nodes += Bitcount(pawnsRight);
-            nodes += Bitcount(pawnsFwd | pawnsDouble);
+            nodes += Bitcount(pawnsRight | pawnsFwd | pawnsDouble);
         }
         else {
             Bitloop(pawnsLeft) {
