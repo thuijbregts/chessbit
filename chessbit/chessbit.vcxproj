@@ -175,12 +175,13 @@
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MoveArray.cpp" />
-    <ClCompile Include="MoveGenerator.cpp" />
+    <ClCompile Include="BoardState.cpp" />
     <ClCompile Include="Test.hpp" />
     <ClCompile Include="Utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AttackTables.h" />
+    <ClInclude Include="BoardState.h" />
     <ClInclude Include="Cui.h" />
     <ClInclude Include="Definitions.h" />
     <ClInclude Include="Game.h" />

@@ -1,5 +1,5 @@
-#include "MoveGenerator.h"
+#include "BoardState.h"
 
-namespace movegen {
+namespace bstate {
 	BoardState dummy = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }

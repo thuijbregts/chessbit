@@ -21,7 +21,7 @@ public:
 private:
 	void start();
 
-	void generateMoves();
+	void initMoves();
 
 	void execute(vector<string>& command);
 

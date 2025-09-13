@@ -24,7 +24,7 @@ Cui::~Cui()
 void Cui::start() {
 	string input;
 	vector<string> cmd;
-	generateMoves();
+	initMoves();
 	cout << "+---+---+---+---+---+---+---+---+---+---+" << endl;
 	cout << "|     chessbit by Thomas Huijbregts     |" << endl;
 	cout << "+---+---+---+---+---+---+---+---+---+---+" << endl;
@@ -36,7 +36,7 @@ void Cui::start() {
 	} while (true);
 }
 
-void Cui::generateMoves() {
+void Cui::initMoves() {
 	movarray::movesArray.reset();
 	generateMoves(0);
 }
@@ -60,7 +60,7 @@ bool Cui::isCommand(vector<string>& cmd) {
 
 	if (utils::validMove(first)) {
 		if (executeMove(first)) {
-			generateMoves(0);
+			initMoves();
 		}
 		else {
 			cout << "Move does not exist for this position" << endl;
@@ -195,7 +195,7 @@ void Cui::play() {
 void Cui::undo() {
 	if (game::moveCount > 0) {
 		game::unmakeMove();
-		generateMoves(0);
+		initMoves();
 	}
 	else {
 		cout << "No move to undo" << endl;
@@ -212,13 +212,13 @@ void Cui::showMoves() {
 }
 
 void Cui::printBoard() {
-	game::printBoard();
+	game::printBoard(game::board);
 }
 
 void Cui::reset() {
 	setFen(StartPosition);
 
-	generateMoves(0);
+	initMoves();
 }
 
 void Cui::setBoard(vector<string>& cmd, int size) {
@@ -231,7 +231,7 @@ void Cui::setBoard(vector<string>& cmd, int size) {
 	}
 	try {
 		setFen(fen.c_str());
-		generateMoves(0);
+		initMoves();
 	}
 	catch (invalid_argument& e) {
 		cout << "Error while setting fen: " << e.what() << endl;
@@ -308,8 +308,7 @@ U64 Cui::divide(int depth) {
 	U64 nodes = 0;
 	U64 current = 0;
 
-	movarray::movesArray.reset();
-	generateMoves(0);
+	initMoves();
 	int size = movarray::movesArray.size();
 	if (depth == 1) {
 		return size;

@@ -9,13 +9,13 @@ using namespace movegen;
 using std::string;
 
 namespace game {
-    inline static int moveCount;
-    inline static MoveInfo* movesPlayed[5949] = { nullptr };
+    extern int moveCount;
+    inline static MoveInfo movesPlayed[5949];
 
-    extern movegen::BoardState board;
+    extern bstate::BoardState board;
 
     void printBoard(U64 bitboard);
-    void printBoard();
+    void printBoard(BoardState& board);
 
     void makeMove(MoveInfo& move);
     void unmakeMove();

@@ -11,7 +11,8 @@ using std::string;
 
 namespace game {
     //MoveInfo movesPlayed[5949];
-    movegen::BoardState board = movegen::dummy;
+    int moveCount;
+    bstate::BoardState board = bstate::dummy;
 
     void printBoard(U64 bitboard) {
         for (int rank = 0; rank < 8; rank++)
@@ -30,7 +31,7 @@ namespace game {
         printf("     bitboard: 0x%llx\n\n", bitboard);
     }
 
-    void printBoard() {
+    void printBoard(BoardState& board) {
         printf("\n");
 
         for (int rank = 0; rank < 8; rank++)
@@ -79,13 +80,14 @@ namespace game {
     }
 
     void makeMove(MoveInfo& move) {
-        movesPlayed[moveCount++] = &move;
-        board = *move.board;
+        moveCount++;
+        movesPlayed[moveCount] = move;
+        board = move.board;
     }
 
     void unmakeMove() {
         moveCount--;
-        board = *movesPlayed[moveCount]->board;
+        board = movesPlayed[moveCount].board;
     }
 
     void setFen(const char* fen) {
@@ -239,11 +241,13 @@ namespace game {
             }
         }
 
-        board = movegen::BoardState(pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
+        board = bstate::BoardState(pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
                                     pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
                                     getKingAttacks(SquareOf(pieces[side][k])), getKingAttacks(SquareOf(pieces[!side][k])),
                                     occupancies[side], occupancies[!side], occupancies[both],
                                     checks, castlingPermissions, enPassant, side);
+
+        movesPlayed[0] = MoveInfo(0, 0, false, board);
     }
 
     string getFen() {
