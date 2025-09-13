@@ -1,10 +1,10 @@
 #include <stdexcept>
 #include "Utils.h"
-#include "MoveGenerator.h"
+#include "Definitions.h"
 #include <iomanip>
 #include <sstream>
 
-using namespace game;
+using namespace defs;
 
 vector<string> utils::split(const string& str, const char delim)
 {
@@ -29,8 +29,8 @@ string utils::getMoveSimple(MoveInfo& move) {
 
 	result += SQUARE_NAMES[move.from];
 	result += SQUARE_NAMES[move.to];
-	if (move.promotedPiece != noPiece) {
-		result += ASCII_PIECES[0][move.promotedPiece];
+	if (move.promo != noPiece) {
+		result += ASCII_PIECES[0][move.promo];
 	}
 	
 	return result;

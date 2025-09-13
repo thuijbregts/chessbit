@@ -1,10 +1,14 @@
 #ifndef CUI_H
 #define CUI_H
 
+#include "Game.h"
+#include "MoveInfo.h"
 #include <string>
 #include <vector>
 
 using namespace std;
+using namespace game;
+using namespace moveinfo;
 
 class MoveArray;
 
@@ -19,11 +23,10 @@ private:
 
 	void generateMoves();
 
-	void execute(vector<string>& command, MoveArray& moves);
+	void execute(vector<string>& command);
 
-	bool isCommand(vector<string>& command, MoveArray& moves);
-	bool executeMove(string& move, MoveArray& moves);
-	void makeMove(MoveInfo& move);
+	bool isCommand(vector<string>& command);
+	bool executeMove(string& move);
 	void play();
 	void undo();
 	void showMoves();
@@ -40,11 +43,11 @@ private:
 	void benchmark(string& depth, string& amount);
 	void executeBenchmark(int depth, int amount, bool print);
 	void compare();
-	void generateMoves(MoveArray& moves);
-	U64 generateMovesPerft(int depth);
+	U64 generateMoves(int depth);
 	//U64 generateMoves(int depth);
 	template <bool side, bool wKMoved, bool bKMoveds>
 	U64 generateMoves(int depth);
+	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);
 	void pieces();
 	void help();
 };

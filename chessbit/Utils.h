@@ -4,11 +4,10 @@
 #include <vector>
 #include <string>
 #include <regex>
-using namespace std;
+#include "Game.h"
 
-struct Piece;
-struct MoveInfo;
-class MoveArray;
+using namespace std;
+using namespace game;
 
 namespace utils {
 	const std::regex MOVE_REGEX{ "([a-h]{1}[1-8]{1}){2}[RNBQ]?" };

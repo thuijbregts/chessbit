@@ -1,42 +1,34 @@
 #ifndef MOVEARRAY_H
 #define MOVEARRAY_H
 
-#include "Game.h"
+#include "MoveInfo.h"
 
-using namespace game;
+namespace movarray {
+	class MoveArray {
 
-class MoveArray {
+	public:
+		MoveArray();
+		~MoveArray();
 
-public:
-	MoveArray();
-	~MoveArray();
+		inline int size() {
+			return _size;
+		}
 
-	inline int size() {
-		return _size;
-	}
+		inline moveinfo::MoveInfo* moves() {
+			return _moves;
+		}
+		inline void reset() {
+			_size = 0;
+		}
 
-	inline MoveInfo** moves() {
-		return _moves;
-	}
-	inline void reset() {
-		_size = 0;
-	}
+		void add(moveinfo::MoveInfo& moveInfo);
 
-	void pawn(int from, int to, int victimeType);
-	void knight(int from, int to, int victimeType);
-	void bishop(int from, int to, int victimeType);
-	void rook(int from, int to, int victimeType);
-	void queen(int from, int to, int victimeType);
-	void king(int from, int to, int victimeType);
-	void enPassant(int from, int to);
-	void castling(int to);
-	void promotion(int from, int to, int victimeType);
+	private:
+		moveinfo::MoveInfo* _moves;
+		int _size;
+	};
 
-	void sort();
-
-private:
-	MoveInfo** _moves;
-	int _size;
-};
+	extern MoveArray movesArray;
+}
 
 #endif

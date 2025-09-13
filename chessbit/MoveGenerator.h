@@ -1,29 +1,13 @@
 #ifndef MOVEGENERATOR_H
 #define MOVEGENERATOR_H
 
+#include "Definitions.h"
 #include "MoveArray.h"
 #include <vector>
 
-using namespace game;
 using namespace defs;
-
-struct MoveInfo {
-    int type;
-
-    int movedPiece;
-
-    int from;
-    int to;
-    int enPassant;
-    int deadPiece;
-
-    int rookFrom;
-    int rookTo;
-
-    int promotedPiece;
-
-    int mvv_lva;
-};
+using namespace movarray;
+using namespace moveinfo;
 
 namespace movegen {
 
@@ -47,57 +31,49 @@ namespace movegen {
         PromotionKnightCapture, PromotionBishopCapture, PromotionRookCapture, PromotionQueenCapture
     };
 
-    //5949 is the maximum possible move count in one game
-    extern U64 occupanciesSaved[5949][3];
-    extern int castlingPermissionsSaved[5949];
-    extern int enPassantSaved[5949];
-    extern int checksSaved[5949];
-
     enum class Piece {
         Pawn, Knight, Bishop, Rook, Queen, King
     };
 
     struct BoardState {
-        const U64 pM;
-        const U64 nM;
-        const U64 bM;
-        const U64 rM;
-        const U64 qM;
-        const U64 kM;
+        U64 pM;
+        U64 nM;
+        U64 bM;
+        U64 rM;
+        U64 qM;
+        U64 kM;
 
-        const U64 pE;
-        const U64 nE;
-        const U64 bE;
-        const U64 rE;
-        const U64 qE;
-        const U64 kE;
+        U64 pE;
+        U64 nE;
+        U64 bE;
+        U64 rE;
+        U64 qE;
+        U64 kE;
 
-        const U64 kMA;
-        const U64 kEA;
+        U64 kMA;
+        U64 kEA;
 
-        const U64 occM;
-        const U64 occE;
-        const U64 occB;
+        U64 occM;
+        U64 occE;
+        U64 occB;
 
-        const U64 checks;
-        const int casPerms;
-        const int enPassant;
+        U64 checks;
+        int casPerms;
+        int enPassant;
+
+        bool s;
 
         constexpr BoardState(
             U64 pM, U64 nM, U64 bM, U64 rM, U64 qM, U64 kM,
             U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, U64 kE,
             U64 kMA, U64 kEA,
             U64 occM, U64 occE, U64 occB,
-            U64 checks, int casPerms, int enPassant) :
+            U64 checks, int casPerms, int enPassant, bool side) :
             pM(pM), nM(nM), bM(bM), rM(rM), qM(qM), kM(kM),
             pE(pE), nE(nE), bE(bE), rE(rE), qE(qE), kE(kE),
             kMA(kMA), kEA(kEA),
-            occM(occM),
-            occE(occE),
-            occB(occB),
-            checks(checks),
-            casPerms(casPerms),
-            enPassant(enPassant)
+            occM(occM), occE(occE), occB(occB),
+            checks(checks), casPerms(casPerms), enPassant(enPassant), s(side)
         {
 
         }
@@ -146,19 +122,19 @@ namespace movegen {
 
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, kES);
-                if constexpr (Piece::King == piece)         return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare);
-                else                                        return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare);
+                if constexpr (Piece::King == piece)         return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side);
+                else                                        return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side);
             }
             else {
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, kES);
 
-                if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare);
-                else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare);
+                if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side);
+                else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side);
             }
         }
 
-        template <Piece piece, bool capture>
+        template <Piece piece, bool side, bool capture>
         ForceInline BoardState makePromotion(int from, int to, const BoardState& board, int kES) {
             const U64 f = (1ULL << from);
             const U64 t = (1ULL << to);
@@ -188,12 +164,12 @@ namespace movegen {
 
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, kES);
-                return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare);
+                return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side);
             }
             else {
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, kES);
-                return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare);
+                return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side);
             }
         }
 
@@ -208,7 +184,7 @@ namespace movegen {
 
             const U64 checks = (PAWN_CAPTURES[!side][kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, kES);
 
-            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, from + PAWN_PUSH[side]);
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, from + PAWN_PUSH[side], !side);
         }
 
         template <bool side>
@@ -226,11 +202,11 @@ namespace movegen {
 
             const U64 checks = (PAWN_CAPTURES[!side][kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, kES);
 
-            return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare);
+            return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side);
         }
 
         template <int castlingSide>
-        ForceInline constexpr U64 rookSwitch() {
+        ForceInline U64 rookSwitch() {
             if constexpr (castlingSide == 0) return 0xa000000000000000;
             if constexpr (castlingSide == 1) return 0x900000000000000;
             if constexpr (castlingSide == 2) return 0xa0;
@@ -238,7 +214,7 @@ namespace movegen {
         }
 
         template <int castlingSide>
-        ForceInline constexpr U64 kingSwitch() {
+        ForceInline U64 kingSwitch() {
             if constexpr (castlingSide == 0) return 0x5000000000000000;
             if constexpr (castlingSide == 1) return 0x1400000000000000;
             if constexpr (castlingSide == 2) return 0x50;
@@ -246,7 +222,7 @@ namespace movegen {
         }
 
         template <int castlingSide>
-        ForceInline constexpr U64 bothSwitch() {
+        ForceInline U64 bothSwitch() {
             if constexpr (castlingSide == 0) return 0xa000000000000000 | 0x5000000000000000;
             if constexpr (castlingSide == 1) return 0x900000000000000 | 0x1400000000000000;
             if constexpr (castlingSide == 2) return 0xa0 | 0x50;
@@ -265,276 +241,11 @@ namespace movegen {
 
             const int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
 
-            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kEA, getKingAttacks(to), board.occE, occM, occB, checks, board.casPerms, noSquare);
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kEA, getKingAttacks(to), board.occE, occM, occB, checks, board.casPerms, noSquare, CASTLING_SIDE_OPPOSITE[castlingSide]);
         }
     };
 
-    ForceInline U64 sliderChecks(U64 bM, U64 rM, U64 qM, U64 occB, int kES) {
-        return (getBishopAttacks(kES, occB) & (bM | qM)) | (getRookAttacks(kES, occB) & (rM | qM));
-    }
-
-    template <Piece piece, bool side, bool capture>
-    ForceInline void make(int from, int to, U64& occM, U64& occE, U64& occB, U64& movP, U64 bM, U64 rM, U64 qM, int kES, U64& checks) {
-        const U64 move = (1ULL << from) | (1ULL << to);
-
-        movP ^= move;
-        occM ^= move;
-
-        if constexpr (capture) occE ^= (1ULL << to);
-
-        occB = occM | occE;
-
-        if constexpr (Piece::Bishop == piece)       checks = sliderChecks(movP, rM, qM, occB, kES);
-        else if constexpr (Piece::Rook == piece)    checks = sliderChecks(bM, movP, qM, occB, kES);
-        else if constexpr (Piece::Queen == piece)   checks = sliderChecks(bM, rM, movP, occB, kES);
-        else                                        checks = sliderChecks(bM, rM, qM, occB, kES);
-
-        if constexpr (Piece::Pawn == piece)     checks |= PAWN_CAPTURES[!side][kES] & movP;
-        if constexpr (Piece::Knight == piece)   checks |= KNIGHT_ATTACKS[kES] & movP;
-    }
-
-    template <Piece piece, bool side, bool capture>
-    ForceInline void makePromotion(int from, int to, U64& occM, U64& occE, U64& occB, U64& pM, U64& promoP, U64 bM, U64 rM, U64 qM, int kES, U64& checks) {
-        const U64 f = (1ULL << from);
-        const U64 t = (1ULL << to);
-
-        pM ^= f;
-        promoP ^= t;
-        occM ^= (f | t);
-
-        if constexpr (capture) occE ^= t;
-
-        occB = occM | occE;
-
-        if constexpr (Piece::Bishop == piece)       checks = sliderChecks(promoP, rM, qM, occB, kES);
-        else if constexpr (Piece::Rook == piece)    checks = sliderChecks(bM, promoP, qM, occB, kES);
-        else if constexpr (Piece::Queen == piece)   checks = sliderChecks(bM, rM, promoP, occB, kES);
-        else                                        checks = sliderChecks(bM, rM, qM, occB, kES);
-
-        if constexpr (Piece::Knight == piece)   checks |= KNIGHT_ATTACKS[kES] & promoP;
-    }
-
-    template <bool side>
-    ForceInline void makePawnEnPassant(int from, int to, U64& occM, U64& occE, U64& occB, U64& pM, U64 bM, U64 rM, U64 qM, U64& pE, int kES, U64& checks) {
-        const U64 move = (1ULL << from) | (1ULL << to);
-
-        pM ^= move;
-        occM ^= move;
-
-        U64 ePawnSquare = (1ULL << (to + PAWN_PUSH[!side]));
-        pE ^= ePawnSquare;
-        occE ^= ePawnSquare;
-
-        occB = occM | occE;
-
-        checks = PAWN_CAPTURES[!side][kES] & pM;
-        checks |= sliderChecks(bM, rM, qM, occB, kES);
-    }
-
-    template <int castlingSide>
-    ForceInline U64 rookSwitch() {
-        if constexpr (castlingSide == 0) return 0xa000000000000000;
-        if constexpr (castlingSide == 1) return 0x900000000000000;
-        if constexpr (castlingSide == 2) return 0xa0;
-        if constexpr (castlingSide == 3) return 0x9;
-    }
-
-    template <int castlingSide>
-    ForceInline U64 kingSwitch() {
-        if constexpr (castlingSide == 0) return 0x5000000000000000;
-        if constexpr (castlingSide == 1) return 0x1400000000000000;
-        if constexpr (castlingSide == 2) return 0x50;
-        if constexpr (castlingSide == 3) return 0x14;
-    }
-
-    template <int castlingSide>
-    ForceInline void makeCastling(U64& occM, U64& occE, U64& occB, U64& kM, U64& rM, int kES, U64& checks) {
-        U64 kSwitch = kingSwitch<castlingSide>();
-        U64 rSwitch = rookSwitch<castlingSide>();
-
-        kM ^= kSwitch;
-        rM ^= rSwitch;
-
-        occM ^= (kSwitch | rSwitch);
-        occB = occM | occE;
-
-        checks = getRookAttacks(kES, occB) & rM;
-    }
-
-    ForceInline void unmake(bool side, int from, int to, int movedPiece, int deadPiece) {
-        MoveBit(pieces[side][movedPiece], to, from);
-
-        boardPieces[from] = movedPiece;
-
-        SetBit(pieces[!side][deadPiece], to);
-        boardPieces[to] = deadPiece;
-    }
-
-    ForceInline void unmakeKing(bool side, int from, int to, int deadPiece) {
-        unmake(side, from, to, k, deadPiece);
-    }
-
-    ForceInline void unmakePawnEnPassant(bool side, int from, int to) {
-        MoveBit(pieces[side][p], to, from);
-        boardPieces[to] = noPiece;
-        boardPieces[from] = p;
-
-        int ePawnSquare = to + PAWN_PUSH[!side];
-        SetBit(pieces[!side][p], ePawnSquare);
-        boardPieces[ePawnSquare] = p;
-    }
-
-    ForceInline void unmakePromotion(bool side, int from, int to, int deadPiece, int promotedPiece) {
-        PopBit(pieces[side][promotedPiece], to);
-        SetBit(pieces[side][p], from);
-        boardPieces[from] = p;
-
-        SetBit(pieces[!side][deadPiece], to);
-        boardPieces[to] = deadPiece;
-    }
-
-    ForceInline void unmakeCastling(bool side, int from, int to, int rookFrom, int rookTo) {
-        //move king
-        MoveBit(pieces[side][k], to, from);
-        boardPieces[to] = noPiece;
-        boardPieces[from] = k;
-
-        //move rook
-        MoveBit(pieces[side][r], rookTo, rookFrom);
-        boardPieces[rookTo] = noPiece;
-        boardPieces[rookFrom] = r;
-    }
-
-    template <bool side>
-    static inline void makeMove(MoveInfo& move) {
-        movesPlayed[moveCount] = move;
-        occupanciesSaved[moveCount][white] = occupancies[white];
-        occupanciesSaved[moveCount][black] = occupancies[black];
-        occupanciesSaved[moveCount][both] = occupancies[both];
-        castlingPermissionsSaved[moveCount] = castlingPermissions;
-        enPassantSaved[moveCount] = enPassant;
-        checksSaved[moveCount] = checks;
-
-        moveCount++;
-
-        enPassant = move.enPassant;
-
-        U64& pM = pieces[side][p];
-        U64& nM = pieces[side][n];
-        U64& bM = pieces[side][b];
-        U64& rM = pieces[side][r];
-        U64& qM = pieces[side][q];
-        U64& kM = pieces[side][k];
-
-        U64& pE = pieces[!side][p];
-        U64& kE = pieces[!side][k];
-
-        int kES = SquareOf(kE);
-
-        switch (move.type) {
-        case Pawn: make<Piece::Pawn, side, false>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], pM, bM, rM, qM, kES, checks); break;
-        case PawnCapture: make<Piece::Pawn, side, true>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], pM, bM, rM, qM, kES, checks); break;
-        case Knight: make<Piece::Knight, side, false>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], nM, bM, rM, qM, kES, checks); break;
-        case KnightCapture: make<Piece::Knight, side, true>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], nM, bM, rM, qM, kES, checks); break;
-        case Bishop: make<Piece::Bishop, side, false>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], bM, bM, rM, qM, kES, checks); break;
-        case BishopCapture: make<Piece::Bishop, side, true>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], bM, bM, rM, qM, kES, checks); break;
-        case Rook: {
-            make<Piece::Rook, side, false>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], rM, bM, rM, qM, kES, checks);
-            castlingPermissions &= NO_CASTLE_ROOK[move.from]; break;
-        }
-        case RookCapture: {
-            make<Piece::Rook, side, true>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], rM, bM, rM, qM, kES, checks);
-            castlingPermissions &= NO_CASTLE_ROOK[move.from]; break;
-        }
-        case Queen: make<Piece::Queen, side, false>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], qM, bM, rM, qM, kES, checks); break;
-        case QueenCapture: make<Piece::Queen, side, true>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], qM, bM, rM, qM, kES, checks); break;
-        case King: {
-            make<Piece::King, side, false>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], kM, bM, rM, qM, kES, checks);
-            castlingPermissions &= NO_CASTLE[side]; break;
-        }
-        case KingCapture: {
-            make<Piece::King, side, true>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], kM, bM, rM, qM, kES, checks);
-            castlingPermissions &= NO_CASTLE[side]; break;
-        }
-        case PromotionKnight: makePromotion<Piece::Knight, side, false>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], pM, nM, bM, rM, qM, kES, checks); break;
-        case PromotionKnightCapture: makePromotion<Piece::Knight, side, true>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], pM, nM, bM, rM, qM, kES, checks); break;
-        case PromotionBishop: makePromotion<Piece::Bishop, side, false>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], pM, bM, bM, rM, qM, kES, checks); break;
-        case PromotionBishopCapture: makePromotion<Piece::Bishop, side, true>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], pM, bM, bM, rM, qM, kES, checks); break;
-        case PromotionRook: makePromotion<Piece::Rook, side, false>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], pM, rM, bM, rM, qM, kES, checks); break;
-        case PromotionRookCapture: makePromotion<Piece::Rook, side, true>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], pM, rM, bM, rM, qM, kES, checks); break;
-        case PromotionQueen: makePromotion<Piece::Queen, side, false>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], pM, qM, bM, rM, qM, kES, checks); break;
-        case PromotionQueenCapture: makePromotion<Piece::Rook, side, true>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], pM, qM, bM, rM, qM, kES, checks); break;
-        case EnPassant: {
-            makePawnEnPassant<side>(move.from, move.to, occupancies[side], occupancies[!side], occupancies[both], pM, bM, rM, qM, pE, kES, checks);
-            int ePawnSquare = move.to + PAWN_PUSH[!side];
-            boardPieces[ePawnSquare] = noPiece; break;
-        }
-        case Castling: {
-            if (move.rookFrom == CASTLE_ROOK_KING[side]) {
-                makeCastling<CASTLING_SIDE_K[side]>(occupancies[side], occupancies[!side], occupancies[both], kM, rM, kES, checks);
-            }
-            else {
-                makeCastling<CASTLING_SIDE_Q[side]>(occupancies[side], occupancies[!side], occupancies[both], kM, rM, kES, checks);
-            }
-            castlingPermissions &= NO_CASTLE[side];
-            boardPieces[move.rookFrom] = noPiece;
-            boardPieces[move.rookTo] = r;
-        }
-        }
-
-        if (move.promotedPiece != noPiece) {
-            boardPieces[move.from] = noPiece;
-            boardPieces[move.to] = move.promotedPiece;
-        }
-        else {
-            boardPieces[move.from] = noPiece;
-            boardPieces[move.to] = move.movedPiece;
-        }
-
-        if (move.deadPiece != noPiece && move.type != EnPassant) {
-            castlingPermissions &= NO_CASTLE_ROOK[move.to];
-            pieces[!side][move.deadPiece] ^= (1ULL << move.to);
-        }
-
-        game::side = !side;
-    }
-
-    static inline void unmakeMove(MoveInfo& move) {
-        side = !side;
-        moveCount--;
-
-        occupancies[white] = occupanciesSaved[moveCount][white];
-        occupancies[black] = occupanciesSaved[moveCount][black];
-        occupancies[both] = occupanciesSaved[moveCount][both];
-        castlingPermissions = castlingPermissionsSaved[moveCount];
-        checks = checksSaved[moveCount];
-        enPassant = enPassantSaved[moveCount];
-
-        switch (move.type) {
-        case Pawn:
-        case PawnCapture:
-        case Knight:
-        case KnightCapture:
-        case Bishop:
-        case BishopCapture:
-        case Rook:
-        case RookCapture:
-        case Queen:
-        case QueenCapture: unmake(side, move.from, move.to, move.movedPiece, move.deadPiece); break;
-        case King:
-        case KingCapture: unmakeKing(side, move.from, move.to, move.deadPiece); break;
-        case PromotionKnight:
-        case PromotionKnightCapture:
-        case PromotionBishop:
-        case PromotionBishopCapture:
-        case PromotionRook:
-        case PromotionRookCapture:
-        case PromotionQueen:
-        case PromotionQueenCapture: unmakePromotion(side, move.from, move.to, move.deadPiece, move.promotedPiece); break;
-        case EnPassant: unmakePawnEnPassant(side, move.from, move.to); break;
-        case Castling: unmakeCastling(side, move.from, move.to, move.rookFrom, move.rookTo); break;
-        }
-    }
+    extern BoardState dummy;
 
     template <bool side, bool wKMoved, bool bKMoved>
     ForceInline void filterKingAttacks(U64 occM, U64 occB, int kMS, U64& kingAttacks, U64& castleAttacks, U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, U64 kEA, U64 mask) {
@@ -646,555 +357,25 @@ namespace movegen {
     }
 
     template <bool side>
-    ForceInline constexpr U64 pawnsAtkLeft(U64 pM) {
+    ForceInline U64 pawnsAtkLeft(U64 pM) {
         if constexpr (side == white) return pM >> 9;
         return pM << 7;
     }
 
     template <bool side>
-    ForceInline constexpr U64 pawnsAtkRight(U64 pM) {
+    ForceInline U64 pawnsAtkRight(U64 pM) {
         if constexpr (side == white) return pM >> 7;
         return pM << 9;
     }
 
     template <bool side>
-    ForceInline constexpr U64 pawnsAtkForward(U64 pM) {
+    ForceInline U64 pawnsAtkForward(U64 pM) {
         if constexpr (side == white) return pM >> 8;
         return pM << 8;
     }
 
-    template <bool side, bool wKMoved, bool bKMoved>
-    static inline void generateMoves(MoveArray& moves) {
-        int from, to, deadPiece;
-        U64 bitboard, attacks, pinMask;
-        U64 castleAttacks = 0ULL;
-
-        int kMS = SquareOf(pieces[side][k]);
-        int kES = SquareOf(pieces[!side][k]);
-
-        if (checks) {
-
-            /*
-
-                KING MOVES
-
-            */
-            int checkSquare = SquareOf(checks);
-            U64 mask = getKingAttacks(kMS);
-            //inverted PIN_MASKS, because the king cannot move in the attack ray of the check pieces
-            attacks = mask & ~occupancies[side] & ~PIN_MASKS[checkSquare][kMS] & ~PIN_MASKS[Ms1b(checks)][kMS];
-            filterKingAttacks<side, true, true>(occupancies[side], occupancies[both], kMS, attacks, castleAttacks, pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], getKingAttacks(kES), mask);
-            Bitloop(attacks)
-            {
-                to = SquareOf(attacks);
-                deadPiece = boardPieces[to];
-                moves.king(kMS, to, deadPiece);
-            }
-
-            //if there is no second check, we need to check for other pieces
-            if (Bitcount(checks) == 1) {
-                //remove the bit of the check piece for performance, because it cannot possibly pin a piece
-                //PopBit(pieces[!side][checkPiece], checkSquare);
-                U64 bPins = findBishopPins<0>(occupancies[both], pieces[!side][b], pieces[!side][q], kMS);
-                U64 rPins = findRookPins<0>(occupancies[both], pieces[!side][r], pieces[!side][q], kMS);
-                U64 allPins = bPins | rPins;
-                //SetBit(pieces[!side][checkPiece], checkSquare);
-
-                //if check piece is pawn or knight, only possible moves are capture of the check piece (+ king moves)
-                if (checks & (pieces[!side][p] | pieces[!side][n])) {
-                    /*
-
-                       PAWN MOVES
-
-                    */
-                    to = checkSquare;
-                    deadPiece = boardPieces[to];
-
-                    //en passant
-                    bitboard = pieces[side][p] & PASSANT_CAPTURES[enPassant] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
-
-                        if (checkSquare == enPassant + PAWN_PUSH[!side]) {
-                            moves.enPassant(from, enPassant);
-                        }
-                    }
-
-                    bitboard = pieces[side][p] & PROMO_RANKS[side] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
-
-                        attacks = PAWN_CAPTURES[side][from] & checks;
-                        if (attacks)
-                        {
-                            moves.promotion(from, to, deadPiece);
-                        }
-                    }
-
-                    bitboard = pieces[side][p] & ~PROMO_RANKS[side] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
-
-                        attacks = PAWN_CAPTURES[side][from] & checks;
-                        if (attacks)
-                        {
-                            moves.pawn(from, to, deadPiece);
-                        }
-                    }
-
-                    /*
-
-                       KNIGHT MOVES
-
-                    */
-                    bitboard = pieces[side][n] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
-
-                        attacks = getKnightAttacks(from) & checks;
-                        if (attacks) {
-                            moves.knight(from, to, deadPiece);
-                        }
-                    }
-
-                    /*
-
-                       BISHOP MOVES
-
-                    */
-                    bitboard = pieces[side][b] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
-
-                        attacks = getBishopAttacks(from, occupancies[both]) & checks;
-                        if (attacks) {
-                            moves.bishop(from, to, deadPiece);
-                        }
-                    }
-
-                    /*
-
-                       ROOK MOVES
-
-                    */
-                    bitboard = pieces[side][r] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
-
-                        attacks = getRookAttacks(from, occupancies[both]) & checks;
-                        if (attacks) {
-                            moves.rook(from, to, deadPiece);
-                        }
-                    }
-
-                    /*
-
-                       QUEEN MOVES
-
-                    */
-                    bitboard = pieces[side][q] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
-
-                        attacks = getQueenAttacks(from, occupancies[both]) & checks;
-                        if (attacks) {
-                            moves.queen(from, to, deadPiece);
-                        }
-                    }
-                }
-                else {
-                    //squares between the check piece (included) and the king
-                    //those are the only squares that a piece can go to to block the check
-                    U64 validSquares = (checks | PIN_MASKS[checkSquare][kMS]);
-
-                    /*
-
-                       PAWN MOVES
-
-                    */
-                    U64 pawns = pieces[side][p] & ~allPins;
-
-                    U64 pawnsLeft = pawnsAtkLeft<side>(pawns & ~FIRST_COL) & occupancies[!side] & validSquares;
-                    U64 pawnsRight = pawnsAtkRight<side>(pawns & ~LAST_COL) & occupancies[!side] & validSquares;
-                    U64 pawnsFwd = pawnsAtkForward<side>(pawns) & ~occupancies[both];
-                    U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~occupancies[both] & validSquares;
-                    //mask after double push, to not ignore possible moves
-                    pawnsFwd &= validSquares;
-
-                    if ((pawnsLeft | pawnsRight | pawnsFwd) & LAST_RANKS[side]) {
-                        U64 promosLeft = pawnsLeft & LAST_RANKS[side];
-                        U64 promosRight = pawnsRight & LAST_RANKS[side];
-                        U64 promosFwd = pawnsFwd & LAST_RANKS[side];
-
-                        pawnsLeft ^= promosLeft;
-                        pawnsRight ^= promosRight;
-                        pawnsFwd ^= promosFwd;
-
-                        Bitloop(promosLeft) { to = SquareOf(promosLeft);  from = to + PAWN_RIGHT[!side]; deadPiece = boardPieces[to]; moves.promotion(from, to, deadPiece); }
-                        Bitloop(promosRight) { to = SquareOf(promosRight); from = to + PAWN_LEFT[!side]; deadPiece = boardPieces[to]; moves.promotion(from, to, deadPiece); }
-                        Bitloop(promosFwd) { to = SquareOf(promosFwd);   from = to + PAWN_PUSH[!side];   deadPiece = boardPieces[to]; moves.promotion(from, to, deadPiece); }
-                    }
-
-                    Bitloop(pawnsLeft) {
-                        to = SquareOf(pawnsLeft);
-                        from = to + PAWN_RIGHT[!side];
-                        deadPiece = boardPieces[to];
-                        moves.pawn(from, to, deadPiece);
-                    }
-
-                    Bitloop(pawnsRight) {
-                        to = SquareOf(pawnsRight);
-                        from = to + PAWN_LEFT[!side];
-                        deadPiece = boardPieces[to];
-                        moves.pawn(from, to, deadPiece);
-                    }
-
-                    Bitloop(pawnsFwd) {
-                        to = SquareOf(pawnsFwd);
-                        from = to + PAWN_PUSH[!side];
-                        moves.pawn(from, to, noPiece);
-                    }
-
-                    Bitloop(pawnsDouble) {
-                        to = SquareOf(pawnsDouble);
-                        from = to + PAWN_DOUBLE_PUSH[!side];
-                        moves.pawn(from, to, noPiece);
-                    }
-
-                    /*
-
-                       KNIGHT MOVES
-
-                    */
-                    bitboard = pieces[side][n] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
-
-                        attacks = getKnightAttacks(from) & validSquares;
-                        Bitloop(attacks) {
-                            to = SquareOf(attacks);
-                            deadPiece = boardPieces[to];
-
-                            moves.knight(from, to, deadPiece);
-                        }
-                    }
-
-                    /*
-
-                       BISHOP MOVES
-
-                    */
-                    bitboard = pieces[side][b] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
-
-                        attacks = getBishopAttacks(from, occupancies[both]) & validSquares;
-                        Bitloop(attacks) {
-                            to = SquareOf(attacks);
-                            deadPiece = boardPieces[to];
-
-                            moves.bishop(from, to, deadPiece);
-                        }
-                    }
-
-                    /*
-
-                       ROOK MOVES
-
-                    */
-                    bitboard = pieces[side][r] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
-
-                        attacks = getRookAttacks(from, occupancies[both]) & validSquares;
-                        Bitloop(attacks) {
-                            to = SquareOf(attacks);
-                            deadPiece = boardPieces[to];
-
-                            moves.rook(from, to, deadPiece);
-                        }
-                    }
-
-                    /*
-
-                       QUEEN MOVES
-
-                    */
-                    bitboard = pieces[side][q] & ~allPins;
-                    Bitloop(bitboard)
-                    {
-                        from = SquareOf(bitboard);
-
-                        attacks = getQueenAttacks(from, occupancies[both]) & validSquares;
-                        Bitloop(attacks) {
-                            to = SquareOf(attacks);
-                            deadPiece = boardPieces[to];
-
-                            moves.queen(from, to, deadPiece);
-                        }
-                    }
-                }
-            }
-
-            return;
-        }
-
-        U64 bPins = findBishopPins<0>(occupancies[both], pieces[!side][b], pieces[!side][q], kMS);
-        U64 rPins = findRookPins<0>(occupancies[both], pieces[!side][r], pieces[!side][q], kMS);
-        U64 allPins = bPins | rPins;
-
-        /*
-
-           PAWN MOVES
-
-        */
-        //en passant
-        bitboard = PASSANT_CAPTURES[enPassant] & pieces[side][p] & ~allPins;
-        Bitloop(bitboard) {
-            from = SquareOf(bitboard);
-
-            if ((1ULL << enPassant) & passantPinMask<side>(enPassant, from, occupancies[both], pieces[side][k], pieces[!side][r], pieces[!side][q], kMS)) {
-                moves.enPassant(from, enPassant);
-            }
-        }
-
-        bitboard = PASSANT_CAPTURES[enPassant] & pieces[side][p] & allPins;
-        Bitloop(bitboard) {
-            from = SquareOf(bitboard);
-            pinMask = validAttacksMasks[0][from];
-
-            if ((1ULL << enPassant) & pinMask & passantPinMask<side>(enPassant, from, occupancies[both], pieces[side][k], pieces[!side][r], pieces[!side][q], kMS)) {
-                moves.enPassant(from, enPassant);
-            }
-        }
-
-        U64 pawnsAtk = pieces[side][p] & ~rPins;
-        U64 pawnsPush = pieces[side][p] & ~bPins;
-
-        U64 pawnsLeft = (pawnsAtkLeft<side>(pawnsAtk & ~bPins & ~FIRST_COL) & occupancies[!side]) | (pawnsAtkLeft<side>(pawnsAtk & bPins & ~FIRST_COL) & occupancies[!side] & bPins);
-        U64 pawnsRight = (pawnsAtkRight<side>(pawnsAtk & ~bPins & ~LAST_COL) & occupancies[!side]) | (pawnsAtkRight<side>(pawnsAtk & bPins & ~LAST_COL) & occupancies[!side] & bPins);
-        U64 pawnsFwd = (pawnsAtkForward<side>(pawnsPush & ~rPins) & ~occupancies[both]) | (pawnsAtkForward<side>(pawnsPush & rPins) & ~occupancies[both] & rPins);
-        U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~occupancies[both];
-
-        if ((pawnsLeft | pawnsRight | pawnsFwd) & LAST_RANKS[side]) {
-            U64 promosLeft = pawnsLeft & LAST_RANKS[side];
-            U64 promosRight = pawnsRight & LAST_RANKS[side];
-            U64 promosFwd = pawnsFwd & LAST_RANKS[side];
-
-            pawnsLeft ^= promosLeft;
-            pawnsRight ^= promosRight;
-            pawnsFwd ^= promosFwd;
-
-            Bitloop(promosLeft) { to = SquareOf(promosLeft);  from = to + PAWN_RIGHT[!side]; deadPiece = boardPieces[to]; moves.promotion(from, to, deadPiece); }
-            Bitloop(promosRight) { to = SquareOf(promosRight); from = to + PAWN_LEFT[!side]; deadPiece = boardPieces[to]; moves.promotion(from, to, deadPiece); }
-            Bitloop(promosFwd) { to = SquareOf(promosFwd);   from = to + PAWN_PUSH[!side];   deadPiece = boardPieces[to]; moves.promotion(from, to, deadPiece); }
-        }
-
-        Bitloop(pawnsLeft) {
-            to = SquareOf(pawnsLeft);
-            from = to + PAWN_RIGHT[!side];
-            deadPiece = boardPieces[to];
-            moves.pawn(from, to, deadPiece);
-        }
-
-        Bitloop(pawnsRight) {
-            to = SquareOf(pawnsRight);
-            from = to + PAWN_LEFT[!side];
-            deadPiece = boardPieces[to];
-            moves.pawn(from, to, deadPiece);
-        }
-
-        Bitloop(pawnsFwd) {
-            to = SquareOf(pawnsFwd);
-            from = to + PAWN_PUSH[!side];
-            moves.pawn(from, to, noPiece);
-        }
-
-        Bitloop(pawnsDouble) {
-            to = SquareOf(pawnsDouble);
-            from = to + PAWN_DOUBLE_PUSH[!side];
-            moves.pawn(from, to, noPiece);
-        }
-
-        /*
-
-           KNIGHT MOVES
-
-        */
-        bitboard = pieces[side][n] & ~allPins;
-        Bitloop(bitboard)
-        {
-            from = SquareOf(bitboard);
-
-            attacks = getKnightAttacks(from) & ~occupancies[side];
-            Bitloop(attacks)
-            {
-                to = SquareOf(attacks);
-                deadPiece = boardPieces[to];
-
-                moves.knight(from, to, deadPiece);
-            }
-        }
-
-        /*
-
-           BISHOP MOVES
-
-        */
-        bitboard = pieces[side][b] & ~allPins;
-        Bitloop(bitboard)
-        {
-            from = SquareOf(bitboard);
-
-            attacks = getBishopAttacks(from, occupancies[both]) & ~occupancies[side];
-            Bitloop(attacks)
-            {
-                to = SquareOf(attacks);
-                deadPiece = boardPieces[to];
-
-                moves.bishop(from, to, deadPiece);
-            }
-        }
-
-        bitboard = pieces[side][b] & allPins;
-        Bitloop(bitboard)
-        {
-            from = SquareOf(bitboard);
-            pinMask = validAttacksMasks[0][from];
-
-            attacks = getBishopAttacks(from, occupancies[both]) & ~occupancies[side] & pinMask;
-            Bitloop(attacks)
-            {
-                to = SquareOf(attacks);
-                deadPiece = boardPieces[to];
-
-                moves.bishop(from, to, deadPiece);
-            }
-        }
-
-        /*
-
-           ROOK MOVES
-
-        */
-        bitboard = pieces[side][r] & ~allPins;
-        Bitloop(bitboard)
-        {
-            from = SquareOf(bitboard);
-
-            attacks = getRookAttacks(from, occupancies[both]) & ~occupancies[side];
-            Bitloop(attacks)
-            {
-                to = SquareOf(attacks);
-                deadPiece = boardPieces[to];
-
-                moves.rook(from, to, deadPiece);
-            }
-        }
-
-        bitboard = pieces[side][r] & allPins;
-        Bitloop(bitboard)
-        {
-            from = SquareOf(bitboard);
-            pinMask = validAttacksMasks[0][from];
-
-            attacks = getRookAttacks(from, occupancies[both]) & ~occupancies[side] & pinMask;
-            Bitloop(attacks)
-            {
-                to = SquareOf(attacks);
-                deadPiece = boardPieces[to];
-
-                moves.rook(from, to, deadPiece);
-            }
-        }
-
-        /*
-
-           QUEEN MOVES
-
-        */
-        bitboard = pieces[side][q] & ~allPins;
-        Bitloop(bitboard)
-        {
-            from = SquareOf(bitboard);
-
-            attacks = getQueenAttacks(from, occupancies[both]) & ~occupancies[side];
-            Bitloop(attacks)
-            {
-                to = SquareOf(attacks);
-                deadPiece = boardPieces[to];
-
-                moves.queen(from, to, deadPiece);
-            }
-        }
-
-        bitboard = pieces[side][q] & allPins;
-        Bitloop(bitboard)
-        {
-            from = SquareOf(bitboard);
-            pinMask = validAttacksMasks[0][from];
-
-            attacks = getQueenAttacks(from, occupancies[both]) & ~occupancies[side] & pinMask;
-            Bitloop(attacks)
-            {
-                to = SquareOf(attacks);
-                deadPiece = boardPieces[to];
-
-                moves.queen(from, to, deadPiece);
-            }
-        }
-
-        /*
-
-           KING MOVES
-
-        */
-        U64 mask = getKingAttacks(kMS);
-        attacks = mask & ~occupancies[side];
-        filterKingAttacks<side, wKMoved, bKMoved>(occupancies[side], occupancies[both], kMS, attacks, castleAttacks, pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], getKingAttacks(kES), mask);
-        Bitloop(attacks)
-        {
-            to = SquareOf(attacks);
-            deadPiece = boardPieces[to];
-
-            moves.king(kMS, to, deadPiece);
-        }
-
-        //castling moves
-        if (side == white) {
-            if (castle<CASTLING_SIDE_K[white]>(castlingPermissions, occupancies[!side], occupancies[both], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], castleAttacks)) {
-                moves.castling(CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_K[white]]);
-            }
-
-            if (castle<CASTLING_SIDE_Q[white]>(castlingPermissions, occupancies[!side], occupancies[both], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], castleAttacks)) {
-                moves.castling(CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_Q[white]]);
-            }
-        }
-        else {
-            if (castle<CASTLING_SIDE_K[black]>(castlingPermissions, occupancies[!side], occupancies[both], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], castleAttacks)) {
-                moves.castling(CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_K[black]]);
-            }
-
-            if (castle<CASTLING_SIDE_Q[black]>(castlingPermissions, occupancies[!side], occupancies[both], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], castleAttacks)) {
-                moves.castling(CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_Q[black]]);
-            }
-        }
-    }
-
     template <int depth, bool side, bool wKMoved, bool bKMoved>
     struct PerftGenerator;
-    
-    inline constexpr BoardState empty = BoardState(0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
     template <int depth, bool side, bool wKMoved, bool bKMoved, Piece piece, bool capture>
     ForceInline void enumMoves(U64& nodes, U64 moves, int from, const BoardState& board, int kES) {
@@ -1202,12 +383,15 @@ namespace movegen {
             int to = SquareOf(moves);
 
             BoardState newBoard = board.make<piece, side, capture>(from, to, board, kES);
-            if constexpr (piece == Piece::King) {
-                if constexpr (side == white)    nodes += PerftGenerator<depth - 1, !side, true, bKMoved>::generateMoves(newBoard);
-                else                            nodes += PerftGenerator<depth - 1, !side, wKMoved, true>::generateMoves(newBoard);
-            }
+            if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, capture, newBoard); movesArray.add(mov); }
             else {
-                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                if constexpr (piece == Piece::King) {
+                    if constexpr (side == white)    nodes += PerftGenerator<depth - 1, !side, true, bKMoved>::generateMoves(newBoard);
+                    else                            nodes += PerftGenerator<depth - 1, !side, wKMoved, true>::generateMoves(newBoard);
+                }
+                else {
+                    nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                }
             }
 
             enumMoves<depth, side, wKMoved, bKMoved, piece, capture>(nodes, _blsr_u64(moves), from, board, kES);
@@ -1216,54 +400,30 @@ namespace movegen {
 
     template <int depth, bool side, bool wKMoved, bool bKMoved, Piece piece>
     ForceInline void makeMoves(U64& nodes, U64 attacks, int from, const BoardState& board, int kES) {
-        //int to;
         U64 moves = attacks & ~board.occE;
         enumMoves<depth, side, wKMoved, bKMoved, piece, false>(nodes, moves, from, board, kES);
-        /*Bitloop(moves) {
-            to = SquareOf(moves);
-
-            BoardState newBoard = board.make<piece, side, false>(from, to, board, kES);
-            if constexpr (piece == Piece::King) {
-                if constexpr (side == white)    nodes += PerftGenerator<depth - 1, !side, true, bKMoved>::generateMoves(newBoard);
-                else                            nodes += PerftGenerator<depth - 1, !side, wKMoved, true>::generateMoves(newBoard);
-            }
-            else {
-                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);                
-                PerftGenerator<depth - 1, !side, false, false>::generateMoves(empty);
-            }
-            
-        }*/
 
         moves = attacks & board.occE;
         enumMoves<depth, side, wKMoved, bKMoved, piece, true>(nodes, moves, from, board, kES);
-        /*Bitloop(moves) {
-            to = SquareOf(moves);
-
-            BoardState newBoard = board.make<piece, side, true>(from, to, board, kES);
-            if constexpr (piece == Piece::King) {
-                if constexpr (side == white)    nodes += PerftGenerator<depth - 1, !side, true, bKMoved>::generateMoves(newBoard);
-                else                            nodes += PerftGenerator<depth - 1, !side, wKMoved, true>::generateMoves(newBoard);
-            }
-            else {
-                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
-                PerftGenerator<depth - 1, !side, false, false>::generateMoves(empty);
-            }
-        }*/
     }
 
     template <int depth, bool side, bool wKMoved, bool bKMoved, bool capture>
     ForceInline void makePromotionMoves(U64& nodes, int from, int to, const BoardState& board, int kES) {
-        BoardState newBoardN = board.makePromotion<Piece::Knight, capture>(from, to, board, kES);
-        nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardN);
+        BoardState newBoardN = board.makePromotion<Piece::Knight, side, capture>(from, to, board, kES);
+        if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, n, capture, newBoardN); movesArray.add(mov); }
+        else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardN);
 
-        BoardState newBoardB = board.makePromotion<Piece::Bishop, capture>(from, to, board, kES);
-        nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardB);
+        BoardState newBoardB = board.makePromotion<Piece::Bishop, side, capture>(from, to, board, kES);
+        if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, b, capture, newBoardB); movesArray.add(mov); }
+        else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardB);
 
-        BoardState newBoardR = board.makePromotion<Piece::Rook, capture>(from, to, board, kES);
-        nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardR);
+        BoardState newBoardR = board.makePromotion<Piece::Rook, side, capture>(from, to, board, kES);
+        if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, r, capture, newBoardR); movesArray.add(mov); }
+        else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardR);
 
-        BoardState newBoardQ = board.makePromotion<Piece::Queen, capture>(from, to, board, kES);
-        nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardQ);
+        BoardState newBoardQ = board.makePromotion<Piece::Queen, side, capture>(from, to, board, kES);
+        if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, q, capture, newBoardQ); movesArray.add(mov); }
+        else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoardQ);
     }
 
     template <int depth, bool side, bool wKMoved, bool bKMoved>
@@ -1304,19 +464,15 @@ namespace movegen {
             int checkSquare = SquareOf(board.checks);
 
             U64 mask = board.kMA;
-            //inverted PIN_MASKS, because the king cannot move in the attack ray of the check pieces
             attacks = mask & ~board.occM & ~PIN_MASKS[checkSquare][kMS] & ~PIN_MASKS[Ms1b(board.checks)][kMS];
             filterKingAttacks<side, true, true>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
             if constexpr (depth == 1) nodes += Bitcount(attacks);
             else makeMoves<depth, side, wKMoved, bKMoved, Piece::King>(nodes, attacks, kMS, board, kES);
 
-            //if there is no second check, we need to check for other pieces
             if (Bitcount(board.checks) == 1) {
-                //remove the bit of the check piece for performance, because it cannot possibly pin a piece
                 U64 bPins = findBishopPins<depth>(board.occB, board.bE, board.qE, kMS);
                 U64 rPins = findRookPins<depth>(board.occB, board.rE, board.qE, kMS);
                 U64 allPins = bPins | rPins;
-                //if check piece is pawn or knight, only possible moves are capture of the check piece (+ king moves)
                 if (board.checks & (board.pE | board.nE)) {
                     /*
 
@@ -1341,7 +497,8 @@ namespace movegen {
                             from = SquareOf(enPassant);
 
                             BoardState newBoard = board.makeEnPassant<side>(from, board.enPassant, board, kES);
-                            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                            if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, board.enPassant, true, newBoard); movesArray.add(mov); }
+                            else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                         }
 
                         Bitloop(promos) { from = SquareOf(promos); makePromotionMoves<depth, side, wKMoved, bKMoved, true>(nodes, from, to, board, kES); }
@@ -1350,7 +507,8 @@ namespace movegen {
                             from = SquareOf(caps);
 
                             BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, kES);
-                            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                            if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
+                            else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                         }
                     }
 
@@ -1369,7 +527,8 @@ namespace movegen {
                         else {
                             if (attacks) {
                                 BoardState newBoard = board.make<Piece::Knight, side, true>(from, to, board, kES);
-                                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                                if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
+                                else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                             }
                         }
                     }
@@ -1389,7 +548,8 @@ namespace movegen {
                         else {
                             if (attacks) {
                                 BoardState newBoard = board.make<Piece::Bishop, side, true>(from, to, board, kES);
-                                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                                if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
+                                else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                             }
                         }
                     }
@@ -1409,7 +569,8 @@ namespace movegen {
                         else {
                             if (attacks) {
                                 BoardState newBoard = board.make<Piece::Rook, side, true>(from, to, board, kES);
-                                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                                if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
+                                else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                             }
                         }
                     }
@@ -1429,15 +590,14 @@ namespace movegen {
                         else {
                             if (attacks) {
                                 BoardState newBoard = board.make<Piece::Queen, side, true>(from, to, board, kES);
-                                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                                if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
+                                else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                             }
                         }
                     }
 
                 }
                 else {
-                    //squares between the check piece (included) and the king
-                    //those are the only squares that a piece can go to to block the check
                     U64 validSquares = (board.checks | PIN_MASKS[checkSquare][kMS]);
 
                     /*
@@ -1451,7 +611,6 @@ namespace movegen {
                     U64 pawnsRight = pawnsAtkRight<side>(pawns & ~LAST_COL) & board.occE & validSquares;
                     U64 pawnsFwd = pawnsAtkForward<side>(pawns) & ~board.occB;
                     U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~board.occB & validSquares;
-                    //mask after double push, to not ignore possible moves
                     pawnsFwd &= validSquares;
 
                     if ((pawnsLeft | pawnsRight | pawnsFwd) & LAST_RANKS[side]) {
@@ -1482,7 +641,8 @@ namespace movegen {
                             from = to + PAWN_RIGHT[!side];
 
                             BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, kES);
-                            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                            if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
+                            else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                         }
 
                         Bitloop(pawnsRight) {
@@ -1490,7 +650,8 @@ namespace movegen {
                             from = to + PAWN_LEFT[!side];
 
                             BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, kES);
-                            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                            if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
+                            else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                         }
 
                         Bitloop(pawnsFwd) {
@@ -1498,7 +659,8 @@ namespace movegen {
                             from = to + PAWN_PUSH[!side];
 
                             BoardState newBoard = board.make<Piece::Pawn, side, false>(from, to, board, kES);
-                            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                            if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, false, newBoard); movesArray.add(mov); }
+                            else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                         }
 
                         Bitloop(pawnsDouble) {
@@ -1506,7 +668,8 @@ namespace movegen {
                             from = to + PAWN_DOUBLE_PUSH[!side];
 
                             BoardState newBoard = board.makeDoublePush<side>(from, to, board, kES);
-                            nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                            if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, false, newBoard); movesArray.add(mov); }
+                            else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                         }
                     }
                     /*
@@ -1592,7 +755,8 @@ namespace movegen {
             else {
                 if ((1ULL << board.enPassant) & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS)) {
                     BoardState newBoard = board.makeEnPassant<side>(from, board.enPassant, board, kES);
-                    nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                    if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, board.enPassant, true, newBoard); movesArray.add(mov); }
+                    else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                 }
             }
         }
@@ -1605,7 +769,8 @@ namespace movegen {
             else {
                 if ((1ULL << board.enPassant) & bPins & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS)) {
                     BoardState newBoard = board.makeEnPassant<side>(from, board.enPassant, board, kES);
-                    nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                    if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, board.enPassant, true, newBoard); movesArray.add(mov); }
+                    else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                 }
             }
         }
@@ -1646,7 +811,8 @@ namespace movegen {
                 from = to + PAWN_RIGHT[!side];
 
                 BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, kES);
-                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
+                else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
             }
 
             Bitloop(pawnsRight) {
@@ -1654,7 +820,8 @@ namespace movegen {
                 from = to + PAWN_LEFT[!side];
 
                 BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, kES);
-                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
+                else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
             }
 
             Bitloop(pawnsFwd) {
@@ -1662,7 +829,8 @@ namespace movegen {
                 from = to + PAWN_PUSH[!side];
 
                 BoardState newBoard = board.make<Piece::Pawn, side, false>(from, to, board, kES);
-                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, false, newBoard); movesArray.add(mov); }
+                else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
             }
 
             Bitloop(pawnsDouble) {
@@ -1670,7 +838,8 @@ namespace movegen {
                 from = to + PAWN_DOUBLE_PUSH[!side];
 
                 BoardState newBoard = board.makeDoublePush<side>(from, to, board, kES);
-                nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, false, newBoard); movesArray.add(mov); }
+                else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
             }
         }
 
@@ -1776,7 +945,8 @@ namespace movegen {
                 if constexpr (depth == 1) nodes++;
                 else {
                     BoardState newBoard = board.makeCastling<CASTLING_SIDE_K[white]>(board, kES);
-                    nodes += PerftGenerator<depth - 1, black, true, bKMoved>::generateMoves(newBoard);
+                    if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_K[white]], true, newBoard); movesArray.add(mov); }
+                    else nodes += PerftGenerator<depth - 1, black, true, bKMoved>::generateMoves(newBoard);
                 }
             }
 
@@ -1784,7 +954,8 @@ namespace movegen {
                 if constexpr (depth == 1) nodes++;
                 else {
                     BoardState newBoard = board.makeCastling<CASTLING_SIDE_Q[white]>(board, kES);
-                    nodes += PerftGenerator<depth - 1, black, true, bKMoved>::generateMoves(newBoard);
+                    if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_Q[white]], true, newBoard); movesArray.add(mov); }
+                    else nodes += PerftGenerator<depth - 1, black, true, bKMoved>::generateMoves(newBoard);
                 }
             }
         }
@@ -1793,7 +964,8 @@ namespace movegen {
                 if constexpr (depth == 1) nodes++;
                 else {
                     BoardState newBoard = board.makeCastling<CASTLING_SIDE_K[black]>(board, kES);
-                    nodes += PerftGenerator<depth - 1, white, wKMoved, true>::generateMoves(newBoard);
+                    if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_K[black]], true, newBoard); movesArray.add(mov); }
+                    else nodes += PerftGenerator<depth - 1, white, wKMoved, true>::generateMoves(newBoard);
                 }
             }
 
@@ -1801,7 +973,8 @@ namespace movegen {
                 if constexpr (depth == 1) nodes++;
                 else {
                     BoardState newBoard = board.makeCastling<CASTLING_SIDE_Q[black]>(board, kES);
-                    nodes += PerftGenerator<depth - 1, white, wKMoved, true>::generateMoves(newBoard);
+                    if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_Q[black]], true, newBoard); movesArray.add(mov); }
+                    else nodes += PerftGenerator<depth - 1, white, wKMoved, true>::generateMoves(newBoard);
                 }
             }
         }
@@ -1820,6 +993,13 @@ namespace movegen {
     struct PerftGenerator<1, side, wKMoved, bKMoved> {
         ForceInline U64 generateMoves(const BoardState& board) {
             return allMoves<1, side, wKMoved, bKMoved>(board);
+        }
+    };
+
+    template <bool side, bool wKMoved, bool bKMoved>
+    struct PerftGenerator<0, side, wKMoved, bKMoved> {
+        ForceInline U64 generateMoves(const BoardState& board) {
+            return allMoves<0, side, wKMoved, bKMoved>(board);
         }
     };
 

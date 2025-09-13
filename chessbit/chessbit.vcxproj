@@ -186,6 +186,7 @@
     <ClInclude Include="Game.h" />
     <ClInclude Include="MoveArray.h" />
     <ClInclude Include="MoveGenerator.h" />
+    <ClInclude Include="MoveInfo.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
