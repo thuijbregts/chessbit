@@ -1,11 +1,13 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include "MoveGenerator.h"
+#include "BoardState.h"
+#include "MoveInfo.h"
 #include <string>
 
 using namespace defs;
-using namespace movegen;
+using namespace bstate;
+using namespace moveinfo;
 using std::string;
 
 namespace game {

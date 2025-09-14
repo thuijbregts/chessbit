@@ -264,8 +264,8 @@ namespace movegen {
                     caps ^= promos;
 
                     if constexpr (depth == 1) {
-                        nodes += Bitcount(enPassant | (caps ^ promos));
                         if (promos) nodes += Bitcount(promos) * 4;
+                        else nodes += Bitcount(enPassant | (caps ^ promos));
                     }
                     else {
                         Bitloop(enPassant)
@@ -553,8 +553,10 @@ namespace movegen {
         U64 pawnsAtk = board.pM & ~rPins;
         U64 pawnsPush = board.pM & ~bPins;
 
-        U64 pawnsLeft = (pawnsAtkLeft<side>(pawnsAtk & ~bPins & ~FIRST_COL) & board.occE) | (pawnsAtkLeft<side>(pawnsAtk & bPins & ~FIRST_COL) & board.occE & bPins);
-        U64 pawnsRight = (pawnsAtkRight<side>(pawnsAtk & ~bPins & ~LAST_COL) & board.occE) | (pawnsAtkRight<side>(pawnsAtk & bPins & ~LAST_COL) & board.occE & bPins);
+        U64 pawnsLeftAll = pawnsAtkLeft<side>(pawnsAtk & ~bPins & ~FIRST_COL) | (pawnsAtkLeft<side>(pawnsAtk & bPins & ~FIRST_COL) & bPins);
+        U64 pawnsLeft = pawnsLeftAll & board.occE;
+        U64 pawnsRightAll = pawnsAtkRight<side>(pawnsAtk & ~bPins & ~LAST_COL) | (pawnsAtkRight<side>(pawnsAtk & bPins & ~LAST_COL) & bPins);
+        U64 pawnsRight = pawnsRightAll & board.occE;
         U64 pawnsFwd = (pawnsAtkForward<side>(pawnsPush & ~rPins) & ~board.occB) | (pawnsAtkForward<side>(pawnsPush & rPins) & ~board.occB & rPins);
         U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~board.occB;
 

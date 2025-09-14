@@ -1,5 +1,6 @@
 #include "Test.hpp"
 #include "Cui.h"
+#include "MoveGenerator.h"
 #include "Utils.h"
 #include <iostream>
 #include <fstream>
