@@ -262,13 +262,13 @@ namespace movegen {
                     U64 enPassant = pawns & PASSANT_CAPTURES[board.eP];
                     U64 caps = pawns & PAWN_CAPTURES[!side][checkSquare];
                     U64 promos = caps & PROMO_RANKS[side];
-                    caps ^= promos;
-
+      
                     if constexpr (depth == 1) {
                         if (promos) nodes += Bitcount(promos) * 4;
-                        else nodes += Bitcount(enPassant | (caps ^ promos));
+                        else nodes += Bitcount(enPassant | caps);
                     }
                     else {
+                        caps ^= promos;
                         Bitloop(enPassant)
                         {
                             from = SquareOf(enPassant);
@@ -316,14 +316,14 @@ namespace movegen {
 
                     */
                     bitboard = board.bM & ~allPins;
-                    Bitloop(bitboard)
+                    if (bitboard)
                     {
-                        from = SquareOf(bitboard);
-
-                        attacks = getBishopAttacks(from, board.occB) & board.checks;
+                        attacks = getBishopAttacks(checkSquare, board.occB) & bitboard;
                         if constexpr (depth == 1) nodes += Bitcount(attacks);
                         else {
-                            if (attacks) {
+                            Bitloop(attacks) {
+                                from = SquareOf(attacks);
+
                                 BoardState newBoard = board.make<Piece::Bishop, side, true>(from, to, board, kES);
                                 if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
                                 else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
@@ -337,14 +337,14 @@ namespace movegen {
 
                     */
                     bitboard = board.rM & ~allPins;
-                    Bitloop(bitboard)
+                    if (bitboard)
                     {
-                        from = SquareOf(bitboard);
-
-                        attacks = getRookAttacks(from, board.occB) & board.checks;
+                        attacks = getRookAttacks(checkSquare, board.occB) & bitboard;
                         if constexpr (depth == 1) nodes += Bitcount(attacks);
                         else {
-                            if (attacks) {
+                            Bitloop(attacks) {
+                                from = SquareOf(attacks);
+
                                 BoardState newBoard = board.make<Piece::Rook, side, true>(from, to, board, kES);
                                 if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
                                 else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
@@ -358,14 +358,14 @@ namespace movegen {
 
                     */
                     bitboard = board.qM & ~allPins;
-                    Bitloop(bitboard)
+                    if (bitboard)
                     {
-                        from = SquareOf(bitboard);
-
-                        attacks = getQueenAttacks(from, board.occB) & board.checks;
+                        attacks = getQueenAttacks(checkSquare, board.occB) & bitboard;
                         if constexpr (depth == 1) nodes += Bitcount(attacks);
                         else {
-                            if (attacks) {
+                            Bitloop(attacks) {
+                                from = SquareOf(attacks);
+
                                 BoardState newBoard = board.make<Piece::Queen, side, true>(from, to, board, kES);
                                 if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, to, true, newBoard); movesArray.add(mov); }
                                 else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
