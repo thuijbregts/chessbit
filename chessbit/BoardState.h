@@ -33,7 +33,7 @@ namespace bstate {
 
         U64 checks;
         int casPerms;
-        int enPassant;
+        int eP;
 
         bool s;
 
@@ -42,12 +42,12 @@ namespace bstate {
             U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, U64 kE,
             U64 kMA, U64 kEA,
             U64 occM, U64 occE, U64 occB,
-            U64 checks, int casPerms, int enPassant, bool side) :
+            U64 checks, int casPerms, int eP, bool side) :
             pM(pM), nM(nM), bM(bM), rM(rM), qM(qM), kM(kM),
             pE(pE), nE(nE), bE(bE), rE(rE), qE(qE), kE(kE),
             kMA(kMA), kEA(kEA),
             occM(occM), occE(occE), occB(occB),
-            checks(checks), casPerms(casPerms), enPassant(enPassant), s(side)
+            checks(checks), casPerms(casPerms), eP(eP), s(side)
         {
 
         }
@@ -219,5 +219,5 @@ namespace bstate {
         }
     };
 
-    extern BoardState dummy;
+    inline static BoardState dummy = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }

@@ -70,7 +70,7 @@ namespace game {
 
         printf("     Side:     %s\n", !board.s ? "white" : "black");
 
-        printf("     En Passant:  %s\n", (board.enPassant != noSquare) ? SQUARE_NAMES[board.enPassant] : "no");
+        printf("     En Passant:  %s\n", (board.eP != noSquare) ? SQUARE_NAMES[board.eP] : "no");
 
         printf("     Castling:  %c%c%c%c\n\n", 
             (board.casPerms & wk) ? 'K' : '-',
@@ -310,7 +310,7 @@ namespace game {
 
         fen += " ";
 
-        fen += (board.enPassant != noSquare) ? SQUARE_NAMES[board.enPassant] : "-";
+        fen += (board.eP != noSquare) ? SQUARE_NAMES[board.eP] : "-";
 
         //TODO halfclock moves + total moves
 

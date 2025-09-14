@@ -3,6 +3,7 @@
 
 #include "MoveArray.h"
 #include "BoardState.h"
+#include "Game.h"
 #include <vector>
 
 using namespace movarray;
@@ -258,7 +259,7 @@ namespace movegen {
                     to = checkSquare;
 
                     U64 pawns = board.pM & ~allPins;
-                    U64 enPassant = pawns & PASSANT_CAPTURES[board.enPassant];
+                    U64 enPassant = pawns & PASSANT_CAPTURES[board.eP];
                     U64 caps = pawns & PAWN_CAPTURES[!side][checkSquare];
                     U64 promos = caps & PROMO_RANKS[side];
                     caps ^= promos;
@@ -272,8 +273,8 @@ namespace movegen {
                         {
                             from = SquareOf(enPassant);
 
-                            BoardState newBoard = board.makeEnPassant<side>(from, board.enPassant, board, kES);
-                            if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, board.enPassant, true, newBoard); movesArray.add(mov); }
+                            BoardState newBoard = board.makeEnPassant<side>(from, board.eP, board, kES);
+                            if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, board.eP, true, newBoard); movesArray.add(mov); }
                             else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
                         }
 
@@ -521,35 +522,6 @@ namespace movegen {
            PAWN MOVES
 
         */
-        U64 enPassant = PASSANT_CAPTURES[board.enPassant] & board.pM;
-        bitboard = enPassant & ~allPins;
-        Bitloop(bitboard) {
-            from = SquareOf(bitboard);
-
-            if constexpr (depth == 1) nodes += Bitcount((1ULL << board.enPassant) & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS));
-            else {
-                if ((1ULL << board.enPassant) & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS)) {
-                    BoardState newBoard = board.makeEnPassant<side>(from, board.enPassant, board, kES);
-                    if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, board.enPassant, true, newBoard); movesArray.add(mov); }
-                    else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
-                }
-            }
-        }
-
-        bitboard = enPassant & bPins;
-        Bitloop(bitboard) {
-            from = SquareOf(bitboard);
-
-            if constexpr (depth == 1) nodes += Bitcount((1ULL << board.enPassant) & bPins & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS));
-            else {
-                if ((1ULL << board.enPassant) & bPins & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS)) {
-                    BoardState newBoard = board.makeEnPassant<side>(from, board.enPassant, board, kES);
-                    if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, board.enPassant, true, newBoard); movesArray.add(mov); }
-                    else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
-                }
-            }
-        }
-
         U64 pawnsAtk = board.pM & ~rPins;
         U64 pawnsPush = board.pM & ~bPins;
 
@@ -559,6 +531,23 @@ namespace movegen {
         U64 pawnsRight = pawnsRightAll & board.occE;
         U64 pawnsFwd = (pawnsAtkForward<side>(pawnsPush & ~rPins) & ~board.occB) | (pawnsAtkForward<side>(pawnsPush & rPins) & ~board.occB & rPins);
         U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~board.occB;
+
+        if (board.eP != noSquare) {
+            U64 ePBit = (1ULL << board.eP);
+            U64 ePP = pawnsAtkRight<!side>(pawnsLeftAll & ePBit) | pawnsAtkLeft<!side>(pawnsRightAll & ePBit);
+            Bitloop(ePP) {
+                from = SquareOf(ePP);
+
+                if constexpr (depth == 1) nodes += Bitcount(ePBit & passantPinMask<side>(board.eP, from, board.occB, board.kM, board.rE, board.qE, kMS));
+                else {
+                    if (ePBit & passantPinMask<side>(board.eP, from, board.occB, board.kM, board.rE, board.qE, kMS)) {
+                        BoardState newBoard = board.makeEnPassant<side>(from, board.eP, board, kES);
+                        if constexpr (depth == 0) { MoveInfo mov = MoveInfo(from, board.eP, true, newBoard); movesArray.add(mov); }
+                        else nodes += PerftGenerator<depth - 1, !side, wKMoved, bKMoved>::generateMoves(newBoard);
+                    }
+                }
+            }
+        }
 
         if ((pawnsLeft | pawnsRight | pawnsFwd) & LAST_RANKS[side]) {
             U64 promosLeft = pawnsLeft & LAST_RANKS[side];
