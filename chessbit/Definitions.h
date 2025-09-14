@@ -337,6 +337,11 @@ namespace defs {
 		g8, c8
 	};
 
+	constexpr int CASTLING_ROOK_TARGET_SQUARE[4] = {
+		f1, d1,
+		f8, d8
+	};
+
 	constexpr int CASTLING_SIDE_OPPOSITE[4] = {
 		black, black,
 		white, white
@@ -755,36 +760,6 @@ namespace defs {
 		}
 	};
 
-	struct RookPin
-	{
-		const U64* AttackPtr;
-		const U64 Mask;
-
-		constexpr RookPin(int offset, U64 mask) : AttackPtr(ROOK_PINS + offset), Mask(mask) {
-
-		}
-
-		__forceinline constexpr U64 operator[](const U64 blocker) const
-		{
-			return AttackPtr[_pext_u64(blocker, Mask)];
-		}
-	};
-
-	struct BishopPin
-	{
-		const U64* AttackPtr;
-		const U64 Mask;
-
-		constexpr BishopPin(int offset, U64 mask) : AttackPtr(BISHOP_PINS + offset), Mask(mask) {
-
-		}
-
-		__forceinline constexpr U64 operator[](const U64 blocker) const
-		{
-			return AttackPtr[_pext_u64(blocker, Mask)];
-		}
-	};
-
 	struct PawnKingAttack
 	{
 		const U64* AttackPtr;
@@ -932,140 +907,6 @@ namespace defs {
 		BishopAttack(BISHOP_OFFSETS[61], BISHOP_MASKS[61]),
 		BishopAttack(BISHOP_OFFSETS[62], BISHOP_MASKS[62]),
 		BishopAttack(BISHOP_OFFSETS[63], BISHOP_MASKS[63])
-	};
-
-	static const RookPin ROOK_PINS_LOOKUP[64] = {
-		RookPin(ROOK_OFFSETS[0], ROOK_MASKS[0]),
-		RookPin(ROOK_OFFSETS[1], ROOK_MASKS[1]),
-		RookPin(ROOK_OFFSETS[2], ROOK_MASKS[2]),
-		RookPin(ROOK_OFFSETS[3], ROOK_MASKS[3]),
-		RookPin(ROOK_OFFSETS[4], ROOK_MASKS[4]),
-		RookPin(ROOK_OFFSETS[5], ROOK_MASKS[5]),
-		RookPin(ROOK_OFFSETS[6], ROOK_MASKS[6]),
-		RookPin(ROOK_OFFSETS[7], ROOK_MASKS[7]),
-		RookPin(ROOK_OFFSETS[8], ROOK_MASKS[8]),
-		RookPin(ROOK_OFFSETS[9], ROOK_MASKS[9]),
-		RookPin(ROOK_OFFSETS[10], ROOK_MASKS[10]),
-		RookPin(ROOK_OFFSETS[11], ROOK_MASKS[11]),
-		RookPin(ROOK_OFFSETS[12], ROOK_MASKS[12]),
-		RookPin(ROOK_OFFSETS[13], ROOK_MASKS[13]),
-		RookPin(ROOK_OFFSETS[14], ROOK_MASKS[14]),
-		RookPin(ROOK_OFFSETS[15], ROOK_MASKS[15]),
-		RookPin(ROOK_OFFSETS[16], ROOK_MASKS[16]),
-		RookPin(ROOK_OFFSETS[17], ROOK_MASKS[17]),
-		RookPin(ROOK_OFFSETS[18], ROOK_MASKS[18]),
-		RookPin(ROOK_OFFSETS[19], ROOK_MASKS[19]),
-		RookPin(ROOK_OFFSETS[20], ROOK_MASKS[20]),
-		RookPin(ROOK_OFFSETS[21], ROOK_MASKS[21]),
-		RookPin(ROOK_OFFSETS[22], ROOK_MASKS[22]),
-		RookPin(ROOK_OFFSETS[23], ROOK_MASKS[23]),
-		RookPin(ROOK_OFFSETS[24], ROOK_MASKS[24]),
-		RookPin(ROOK_OFFSETS[25], ROOK_MASKS[25]),
-		RookPin(ROOK_OFFSETS[26], ROOK_MASKS[26]),
-		RookPin(ROOK_OFFSETS[27], ROOK_MASKS[27]),
-		RookPin(ROOK_OFFSETS[28], ROOK_MASKS[28]),
-		RookPin(ROOK_OFFSETS[29], ROOK_MASKS[29]),
-		RookPin(ROOK_OFFSETS[30], ROOK_MASKS[30]),
-		RookPin(ROOK_OFFSETS[31], ROOK_MASKS[31]),
-		RookPin(ROOK_OFFSETS[32], ROOK_MASKS[32]),
-		RookPin(ROOK_OFFSETS[33], ROOK_MASKS[33]),
-		RookPin(ROOK_OFFSETS[34], ROOK_MASKS[34]),
-		RookPin(ROOK_OFFSETS[35], ROOK_MASKS[35]),
-		RookPin(ROOK_OFFSETS[36], ROOK_MASKS[36]),
-		RookPin(ROOK_OFFSETS[37], ROOK_MASKS[37]),
-		RookPin(ROOK_OFFSETS[38], ROOK_MASKS[38]),
-		RookPin(ROOK_OFFSETS[39], ROOK_MASKS[39]),
-		RookPin(ROOK_OFFSETS[40], ROOK_MASKS[40]),
-		RookPin(ROOK_OFFSETS[41], ROOK_MASKS[41]),
-		RookPin(ROOK_OFFSETS[42], ROOK_MASKS[42]),
-		RookPin(ROOK_OFFSETS[43], ROOK_MASKS[43]),
-		RookPin(ROOK_OFFSETS[44], ROOK_MASKS[44]),
-		RookPin(ROOK_OFFSETS[45], ROOK_MASKS[45]),
-		RookPin(ROOK_OFFSETS[46], ROOK_MASKS[46]),
-		RookPin(ROOK_OFFSETS[47], ROOK_MASKS[47]),
-		RookPin(ROOK_OFFSETS[48], ROOK_MASKS[48]),
-		RookPin(ROOK_OFFSETS[49], ROOK_MASKS[49]),
-		RookPin(ROOK_OFFSETS[50], ROOK_MASKS[50]),
-		RookPin(ROOK_OFFSETS[51], ROOK_MASKS[51]),
-		RookPin(ROOK_OFFSETS[52], ROOK_MASKS[52]),
-		RookPin(ROOK_OFFSETS[53], ROOK_MASKS[53]),
-		RookPin(ROOK_OFFSETS[54], ROOK_MASKS[54]),
-		RookPin(ROOK_OFFSETS[55], ROOK_MASKS[55]),
-		RookPin(ROOK_OFFSETS[56], ROOK_MASKS[56]),
-		RookPin(ROOK_OFFSETS[57], ROOK_MASKS[57]),
-		RookPin(ROOK_OFFSETS[58], ROOK_MASKS[58]),
-		RookPin(ROOK_OFFSETS[59], ROOK_MASKS[59]),
-		RookPin(ROOK_OFFSETS[60], ROOK_MASKS[60]),
-		RookPin(ROOK_OFFSETS[61], ROOK_MASKS[61]),
-		RookPin(ROOK_OFFSETS[62], ROOK_MASKS[62]),
-		RookPin(ROOK_OFFSETS[63], ROOK_MASKS[63])
-	};
-
-	static const BishopPin BISHOP_PINS_LOOKUP[64] = {
-		BishopPin(BISHOP_OFFSETS[0], BISHOP_MASKS[0]),
-		BishopPin(BISHOP_OFFSETS[1], BISHOP_MASKS[1]),
-		BishopPin(BISHOP_OFFSETS[2], BISHOP_MASKS[2]),
-		BishopPin(BISHOP_OFFSETS[3], BISHOP_MASKS[3]),
-		BishopPin(BISHOP_OFFSETS[4], BISHOP_MASKS[4]),
-		BishopPin(BISHOP_OFFSETS[5], BISHOP_MASKS[5]),
-		BishopPin(BISHOP_OFFSETS[6], BISHOP_MASKS[6]),
-		BishopPin(BISHOP_OFFSETS[7], BISHOP_MASKS[7]),
-		BishopPin(BISHOP_OFFSETS[8], BISHOP_MASKS[8]),
-		BishopPin(BISHOP_OFFSETS[9], BISHOP_MASKS[9]),
-		BishopPin(BISHOP_OFFSETS[10], BISHOP_MASKS[10]),
-		BishopPin(BISHOP_OFFSETS[11], BISHOP_MASKS[11]),
-		BishopPin(BISHOP_OFFSETS[12], BISHOP_MASKS[12]),
-		BishopPin(BISHOP_OFFSETS[13], BISHOP_MASKS[13]),
-		BishopPin(BISHOP_OFFSETS[14], BISHOP_MASKS[14]),
-		BishopPin(BISHOP_OFFSETS[15], BISHOP_MASKS[15]),
-		BishopPin(BISHOP_OFFSETS[16], BISHOP_MASKS[16]),
-		BishopPin(BISHOP_OFFSETS[17], BISHOP_MASKS[17]),
-		BishopPin(BISHOP_OFFSETS[18], BISHOP_MASKS[18]),
-		BishopPin(BISHOP_OFFSETS[19], BISHOP_MASKS[19]),
-		BishopPin(BISHOP_OFFSETS[20], BISHOP_MASKS[20]),
-		BishopPin(BISHOP_OFFSETS[21], BISHOP_MASKS[21]),
-		BishopPin(BISHOP_OFFSETS[22], BISHOP_MASKS[22]),
-		BishopPin(BISHOP_OFFSETS[23], BISHOP_MASKS[23]),
-		BishopPin(BISHOP_OFFSETS[24], BISHOP_MASKS[24]),
-		BishopPin(BISHOP_OFFSETS[25], BISHOP_MASKS[25]),
-		BishopPin(BISHOP_OFFSETS[26], BISHOP_MASKS[26]),
-		BishopPin(BISHOP_OFFSETS[27], BISHOP_MASKS[27]),
-		BishopPin(BISHOP_OFFSETS[28], BISHOP_MASKS[28]),
-		BishopPin(BISHOP_OFFSETS[29], BISHOP_MASKS[29]),
-		BishopPin(BISHOP_OFFSETS[30], BISHOP_MASKS[30]),
-		BishopPin(BISHOP_OFFSETS[31], BISHOP_MASKS[31]),
-		BishopPin(BISHOP_OFFSETS[32], BISHOP_MASKS[32]),
-		BishopPin(BISHOP_OFFSETS[33], BISHOP_MASKS[33]),
-		BishopPin(BISHOP_OFFSETS[34], BISHOP_MASKS[34]),
-		BishopPin(BISHOP_OFFSETS[35], BISHOP_MASKS[35]),
-		BishopPin(BISHOP_OFFSETS[36], BISHOP_MASKS[36]),
-		BishopPin(BISHOP_OFFSETS[37], BISHOP_MASKS[37]),
-		BishopPin(BISHOP_OFFSETS[38], BISHOP_MASKS[38]),
-		BishopPin(BISHOP_OFFSETS[39], BISHOP_MASKS[39]),
-		BishopPin(BISHOP_OFFSETS[40], BISHOP_MASKS[40]),
-		BishopPin(BISHOP_OFFSETS[41], BISHOP_MASKS[41]),
-		BishopPin(BISHOP_OFFSETS[42], BISHOP_MASKS[42]),
-		BishopPin(BISHOP_OFFSETS[43], BISHOP_MASKS[43]),
-		BishopPin(BISHOP_OFFSETS[44], BISHOP_MASKS[44]),
-		BishopPin(BISHOP_OFFSETS[45], BISHOP_MASKS[45]),
-		BishopPin(BISHOP_OFFSETS[46], BISHOP_MASKS[46]),
-		BishopPin(BISHOP_OFFSETS[47], BISHOP_MASKS[47]),
-		BishopPin(BISHOP_OFFSETS[48], BISHOP_MASKS[48]),
-		BishopPin(BISHOP_OFFSETS[49], BISHOP_MASKS[49]),
-		BishopPin(BISHOP_OFFSETS[50], BISHOP_MASKS[50]),
-		BishopPin(BISHOP_OFFSETS[51], BISHOP_MASKS[51]),
-		BishopPin(BISHOP_OFFSETS[52], BISHOP_MASKS[52]),
-		BishopPin(BISHOP_OFFSETS[53], BISHOP_MASKS[53]),
-		BishopPin(BISHOP_OFFSETS[54], BISHOP_MASKS[54]),
-		BishopPin(BISHOP_OFFSETS[55], BISHOP_MASKS[55]),
-		BishopPin(BISHOP_OFFSETS[56], BISHOP_MASKS[56]),
-		BishopPin(BISHOP_OFFSETS[57], BISHOP_MASKS[57]),
-		BishopPin(BISHOP_OFFSETS[58], BISHOP_MASKS[58]),
-		BishopPin(BISHOP_OFFSETS[59], BISHOP_MASKS[59]),
-		BishopPin(BISHOP_OFFSETS[60], BISHOP_MASKS[60]),
-		BishopPin(BISHOP_OFFSETS[61], BISHOP_MASKS[61]),
-		BishopPin(BISHOP_OFFSETS[62], BISHOP_MASKS[62]),
-		BishopPin(BISHOP_OFFSETS[63], BISHOP_MASKS[63])
 	};
 
 	static const PawnKingAttack PAWN_KING_ATTACKS_LOOKUP[2][64] = {
@@ -1249,14 +1090,6 @@ namespace defs {
 	template <bool side>
 	ForceInline U64 getRookAttackZoneCastle(U64 occupancy) {
 		return ROOK_ATTACK_ZONE_CASTLE[side][_pext_u64(occupancy, ROOK_ATTACK_ZONE_CASTLE_MASK[side])];
-	}
-
-	ForceInline U64 getBishopPins(int square, U64 occupancy) {
-		return BISHOP_PINS_LOOKUP[square][occupancy];
-	}
-
-	ForceInline U64 getRookPins(int square, U64 occupancy) {
-		return ROOK_PINS_LOOKUP[square][occupancy];
 	}
 }
 

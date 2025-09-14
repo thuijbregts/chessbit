@@ -90,9 +90,9 @@ namespace movegen {
 
     template <bool side>
     ForceInline U64 passantPinMask(int enPassant, int pawnSquare, U64 occB, U64 kM, U64 rE, U64 qE, int kMS) {
-        if (!(EN_PASSANT_RANK[side] & kM)) {
+        /*if (!(EN_PASSANT_RANK[side] & kM)) {
             return FULL_BOARD;
-        }
+        }*/
 
         int enemyPawn = enPassant + PAWN_PUSH[!side];
         PopBit(occB, enemyPawn);
@@ -231,19 +231,19 @@ namespace movegen {
         int kMS = SquareOf(board.kM);
         int kES = SquareOf(board.kE);
 
+        /*
+
+           KING MOVES
+
+        */
+        U64 mask = board.kMA;
+        attacks = mask & ~board.occM;
+        filterKingAttacks<side, wKMoved, bKMoved>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
+        if constexpr (depth == 1) nodes += Bitcount(attacks);
+        else makeMoves<depth, side, wKMoved, bKMoved, Piece::King>(nodes, attacks, kMS, board, kES);
+
         if (board.checks) {
-            /*
-
-                KING MOVES
-
-            */
             int checkSquare = SquareOf(board.checks);
-
-            U64 mask = board.kMA;
-            attacks = mask & ~board.occM;
-            filterKingAttacks<side, true, true>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
-            if constexpr (depth == 1) nodes += Bitcount(attacks);
-            else makeMoves<depth, side, wKMoved, bKMoved, Piece::King>(nodes, attacks, kMS, board, kES);
 
             if (Bitcount(board.checks) == 1) {
                 U64 bPins = findBishopPins<depth>(board.occB, board.bE, board.qE, kMS);
@@ -261,13 +261,14 @@ namespace movegen {
                     U64 enPassant = pawns & PASSANT_CAPTURES[board.enPassant];
                     U64 caps = pawns & PAWN_CAPTURES[!side][checkSquare];
                     U64 promos = caps & PROMO_RANKS[side];
-                    caps ^= promos;
 
                     if constexpr (depth == 1) {
-                        nodes += Bitcount(enPassant | (caps ^ promos));
                         if (promos) nodes += Bitcount(promos) * 4;
+                        else nodes += Bitcount(enPassant | (caps ^ promos));
                     }
                     else {
+                        caps ^= promos;
+
                         Bitloop(enPassant)
                         {
                             from = SquareOf(enPassant);
@@ -320,7 +321,7 @@ namespace movegen {
                         from = SquareOf(bitboard);
 
                         attacks = getBishopAttacks(from, board.occB) & board.checks;
-                        if constexpr (depth == 1) nodes += Bitcount(attacks);
+                        if constexpr (depth == 1) { if (attacks) nodes++; }// nodes += Bitcount(attacks);
                         else {
                             if (attacks) {
                                 BoardState newBoard = board.make<Piece::Bishop, side, true>(from, to, board, kES);
@@ -341,7 +342,7 @@ namespace movegen {
                         from = SquareOf(bitboard);
 
                         attacks = getRookAttacks(from, board.occB) & board.checks;
-                        if constexpr (depth == 1) nodes += Bitcount(attacks);
+                        if constexpr (depth == 1) { if (attacks) nodes++; }//nodes += Bitcount(attacks);
                         else {
                             if (attacks) {
                                 BoardState newBoard = board.make<Piece::Rook, side, true>(from, to, board, kES);
@@ -362,7 +363,7 @@ namespace movegen {
                         from = SquareOf(bitboard);
 
                         attacks = getQueenAttacks(from, board.occB) & board.checks;
-                        if constexpr (depth == 1) nodes += Bitcount(attacks);
+                        if constexpr (depth == 1) { if (attacks) nodes++; }//nodes += Bitcount(attacks);
                         else {
                             if (attacks) {
                                 BoardState newBoard = board.make<Piece::Queen, side, true>(from, to, board, kES);
@@ -537,7 +538,7 @@ namespace movegen {
         }
 
         bitboard = enPassant & bPins;
-        Bitloop(bitboard) {
+        if (bitboard) {
             from = SquareOf(bitboard);
 
             if constexpr (depth == 1) nodes += Bitcount((1ULL << board.enPassant) & bPins & passantPinMask<side>(board.enPassant, from, board.occB, board.kM, board.rE, board.qE, kMS));
@@ -647,17 +648,14 @@ namespace movegen {
             else makeMoves<depth, side, wKMoved, bKMoved, Piece::Bishop>(nodes, attacks, from, board, kES);
         }
 
-        bitboard = (board.bM | board.qM) & bPins;
+        bitboard = board.bM & bPins;
         Bitloop(bitboard)
         {
             from = SquareOf(bitboard);
 
-            attacks = validAttacksMasks[depth][from];
+            attacks = bPins & ~board.bM;// validAttacksMasks[depth][from];
             if constexpr (depth == 1) nodes += Bitcount(attacks);
-            else {
-                if ((1ULL << from) & board.qM)  makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, from, board, kES);
-                else                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Bishop>(nodes, attacks, from, board, kES);
-            }
+            else makeMoves<depth, side, wKMoved, bKMoved, Piece::Bishop>(nodes, attacks, from, board, kES);
         }
 
         /*
@@ -675,17 +673,14 @@ namespace movegen {
             else makeMoves<depth, side, wKMoved, bKMoved, Piece::Rook>(nodes, attacks, from, board, kES);
         }
 
-        bitboard = (board.rM | board.qM) & rPins;
+        bitboard = board.rM & rPins;
         Bitloop(bitboard)
         {
             from = SquareOf(bitboard);
 
-            attacks = validAttacksMasks[depth][from];
+            attacks = rPins & ~board.rM;// validAttacksMasks[depth][from];
             if constexpr (depth == 1) nodes += Bitcount(attacks);
-            else {
-                if ((1ULL << from) & board.qM)  makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, from, board, kES);
-                else                            makeMoves<depth, side, wKMoved, bKMoved, Piece::Rook>(nodes, attacks, from, board, kES);
-            }
+            else makeMoves<depth, side, wKMoved, bKMoved, Piece::Rook>(nodes, attacks, from, board, kES);
         }
 
         /*
@@ -693,6 +688,16 @@ namespace movegen {
            QUEEN MOVES
 
         */
+        bitboard = board.qM & allPins;
+        Bitloop(bitboard)
+        {
+            from = SquareOf(bitboard);
+
+            attacks = validAttacksMasks[depth][from];
+            if constexpr (depth == 1) nodes += Bitcount(attacks);
+            else makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, from, board, kES);
+        }
+
         bitboard = board.qM & ~allPins;
         Bitloop(bitboard)
         {
@@ -702,17 +707,6 @@ namespace movegen {
             if constexpr (depth == 1) nodes += Bitcount(attacks);
             else makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, from, board, kES);
         }
-
-        /*
-
-           KING MOVES
-
-        */
-        U64 mask = board.kMA;
-        attacks = mask & ~board.occM;
-        filterKingAttacks<side, wKMoved, bKMoved>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
-        if constexpr (depth == 1) nodes += Bitcount(attacks);
-        else makeMoves<depth, side, wKMoved, bKMoved, Piece::King>(nodes, attacks, kMS, board, kES);
 
         if constexpr ((side == white && !wKMoved)) {
             if (castle<CASTLING_SIDE_K[white]>(board.casPerms, board.occE, board.occB, board.nE, board.bE, board.rE, board.qE, castleAttacks)) {
