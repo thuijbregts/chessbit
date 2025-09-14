@@ -35,7 +35,7 @@ namespace bstate {
         int casPerms;
         int eP;
 
-        bool s;
+        bool side;
 
         constexpr BoardState(
             U64 pM, U64 nM, U64 bM, U64 rM, U64 qM, U64 kM,
@@ -47,7 +47,7 @@ namespace bstate {
             pE(pE), nE(nE), bE(bE), rE(rE), qE(qE), kE(kE),
             kMA(kMA), kEA(kEA),
             occM(occM), occE(occE), occB(occB),
-            checks(checks), casPerms(casPerms), eP(eP), s(side)
+            checks(checks), casPerms(casPerms), eP(eP), side(side)
         {
 
         }

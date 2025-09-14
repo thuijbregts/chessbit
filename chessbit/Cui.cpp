@@ -532,7 +532,7 @@ void Cui::compare() {
 }
 
 U64 Cui::generateMoves(int depth) {
-	if (game::board.s == white) {
+	if (game::board.side == white) {
 		switch (game::board.casPerms) {
 		case 0b0000: return generateMoves<white, true, true>(depth);
 		case 0b0001: return generateMoves<white, false, true>(depth);
@@ -610,11 +610,11 @@ void Cui::iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q) {
 
 void Cui::pieces() {
 	cout << "WHITE:" << endl;
-	if (game::board.s == white) iteratePieces(game::board.pM, game::board.nM, game::board.bM, game::board.rM, game::board.qM);
+	if (game::board.side == white) iteratePieces(game::board.pM, game::board.nM, game::board.bM, game::board.rM, game::board.qM);
 	else						iteratePieces(game::board.pE, game::board.nE, game::board.bE, game::board.rE, game::board.qE);
 
 	cout << "BLACK:" << endl;
-	if (game::board.s == black) iteratePieces(game::board.pM, game::board.nM, game::board.bM, game::board.rM, game::board.qM);
+	if (game::board.side == black) iteratePieces(game::board.pM, game::board.nM, game::board.bM, game::board.rM, game::board.qM);
 	else						iteratePieces(game::board.pE, game::board.nE, game::board.bE, game::board.rE, game::board.qE);
 }
 

@@ -46,19 +46,19 @@ namespace game {
                 int piece = -1;
                 int side;
 
-                if (GetBit(board.pM, square)) { piece = p; side = board.s; }
-                if (GetBit(board.nM, square)) { piece = n; side = board.s; }
-                if (GetBit(board.bM, square)) { piece = b; side = board.s; }
-                if (GetBit(board.rM, square)) { piece = r; side = board.s; }
-                if (GetBit(board.qM, square)) { piece = q; side = board.s; }
-                if (GetBit(board.kM, square)) { piece = k; side = board.s; }
+                if (GetBit(board.pM, square)) { piece = p; side = board.side; }
+                if (GetBit(board.nM, square)) { piece = n; side = board.side; }
+                if (GetBit(board.bM, square)) { piece = b; side = board.side; }
+                if (GetBit(board.rM, square)) { piece = r; side = board.side; }
+                if (GetBit(board.qM, square)) { piece = q; side = board.side; }
+                if (GetBit(board.kM, square)) { piece = k; side = board.side; }
 
-                if (GetBit(board.pE, square)) { piece = p; side = !board.s; }
-                if (GetBit(board.nE, square)) { piece = n; side = !board.s; }
-                if (GetBit(board.bE, square)) { piece = b; side = !board.s; }
-                if (GetBit(board.rE, square)) { piece = r; side = !board.s; }
-                if (GetBit(board.qE, square)) { piece = q; side = !board.s; }
-                if (GetBit(board.kE, square)) { piece = k; side = !board.s; }
+                if (GetBit(board.pE, square)) { piece = p; side = !board.side; }
+                if (GetBit(board.nE, square)) { piece = n; side = !board.side; }
+                if (GetBit(board.bE, square)) { piece = b; side = !board.side; }
+                if (GetBit(board.rE, square)) { piece = r; side = !board.side; }
+                if (GetBit(board.qE, square)) { piece = q; side = !board.side; }
+                if (GetBit(board.kE, square)) { piece = k; side = !board.side; }
 
                 printf(" %c", (piece == -1) ? '.' : ASCII_PIECES[side][piece]);
             }
@@ -68,7 +68,7 @@ namespace game {
 
         printf("\n     a b c d e f g h\n\n");
 
-        printf("     Side:     %s\n", !board.s ? "white" : "black");
+        printf("     Side:     %s\n", !board.side ? "white" : "black");
 
         printf("     En Passant:  %s\n", (board.eP != noSquare) ? SQUARE_NAMES[board.eP] : "no");
 
@@ -265,19 +265,19 @@ namespace game {
                 piece = -1;
                 int side;
 
-                if (GetBit(board.pM, square)) { piece = p; side = board.s; }
-                if (GetBit(board.nM, square)) { piece = n; side = board.s; }
-                if (GetBit(board.bM, square)) { piece = b; side = board.s; }
-                if (GetBit(board.rM, square)) { piece = r; side = board.s; }
-                if (GetBit(board.qM, square)) { piece = q; side = board.s; }
-                if (GetBit(board.kM, square)) { piece = k; side = board.s; }
+                if (GetBit(board.pM, square)) { piece = p; side = board.side; }
+                if (GetBit(board.nM, square)) { piece = n; side = board.side; }
+                if (GetBit(board.bM, square)) { piece = b; side = board.side; }
+                if (GetBit(board.rM, square)) { piece = r; side = board.side; }
+                if (GetBit(board.qM, square)) { piece = q; side = board.side; }
+                if (GetBit(board.kM, square)) { piece = k; side = board.side; }
 
-                if (GetBit(board.pE, square)) { piece = p; side = !board.s; }
-                if (GetBit(board.nE, square)) { piece = n; side = !board.s; }
-                if (GetBit(board.bE, square)) { piece = b; side = !board.s; }
-                if (GetBit(board.rE, square)) { piece = r; side = !board.s; }
-                if (GetBit(board.qE, square)) { piece = q; side = !board.s; }
-                if (GetBit(board.kE, square)) { piece = k; side = !board.s; }
+                if (GetBit(board.pE, square)) { piece = p; side = !board.side; }
+                if (GetBit(board.nE, square)) { piece = n; side = !board.side; }
+                if (GetBit(board.bE, square)) { piece = b; side = !board.side; }
+                if (GetBit(board.rE, square)) { piece = r; side = !board.side; }
+                if (GetBit(board.qE, square)) { piece = q; side = !board.side; }
+                if (GetBit(board.kE, square)) { piece = k; side = !board.side; }
 
                 if (piece != -1) {
                     if (empty > 0) {
@@ -297,7 +297,7 @@ namespace game {
 
         fen += " ";
 
-        fen += (!board.s ? "w" : "b");
+        fen += (!board.side ? "w" : "b");
 
         fen += " ";
 
