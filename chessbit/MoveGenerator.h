@@ -24,16 +24,28 @@ namespace movegen {
     //union of pinMask and the slider piece square, where index is the square of the pinned piece
     static inline U64 validAttacksMasks[100][64];
 
+    template <bool side>
+    ForceInline U64 pawnsAtkLeft(U64 pM) {
+        if constexpr (side == white) return pM >> 9;
+        return pM << 7;
+    }
+
+    template <bool side>
+    ForceInline U64 pawnsAtkRight(U64 pM) {
+        if constexpr (side == white) return pM >> 7;
+        return pM << 9;
+    }
+
+    template <bool side>
+    ForceInline U64 pawnsAtkForward(U64 pM) {
+        if constexpr (side == white) return pM >> 8;
+        return pM << 8;
+    }
+
     template <bool side, bool wKMoved, bool bKMoved>
     ForceInline void filterKingAttacks(U64 occM, U64 occB, int kMS, U64& kingAttacks, U64& castleAttacks, U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, U64 kEA, U64 mask) {
         U64 attacks = 0ULL;
-        if constexpr ((side == white && !wKMoved) || (side == black && !bKMoved)) {
-            attacks |= ~getPawnKingAttacksCastle<side>(pE);
-        }
-        else {
-            attacks |= ~getPawnKingAttacks<!side>(kMS, pE);
-        }
-
+        attacks |= pawnsAtkLeft<!side>(pE & ~FIRST_COL) | pawnsAtkRight<!side>(pE & ~LAST_COL);
         attacks |= kEA;
 
         //remove king to avoid collisions, as it should not be considered when checking for threats
@@ -80,13 +92,6 @@ namespace movegen {
     template <int castlingSide>
     ForceInline bool castle(int casPerm, U64 occE, U64 occB, U64 nE, U64 bE, U64 rE, U64 qE, U64 attacks) {
         return !(!(casPerm & CASTLING[castlingSide]) | (CASTLING_OCCUPIED_SQUARES[castlingSide] & occB) | (attacks & CASTLING_PASSING_SQUARES[castlingSide]));
-        /*if (!(casPerm & CASTLING[castlingSide])) {
-            return false;
-        }
-        if ((CASTLING_OCCUPIED_SQUARES[castlingSide] & occB) | (attacks & CASTLING_PASSING_SQUARES[castlingSide])) {
-            return false;
-        }
-        return true;*/
     }
 
     template <bool side>
@@ -131,24 +136,6 @@ namespace movegen {
     template <int depth>
     ForceInline U64 findRookPins(U64 occB, U64 rE, U64 qE, int kMS) {
         return iteratePieces<depth>(((rE | qE) & ROOK_XRAYS[kMS]), occB, kMS);
-    }
-
-    template <bool side>
-    ForceInline U64 pawnsAtkLeft(U64 pM) {
-        if constexpr (side == white) return pM >> 9;
-        return pM << 7;
-    }
-
-    template <bool side>
-    ForceInline U64 pawnsAtkRight(U64 pM) {
-        if constexpr (side == white) return pM >> 7;
-        return pM << 9;
-    }
-
-    template <bool side>
-    ForceInline U64 pawnsAtkForward(U64 pM) {
-        if constexpr (side == white) return pM >> 8;
-        return pM << 8;
     }
 
     template <int depth, bool side, bool wKMoved, bool bKMoved>
