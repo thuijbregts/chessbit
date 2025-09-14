@@ -231,19 +231,19 @@ namespace movegen {
         int kMS = SquareOf(board.kM);
         int kES = SquareOf(board.kE);
 
+        /*
+
+            KING MOVES
+
+        */
+        U64 mask = board.kMA;
+        attacks = mask & ~board.occM;
+        filterKingAttacks<side, wKMoved, bKMoved>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
+        if constexpr (depth == 1) nodes += Bitcount(attacks);
+        else makeMoves<depth, side, wKMoved, bKMoved, Piece::King>(nodes, attacks, kMS, board, kES);
+
         if (board.checks) {
-            /*
-
-                KING MOVES
-
-            */
             int checkSquare = SquareOf(board.checks);
-
-            U64 mask = board.kMA;
-            attacks = mask & ~board.occM;
-            filterKingAttacks<side, true, true>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
-            if constexpr (depth == 1) nodes += Bitcount(attacks);
-            else makeMoves<depth, side, wKMoved, bKMoved, Piece::King>(nodes, attacks, kMS, board, kES);
 
             if (Bitcount(board.checks) == 1) {
                 U64 bPins = findBishopPins<depth>(board.occB, board.bE, board.qE, kMS);
@@ -702,17 +702,6 @@ namespace movegen {
             if constexpr (depth == 1) nodes += Bitcount(attacks);
             else makeMoves<depth, side, wKMoved, bKMoved, Piece::Queen>(nodes, attacks, from, board, kES);
         }
-
-        /*
-
-           KING MOVES
-
-        */
-        U64 mask = board.kMA;
-        attacks = mask & ~board.occM;
-        filterKingAttacks<side, wKMoved, bKMoved>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
-        if constexpr (depth == 1) nodes += Bitcount(attacks);
-        else makeMoves<depth, side, wKMoved, bKMoved, Piece::King>(nodes, attacks, kMS, board, kES);
 
         if constexpr ((side == white && !wKMoved)) {
             if (castle<CASTLING_SIDE_K[white]>(board.casPerms, board.occE, board.occB, board.nE, board.bE, board.rE, board.qE, castleAttacks)) {
