@@ -43,29 +43,33 @@ namespace movegen {
     }
 
     template <bool side, bool kMMoved, bool kEMoved>
-    ForceInline void filterKingAttacks(U64 occM, U64 occB, int kMS, U64& kingAttacks, U64& castleAttacks, U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, U64 kEA, U64 mask) {
+    ForceInline void filterKingAttacks(const BoardState& board, int kMS, U64& kingAttacks, U64& castleAttacks) {
         U64 attacks = 0ULL;
-        attacks |= pawnsAtkLeft<!side>(pE & ~FIRST_COL) | pawnsAtkRight<!side>(pE & ~LAST_COL);
-        attacks |= kEA;
+        attacks |= pawnsAtkLeft<!side>(board.pE & ~FIRST_COL) | pawnsAtkRight<!side>(board.pE & ~LAST_COL);
+        attacks |= board.kEA;
 
         //remove king to avoid collisions, as it should not be considered when checking for threats
-        PopBit(occB, kMS);
+        U64 occB = board.occB ^ board.kM;
 
         U64 bitboard;
-        if constexpr (!kMMoved) bitboard = nE & KNIGHT_ATTACK_ZONE_CASTLE[side];
-        else bitboard = nE & KNIGHT_ATTACK_ZONES[kMS];
+        if constexpr (!kMMoved) bitboard = board.nE & KNIGHT_ATTACK_ZONE_CASTLE[side];
+        else                    bitboard = board.nE & KNIGHT_ATTACK_ZONES[kMS];
         Bitloop(bitboard) {
             attacks |= getKnightAttacks(SquareOf(bitboard));
         }
 
-        if constexpr (!kMMoved) bitboard = (bE | qE) & getBishopAttackZoneCastle<side>(occM);
-        else bitboard = (bE | qE) & getBishopAttackZone(kMS, occM, mask);
+        kingAttacks &= ~attacks;
+
+        if constexpr (!kMMoved) bitboard = (board.bE | board.qE) & getBishopAttackZoneCastle<side>(board.occM);
+        else                    bitboard = (board.bE | board.qE) & getBishopAttackZone(kMS, board.occM, board.kMA);
         Bitloop(bitboard) {
             attacks |= getBishopAttacks(SquareOf(bitboard), occB);
         }
 
-        if constexpr (!kMMoved) bitboard = (rE | qE) & getRookAttackZoneCastle<side>(occM);
-        else bitboard = (rE | qE) & getRookAttackZone(kMS, occM, mask);
+        kingAttacks &= ~attacks;
+
+        if constexpr (!kMMoved) bitboard = (board.rE | board.qE) & getRookAttackZoneCastle<side>(board.occM);
+        else                    bitboard = (board.rE | board.qE) & getRookAttackZone(kMS, board.occM, board.kMA);
         Bitloop(bitboard) {
             attacks |= getRookAttacks(SquareOf(bitboard), occB);
         }
@@ -76,21 +80,22 @@ namespace movegen {
     }
 
     template <int castlingSide>
-    ForceInline bool castle(int casPerm, U64 occE, U64 occB, U64 nE, U64 bE, U64 rE, U64 qE, U64 attacks) {
-        return !(!(casPerm & CASTLING[castlingSide]) | (CASTLING_OCCUPIED_SQUARES[castlingSide] & occB) | (attacks & CASTLING_PASSING_SQUARES[castlingSide]));
+    ForceInline bool castle(const BoardState& board, U64 attacks) {
+        return !(!(board.casPerms & CASTLING[castlingSide]) | (CASTLING_OCCUPIED_SQUARES[castlingSide] & board.occB) | (attacks & CASTLING_PASSING_SQUARES[castlingSide]));
     }
 
     template <bool side>
-    ForceInline U64 passantPinMask(int enPassant, int pawnSquare, U64 occB, U64 kM, U64 rE, U64 qE, int kMS) {
-        if (!(EN_PASSANT_RANK[side] & kM)) {
+    ForceInline U64 passantPinMask(const BoardState& board, int from, int kMS) {
+        if (!(EN_PASSANT_RANK[side] & board.kM)) {
             return FULL_BOARD;
         }
 
-        int enemyPawn = enPassant + PAWN_PUSH[!side];
+        U64 occB = board.occB;
+        int enemyPawn = board.eP + PAWN_PUSH[!side];
         PopBit(occB, enemyPawn);
-        PopBit(occB, pawnSquare);
+        PopBit(occB, from);
 
-        return PASSANT_PIN_RESULT[SquareOf(getRookAttacks(kMS, occB) & (rE | qE))];
+        return PASSANT_PIN_RESULT[SquareOf(getRookAttacks(kMS, occB) & (board.rE | board.qE))];
     }
 
     template <int depth>
@@ -115,13 +120,13 @@ namespace movegen {
     }
 
     template <int depth>
-    ForceInline U64 findBishopPins(U64 occB, U64 bE, U64 qE, int kMS) {
-        return iteratePieces<depth>(((bE | qE) & BISHOP_XRAYS[kMS]), occB, kMS);
+    ForceInline U64 findBishopPins(const BoardState& board, int kMS) {
+        return iteratePieces<depth>(((board.bE | board.qE) & BISHOP_XRAYS[kMS]), board.occB, kMS);
     }
 
     template <int depth>
-    ForceInline U64 findRookPins(U64 occB, U64 rE, U64 qE, int kMS) {
-        return iteratePieces<depth>(((rE | qE) & ROOK_XRAYS[kMS]), occB, kMS);
+    ForceInline U64 findRookPins(const BoardState& board, int kMS) {
+        return iteratePieces<depth>(((board.rE | board.qE) & ROOK_XRAYS[kMS]), board.occB, kMS);
     }
 
     template <int depth, bool side, bool kMMoved, bool kEMoved>
@@ -187,9 +192,8 @@ namespace movegen {
             KING MOVES
 
         */
-        U64 mask = board.kMA;
-        attacks = mask & ~board.occM;
-        filterKingAttacks<side, kMMoved, kEMoved>(board.occM, board.occB, kMS, attacks, castleAttacks, board.pE, board.nE, board.bE, board.rE, board.qE, board.kEA, mask);
+        attacks = board.kMA & ~board.occM;
+        filterKingAttacks<side, kMMoved, kEMoved>(board, kMS, attacks, castleAttacks);
         if constexpr (depth == 1) nodes += Bitcount(attacks);
         else makeMoves<depth, side, kMMoved, kEMoved, Piece::King>(nodes, attacks, kMS, board, kES);
 
@@ -197,8 +201,8 @@ namespace movegen {
             int checkSquare = SquareOf(board.checks);
 
             if (Bitcount(board.checks) == 1) {
-                const U64 bPins = findBishopPins<depth>(board.occB, board.bE, board.qE, kMS);
-                const U64 rPins = findRookPins<depth>(board.occB, board.rE, board.qE, kMS);
+                const U64 bPins = findBishopPins<depth>(board, kMS);
+                const U64 rPins = findRookPins<depth>(board, kMS);
                 const U64 allPins = bPins | rPins;
                 if (board.checks & (board.pE | board.nE)) {
                     /*
@@ -463,8 +467,8 @@ namespace movegen {
             return nodes;
         }
 
-        const U64 bPins = findBishopPins<depth>(board.occB, board.bE, board.qE, kMS);
-        const U64 rPins = findRookPins<depth>(board.occB, board.rE, board.qE, kMS);
+        const U64 bPins = findBishopPins<depth>(board, kMS);
+        const U64 rPins = findRookPins<depth>(board, kMS);
         const U64 allPins = bPins | rPins;
 
         /*
@@ -488,9 +492,9 @@ namespace movegen {
             Bitloop(ePP) {
                 from = SquareOf(ePP);
 
-                if constexpr (depth == 1) nodes += Bitcount(ePBit & passantPinMask<side>(board.eP, from, board.occB, board.kM, board.rE, board.qE, kMS));
+                if constexpr (depth == 1) nodes += Bitcount(ePBit & passantPinMask<side>(board, from, kMS));
                 else {
-                    if (ePBit & passantPinMask<side>(board.eP, from, board.occB, board.kM, board.rE, board.qE, kMS)) {
+                    if (ePBit & passantPinMask<side>(board, from, kMS)) {
                         const BoardState newBoard = board.makeEnPassant<side>(from, board.eP, board, kES);
                         if constexpr (depth == 0) movesArray.add(MoveInfo(EnPassant, from, board.eP, true, newBoard));
                         else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
@@ -645,7 +649,7 @@ namespace movegen {
         }
 
         if constexpr (!kMMoved) {
-            if (castle<CASTLING_SIDE_K[side]>(board.casPerms, board.occE, board.occB, board.nE, board.bE, board.rE, board.qE, castleAttacks)) {
+            if (castle<CASTLING_SIDE_K[side]>(board, castleAttacks)) {
                 if constexpr (depth == 1) nodes++;
                 else {
                     const BoardState newBoard = board.makeCastling<CASTLING_SIDE_K[side]>(board, kES);
@@ -654,7 +658,7 @@ namespace movegen {
                 }
             }
 
-            if (castle<CASTLING_SIDE_Q[side]>(board.casPerms, board.occE, board.occB, board.nE, board.bE, board.rE, board.qE, castleAttacks)) {
+            if (castle<CASTLING_SIDE_Q[side]>(board, castleAttacks)) {
                 if constexpr (depth == 1) nodes++;
                 else {
                     const BoardState newBoard = board.makeCastling<CASTLING_SIDE_Q[side]>(board, kES);
