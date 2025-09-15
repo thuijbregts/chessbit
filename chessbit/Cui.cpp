@@ -556,18 +556,18 @@ U64 Cui::generateMoves(int depth) {
 	else {
 		switch (game::board.casPerms) {
 		case 0b0000: return generateMoves<black, true, true>(depth);
-		case 0b0001: return generateMoves<black, false, true>(depth);
-		case 0b0010: return generateMoves<black, false, true>(depth);
-		case 0b0011: return generateMoves<black, false, true>(depth);
-		case 0b0100: return generateMoves<black, true, false>(depth);
+		case 0b0001: return generateMoves<black, true, false>(depth);
+		case 0b0010: return generateMoves<black, true, false>(depth);
+		case 0b0011: return generateMoves<black, true, false>(depth);
+		case 0b0100: return generateMoves<black, false, true>(depth);
 		case 0b0101: return generateMoves<black, false, false>(depth);
 		case 0b0110: return generateMoves<black, false, false>(depth);
 		case 0b0111: return generateMoves<black, false, false>(depth);
-		case 0b1000: return generateMoves<black, true, false>(depth);
+		case 0b1000: return generateMoves<black, false, true>(depth);
 		case 0b1001: return generateMoves<black, false, false>(depth);
 		case 0b1010: return generateMoves<black, false, false>(depth);
 		case 0b1011: return generateMoves<black, false, false>(depth);
-		case 0b1100: return generateMoves<black, true, false>(depth);
+		case 0b1100: return generateMoves<black, false, true>(depth);
 		case 0b1101: return generateMoves<black, false, false>(depth);
 		case 0b1110: return generateMoves<black, false, false>(depth);
 		default: return generateMoves<black, false, false>(depth);
@@ -575,28 +575,28 @@ U64 Cui::generateMoves(int depth) {
 	}
 }
 
-template <bool side, bool wKMoved, bool bKMoved>
+template <bool side, bool kMMoved, bool kEMoved>
 U64 Cui::generateMoves(int depth) {
 	switch (depth) {
-	case 18: return PerftGenerator<18, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 17: return PerftGenerator<17, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 16: return PerftGenerator<16, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 15: return PerftGenerator<15, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 14: return PerftGenerator<14, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 13: return PerftGenerator<13, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 12: return PerftGenerator<12, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 11: return PerftGenerator<11, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 10: return PerftGenerator<10, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 9: return PerftGenerator<9, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 8: return PerftGenerator<8, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 7: return PerftGenerator<7, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 6: return PerftGenerator<6, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 5: return PerftGenerator<5, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 4: return PerftGenerator<4, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 3: return PerftGenerator<3, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 2: return PerftGenerator<2, side, wKMoved, bKMoved>::generateMoves(game::board);
-	case 1: return PerftGenerator<1, side, wKMoved, bKMoved>::generateMoves(game::board);
-	default: return PerftGenerator<0, side, wKMoved, bKMoved>::generateMoves(game::board);
+	case 18: return PerftGenerator<18, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 17: return PerftGenerator<17, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 16: return PerftGenerator<16, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 15: return PerftGenerator<15, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 14: return PerftGenerator<14, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 13: return PerftGenerator<13, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 12: return PerftGenerator<12, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 11: return PerftGenerator<11, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 10: return PerftGenerator<10, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 9: return PerftGenerator<9, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 8: return PerftGenerator<8, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 7: return PerftGenerator<7, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 6: return PerftGenerator<6, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 5: return PerftGenerator<5, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 4: return PerftGenerator<4, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 3: return PerftGenerator<3, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 2: return PerftGenerator<2, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 1: return PerftGenerator<1, side, kMMoved, kEMoved>::generateMoves(game::board);
+	default: return PerftGenerator<0, side, kMMoved, kEMoved>::generateMoves(game::board);
 	}
 }
 
