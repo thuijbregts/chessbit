@@ -10,24 +10,27 @@ namespace movarray {
 		MoveArray();
 		~MoveArray();
 
-		inline int size() {
+		__forceinline  int size() {
 			return _size;
 		}
 
-		inline moveinfo::MoveInfo* moves() {
+		__forceinline  moveinfo::MoveInfo* moves() {
 			return _moves;
 		}
-		inline void reset() {
+		__forceinline  void reset() {
 			_size = 0;
 		}
 
-		void add(moveinfo::MoveInfo& moveInfo);
+		__forceinline void add(const moveinfo::MoveInfo& moveInfo) {
+			_moves[_size++] = moveInfo;
+		}
 
 	private:
 		moveinfo::MoveInfo* _moves;
 		int _size;
 	};
 
+	inline static MoveArray movesArrayPool[50];
 	extern MoveArray movesArray;
 }
 

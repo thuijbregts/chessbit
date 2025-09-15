@@ -342,9 +342,9 @@ namespace defs {
 		f8, d8
 	};
 
-	constexpr int CASTLING_SIDE_OPPOSITE[4] = {
-		black, black,
-		white, white
+	constexpr int CASTLING_SIDE[4] = {
+		white, white,
+		black, black
 	};
 
 	//squares where the enemy pieces can't be in order to castle

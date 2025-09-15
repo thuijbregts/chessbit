@@ -58,7 +58,8 @@ namespace bstate {
 
         template <Piece piece, bool side, bool capture>
         ForceInline BoardState make(int from, int to, const BoardState& board, int kES) {
-            const U64 move = (1ULL << from) | (1ULL << to);
+            const U64 t = (1ULL << to);
+            const U64 move = (1ULL << from) | t;
 
             U64 pM = board.pM;
             U64 nM = board.nM;
@@ -88,10 +89,13 @@ namespace bstate {
                 casPerms &= NO_CASTLE_ROOK[from];
             }
             if constexpr (Piece::Queen == piece)    qM ^= move;
-            if constexpr (Piece::King == piece)     kM ^= move;
+            if constexpr (Piece::King == piece) {
+                kM ^= move;
+                casPerms &= NO_CASTLE[side];
+            }
 
             if constexpr (capture) {
-                occE ^= (1ULL << to);
+                occE ^= t;
                 casPerms &= NO_CASTLE_ROOK[to];
 
                 const U64 occB = occM | occE;
@@ -211,11 +215,14 @@ namespace bstate {
             const U64 occM = board.occM ^ bothSwitch<castlingSide>();
             const U64 occB = occM | board.occE;
 
+            const bool side = CASTLING_SIDE[castlingSide];
+            const int casPerms = board.casPerms & NO_CASTLE[side];
+
             const U64 checks = getRookAttacks(kES, occB) & rM;
 
             const int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
 
-            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kEA, getKingAttacks(to), board.occE, occM, occB, checks, board.casPerms, noSquare, CASTLING_SIDE_OPPOSITE[castlingSide]);
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kEA, getKingAttacks(to), board.occE, occM, occB, checks, casPerms, noSquare, !side);
         }
     };
 

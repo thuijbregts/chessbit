@@ -2,21 +2,17 @@
 #include <algorithm>
 
 namespace movarray {
-	MoveArray movesArray;
+	MoveArray movesArray = movesArrayPool[0];
 
 	MoveArray::MoveArray() :
 		_size{ 0 }
 	{
-		_moves = new moveinfo::MoveInfo[120];
+		_moves = new moveinfo::MoveInfo[256];
 	}
 
 	MoveArray::~MoveArray()
 	{
 		//delete[] _moves;
 		_size = 0;
-	}
-
-	void MoveArray::add(moveinfo::MoveInfo& moveInfo) {
-		_moves[_size++] = moveInfo;
 	}
 }

@@ -10,7 +10,6 @@
 using std::string;
 
 namespace game {
-    //MoveInfo movesPlayed[5949];
     int moveCount;
     bstate::BoardState board = bstate::dummy;
 

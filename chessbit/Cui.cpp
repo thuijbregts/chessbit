@@ -247,8 +247,11 @@ void Cui::perft(string& option, string& depth) {
 	if (depth.length() > 0 && utils::isPositiveDigits(depth) && stoi(depth) > 0) {
 		int d = stoi(depth);
 		if (option.length() > 0) {
-			if (option == "-d") {
+			if (option == cui::PERFT_D) {
 				perftDivide(d);
+			}
+			else if (option == cui::PERFT_F) {
+				perftFull(d);
 			}
 			else {
 				cout << "incorrect perft option" << endl;
@@ -305,7 +308,7 @@ void Cui::perftDivide(int depth) {
 	game::setFen(fen.c_str());
 }
 
-U64 Cui::divide(int depth) {
+__forceinline U64 Cui::divide(int depth) {
 	U64 nodes = 0;
 	U64 current = 0;
 
@@ -320,6 +323,77 @@ U64 Cui::divide(int depth) {
 		current = generateMoves(depth - 1);
 		nodes += current;
 		printf("%s %llu\n", utils::getMoveSimple(m[i]).c_str(), current);
+		game::unmakeMove();
+	}
+
+	return nodes;
+}
+
+void Cui::perftFull(int depth) {
+	string fen = game::getFen();
+
+	int caps = 0;
+	int eP = 0;
+	int cstl = 0;
+	int prom = 0;
+	int chk = 0;
+	int dischck = 0;
+	int dblchk = 0;
+	int chkm = 0;
+
+	high_resolution_clock::time_point start, end;
+
+	start = high_resolution_clock::now();
+	U64 nodes = full(depth, depth, caps, eP, cstl, prom, chk, dischck, dblchk, chkm);
+	end = high_resolution_clock::now();
+
+	long long total = duration_cast<microseconds>(end - start).count();
+
+	cout << "Captures:\t" << caps << "En passant:\t" << eP << "Castles:\t" << cstl << "Promotions:\t" << prom << endl;
+	cout << "Checks:\t\t" << chk << "Disc. checks:\t" << dischck << "Double checks:\t" << dblchk << "Checkmates:\t" << chkm << endl;
+	cout << "Depth:\t\t" << depth << endl;
+	cout << "Nodes:\t\t" << nodes << endl;
+	cout << "Time:\t\t" << total / 1000 << " ms" << endl;
+	if (total > 0) {
+		cout << "Average:\t" << (nodes * 1.0 / total) << " Mn/s" << endl;
+	}
+
+	game::setFen(fen.c_str());
+
+	movarray::movesArray = movarray::movesArrayPool[0];
+}
+
+__forceinline U64 Cui::full(int depth, int max, int& caps, int& eP, int& cstl, int& prom, int& chk, int& dischck, int& dblchk, int& chkm) {
+	if (depth == 0) {
+		return 1;
+	}
+	U64 nodes = 0;
+	U64 current = 0;
+
+	movarray::movesArray = movarray::movesArrayPool[depth];
+	initMoves();
+	int size = movarray::movesArray.size();
+	MoveInfo* m = movarray::movesArray.moves();
+	for (int i = 0; i < size; i++) {
+		game::makeMove(m[i]);
+		current = full(depth - 1, max, caps, eP, cstl, prom, chk, dischck, dblchk, chkm);
+		nodes += current;
+		if (depth == max) printf("%s %llu\n", utils::getMoveSimple(m[i]).c_str(), current);
+		if (m[i].capture) caps++;
+		if (m[i].promo != noPiece) prom++;
+		U64 checks = m[i].board.checks;
+		if (checks) {
+			chk++;
+			U64 to = (1ULL << m[i].to);
+			if (checks & to) {
+				checks ^= to;
+				if (checks) {
+					dischck++;
+					dblchk++;
+				}
+			}
+			else dischck++;
+		}
 		game::unmakeMove();
 	}
 

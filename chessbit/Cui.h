@@ -37,14 +37,15 @@ private:
 	void perft(string& option, string& depth);
 	void perftFast(int depth);
 	void perftDivide(int depth);
-	U64 divide(int depth);
+	__forceinline U64 divide(int depth);
+	void perftFull(int depth);
+	__forceinline U64 full(int depth, int max, int& caps, int& eP, int& cstl, int& prom, int& chk, int& dischck, int& dblchk, int& chkm);
 	void test();
 	void perftsuite();
 	void benchmark(string& depth, string& amount);
 	void executeBenchmark(int depth, int amount, bool print);
 	void compare();
 	U64 generateMoves(int depth);
-	//U64 generateMoves(int depth);
 	template <bool side, bool kMMoved, bool kEMoved>
 	U64 generateMoves(int depth);
 	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);
@@ -70,6 +71,7 @@ namespace cui {
 	const string GET_FEN = "fen";
 	const string PERFT = "perft";
 	const string DIVIDE = "divide";
+	const string FULL = "full";
 	const string PRINT_BOARD = "print";
 	const string MOVES = "moves";
 	const string RESET = "reset";
@@ -82,19 +84,14 @@ namespace cui {
 	const string COMPARE = "cmp";
 
 	const string PERFT_D = "-d";
-	const string PERFT_A = "-a";
-
-	const string OPTIONS[]{
-		PERFT_D,
-		PERFT_A
-	};
+	const string PERFT_F = "-f";
 
 	const Command COMMANDS[]{
 		{ EXIT, {} },
 		{ HELP, {} },
 		{ SET_FEN, {} },
 		{ GET_FEN, {} },
-		{ PERFT, { PERFT_D }  },
+		{ PERFT, {}  },
 		{ DIVIDE, {} },
 		{ PRINT_BOARD, {} },
 		{ MOVES, {} },
