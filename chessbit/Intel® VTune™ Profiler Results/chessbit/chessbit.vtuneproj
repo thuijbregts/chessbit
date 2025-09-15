@@ -276,6 +276,16 @@
      <recursive type="bool">false</recursive>
      <priority type="bool">false</priority>
     </searchDirectory>
+    <searchDirectory>
+     <name>C:\Program Files (x86)\Intel\oneAPI\compiler\2025.2\bin</name>
+     <recursive type="bool">false</recursive>
+     <priority type="bool">false</priority>
+    </searchDirectory>
+    <searchDirectory>
+     <name>C:\Program Files\clang\clang+llvm-21.1.0-x86_64-pc-windows-msvc\bin</name>
+     <recursive type="bool">false</recursive>
+     <priority type="bool">false</priority>
+    </searchDirectory>
    </searchCategory>
    <searchCategory>
     <category type="u8_t">2</category>
@@ -387,6 +397,21 @@
      <recursive type="bool">true</recursive>
      <priority type="bool">false</priority>
     </searchDirectory>
+    <searchDirectory>
+     <name>C:\Program Files (x86)\Intel\oneAPI\tbb\2022.2\include</name>
+     <recursive type="bool">false</recursive>
+     <priority type="bool">false</priority>
+    </searchDirectory>
+    <searchDirectory>
+     <name>C:\Program Files (x86)\Intel\oneAPI\compiler\2025.2\include</name>
+     <recursive type="bool">false</recursive>
+     <priority type="bool">false</priority>
+    </searchDirectory>
+    <searchDirectory>
+     <name>C:\Program Files (x86)\Intel\oneAPI\compiler\2025.2\opt\compiler\include</name>
+     <recursive type="bool">false</recursive>
+     <priority type="bool">false</priority>
+    </searchDirectory>
    </searchCategory>
    <searchCategory>
     <category type="u8_t">4</category>
@@ -405,7 +430,7 @@
        <targetName>launch</targetName>
        <launch_app.app_to_launch>C:\Users\porsh\Documents\Visual Studio 2022\Projects\chessbit - templates\x64\Release\chessbit.exe</launch_app.app_to_launch>
        <launch_app.app_parameters></launch_app.app_parameters>
-       <launch_app.environment>PATH=C:\Program Files (x86)\Intel\oneAPI\compiler\2024.0\bin;%PATH%</launch_app.environment>
+       <launch_app.environment>PATH=C:\Program Files (x86)\Intel\oneAPI\compiler\2025.2\bin;%PATH%</launch_app.environment>
        <use_app_dir_as_work_dir type="bool">false</use_app_dir_as_work_dir>
        <launch_app.working_folder>C:\Users\porsh\Documents\Visual Studio 2022\Projects\chessbit - templates\chessbit\</launch_app.working_folder>
        <launch.userappworkdir>C:\Users\porsh\Documents\Visual Studio 2022\Projects\chessbit - templates\chessbit\</launch.userappworkdir>

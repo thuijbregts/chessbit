@@ -224,7 +224,7 @@ namespace movegen {
                             from = SquareOf(enPassant);
 
                             const BoardState newBoard = board.makeEnPassant<side>(from, board.eP, board, kES);
-                            if constexpr (depth == 0) movesArray.add(MoveInfo(from, board.eP, true, newBoard));
+                            if constexpr (depth == 0) movesArray.add(MoveInfo(EnPassant, from, board.eP, true, newBoard));
                             else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
                         }
 
@@ -492,7 +492,7 @@ namespace movegen {
                 else {
                     if (ePBit & passantPinMask<side>(board.eP, from, board.occB, board.kM, board.rE, board.qE, kMS)) {
                         const BoardState newBoard = board.makeEnPassant<side>(from, board.eP, board, kES);
-                        if constexpr (depth == 0) movesArray.add(MoveInfo(from, board.eP, true, newBoard));
+                        if constexpr (depth == 0) movesArray.add(MoveInfo(EnPassant, from, board.eP, true, newBoard));
                         else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
                     }
                 }
@@ -649,7 +649,7 @@ namespace movegen {
                 if constexpr (depth == 1) nodes++;
                 else {
                     const BoardState newBoard = board.makeCastling<CASTLING_SIDE_K[side]>(board, kES);
-                    if constexpr (depth == 0) movesArray.add(MoveInfo(kMS, CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_K[side]], false, newBoard));
+                    if constexpr (depth == 0) movesArray.add(MoveInfo(Castle, kMS, CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_K[side]], false, newBoard));
                     else nodes += PerftGenerator<depth - 1, !side, kEMoved, true>::generateMoves(newBoard);
                 }
             }
@@ -658,7 +658,7 @@ namespace movegen {
                 if constexpr (depth == 1) nodes++;
                 else {
                     const BoardState newBoard = board.makeCastling<CASTLING_SIDE_Q[side]>(board, kES);
-                    if constexpr (depth == 0) movesArray.add(MoveInfo(kMS, CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_Q[side]], false, newBoard));
+                    if constexpr (depth == 0) movesArray.add(MoveInfo(Castle, kMS, CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_Q[side]], false, newBoard));
                     else nodes += PerftGenerator<depth - 1, !side, kEMoved, true>::generateMoves(newBoard);
                 }
             }
