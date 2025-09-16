@@ -2,6 +2,8 @@
 
 This project was inspired by [Gigantua](https://github.com/Gigantua/Gigantua), and a desire to push the limits. Although most of the logic is my own, I had no idea about bmi instructions and templates before starting the project, so Gigantua's source code was of immense help to discover these concepts. Credit where credit is due! You will find some code that I took from there.
 
+Binary: 
+
 Here are some numbers on an AMD Ryzen 7 9800x3d. Chessbit is able to calculate some positions at over 4BNodes/s on this CPU (~25-30% increase from Gigantua)
 
 ![](https://i.imgur.com/NQqTkCE.png)
@@ -49,7 +51,7 @@ The idea is simple:
    
 The precalculated table is a matrix of 64*64 squares (slider square & king square), where the bits are only set between 2 squares if they are in the same ray.
 
-<pre> ```cpp
+<pre>
 template <int depth>
 ForceInline U64 iteratePieces(U64 pieces, U64 occB, int kMS) {
     U64 pins = 0ULL;
@@ -80,12 +82,12 @@ template <int depth>
 ForceInline U64 findRookPins(const BoardState& board) {
     return iteratePieces<depth>((board.rE | board.qE) & ROOK_XRAYS[board.kMS] & ~board.checks, board.occB, board.kMS);
 }
-``` </pre>
+</pre>
 
 ### Pawn moves
 The initial idea was to create an attack table which would allow to iterate over pawns without checking left/right/forward individually. This proved to be much faster than the naive implementation. However, I recently thought about bitshifts, as for some reason I thought they were acting on a single bit at a time. This is great, because we don't have to iterate over pawns anymore. A single shift left, forward, and right is enough to handle all attacks at once (after pruning illegal moves). This was the last huge improvement, as I hadn't realized I was bottlenecked with the initial implementation (~20% boost).
 
-<pre> ```cpp
+<pre>
 const U64 pawnsAtk = board.pM & ~rPins;
 const U64 pawnsPush = board.pM & ~bPins;
 
@@ -95,7 +97,7 @@ const U64 pawnsRightAll = pawnsAtkRight<side>(pawnsAtk & ~bPins & ~LAST_COL) | (
 U64 pawnsRight = pawnsRightAll & board.occE;
 U64 pawnsFwd = (pawnsAtkForward<side>(pawnsPush & ~rPins) & ~board.occB) | (pawnsAtkForward<side>(pawnsPush & rPins) & ~board.occB & rPins);
 U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~board.occB;
-``` </pre>
+</pre>
 
 This is all you need to have legal pawn moves, ready to be counted (or executed for depth > 1)
 
@@ -121,18 +123,18 @@ The one that is currently implemented is like this:
 
 The other approach would be to use the castling permissions as a template paramter, but this costs in terms of size (16 values vs 4), and I found that bigger code size sometimes means less performance, even though "constexpr" conditions are free at runtime. The compilation time also increases a lot, up to 12 minutes, so I discarded this approach as it was giving very similar results (TBConfirmed).
 
-<pre> ```cpp
+<pre>
 template <int castlingSide>
 ForceInline bool castle(const BoardState& board, U64 attacks) {
     return !(!(board.casPerms & CASTLING[castlingSide]) | (CASTLING_OCCUPIED_SQUARES[castlingSide] & board.occB) | (attacks & CASTLING_PASSING_SQUARES[castlingSide]));
 }
-``` </pre>
+</pre>
 
 ### En passant pin mask
 Just a note on this. I haven't found a better way to do this, but I'm not entirely convinced this is the best approach.
 En passant moves have a special case, where they can be effectively pinned without being the only piece in the ray between the King and a Rook/Queen (on the EP rank). That extra piece being the en passant pawn that is to be taken. So when iterating over en passant moves, I also make sure that it is not pinned, as the generic Pins function cannot detect that.
 
-<pre> ```cpp
+<pre>
 template <bool side>
 ForceInline U64 passantPinMask(const BoardState& board, int from) {
     if (!(EN_PASSANT_RANK[side] & board.kM)) {
@@ -146,7 +148,7 @@ ForceInline U64 passantPinMask(const BoardState& board, int from) {
 
     return PASSANT_PIN_RESULT[SquareOf(getRookAttacks(board.kMS, occB) & (board.rE | board.qE))];
 }
-``` </pre>
+</pre>
 
 This just returns a mask (either 0 or all 1s if not pinned) that is then used to validate the EP bit.
 
