@@ -3,12 +3,14 @@
 
 #include "MoveArray.h"
 #include "BoardState.h"
+#include "Stats.h"
 #include "Game.h"
 #include <vector>
 
 using namespace movarray;
 using namespace moveinfo;
 using namespace bstate;
+using namespace stats;
 
 namespace movegen {
 
@@ -23,6 +25,9 @@ namespace movegen {
 
     //union of pinMask and the slider piece square, where index is the square of the pinned piece
     static inline U64 validAttacksMasks[100][64];
+
+    template <int depth, bool side, bool kMMoved, bool kEMoved, bool isStats>
+    struct PerftGenerator;
 
     template <bool side>
     ForceInline U64 pawnsAtkLeft(U64 pM) {
@@ -125,55 +130,52 @@ namespace movegen {
         return iteratePieces<depth>((board.rE | board.qE) & ROOK_XRAYS[board.kMS] & ~board.checks, board.occB, board.kMS);
     }
 
-    template <int depth, bool side, bool kMMoved, bool kEMoved>
-    struct PerftGenerator;
-
-    template <int depth, bool side, bool kMMoved, bool kEMoved, Piece piece, bool capture>
-    ForceInline void enumMoves(U64& nodes, U64 moves, int from, const BoardState& board) {
+    template <int depth, bool side, bool kMMoved, bool kEMoved, bool isStats, Piece piece, bool capture>
+    ForceInline void enumMoves(U64& nodes, U64 moves, int from, const BoardState& board, Stats& stats) {
         if (moves) {
             int to = SquareOf(moves);
 
             const BoardState newBoard = board.make<piece, side, capture>(from, to, board);
             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, capture, newBoard));
             else {
-                if constexpr (piece == Piece::King) nodes += PerftGenerator<depth - 1, !side, kEMoved, true>::generateMoves(newBoard);
-                else                                nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                if constexpr (piece == Piece::King) nodes += PerftGenerator<depth - 1, !side, kEMoved, true, isStats>::generateMoves(newBoard, stats);
+                else                                nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
             }
 
-            enumMoves<depth, side, kMMoved, kEMoved, piece, capture>(nodes, _blsr_u64(moves), from, board);
+            enumMoves<depth, side, kMMoved, kEMoved, isStats, piece, capture>(nodes, _blsr_u64(moves), from, board, stats);
         }
     }
 
-    template <int depth, bool side, bool kMMoved, bool kEMoved, Piece piece>
-    ForceInline void makeMoves(U64& nodes, U64 attacks, int from, const BoardState& board) {
+    template <int depth, bool side, bool kMMoved, bool kEMoved, bool isStats, Piece piece>
+    ForceInline void makeMoves(U64& nodes, U64 attacks, int from, const BoardState& board, Stats& stats) {
         U64 moves = attacks & ~board.occE;
-        enumMoves<depth, side, kMMoved, kEMoved, piece, false>(nodes, moves, from, board);
+        enumMoves<depth, side, kMMoved, kEMoved, isStats, piece, false>(nodes, moves, from, board, stats);
 
         moves = attacks & board.occE;
-        enumMoves<depth, side, kMMoved, kEMoved, piece, true>(nodes, moves, from, board);
+        enumMoves<depth, side, kMMoved, kEMoved, isStats, piece, true>(nodes, moves, from, board, stats);
     }
 
-    template <int depth, bool side, bool kMMoved, bool kEMoved, bool capture>
-    ForceInline void makePromotionMoves(U64& nodes, int from, int to, const BoardState& board) {
+    template <int depth, bool side, bool kMMoved, bool kEMoved, bool isStats, bool capture>
+    ForceInline void makePromotionMoves(U64& nodes, int from, int to, const BoardState& board, Stats& stats) {
         const BoardState newBoardN = board.makePromotion<Piece::Knight, side, capture>(from, to, board);
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, n, capture, newBoardN));
-        else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoardN);
+        else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoardN, stats);
 
         const BoardState newBoardB = board.makePromotion<Piece::Bishop, side, capture>(from, to, board);
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, b, capture, newBoardB));
-        else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoardB);
+        else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoardB, stats);
 
         const BoardState newBoardR = board.makePromotion<Piece::Rook, side, capture>(from, to, board);
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, r, capture, newBoardR));
-        else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoardR);
+        else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoardR, stats);
 
         const BoardState newBoardQ = board.makePromotion<Piece::Queen, side, capture>(from, to, board);
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, q, capture, newBoardQ));
-        else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoardQ);
+        else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoardQ, stats);
     }
 
-    template <int depth, bool side, bool kMMoved, bool kEMoved>
-    ForceInline U64 allMoves(const BoardState& board) {
+    template <int depth, bool side, bool kMMoved, bool kEMoved, bool isStats>
+    ForceInline U64 allMoves(const BoardState& board, Stats& stats) {
         int from, to;
         U64 bitboard, attacks;
 
@@ -187,8 +189,8 @@ namespace movegen {
         */
         attacks = board.kMA & ~board.occM;
         filterKingAttacks<side, kMMoved>(board, attacks, castleAttacks);
-        if constexpr (depth == 1) nodes += Bitcount(attacks);
-        else makeMoves<depth, side, kMMoved, kEMoved, Piece::King>(nodes, attacks, board.kMS, board);
+        if constexpr (depth == 1) { nodes += Bitcount(attacks); if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
+        else makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::King>(nodes, attacks, board.kMS, board, stats);
 
         if (board.checks) {
             int checkSquare = SquareOf(board.checks);
@@ -211,8 +213,8 @@ namespace movegen {
                     U64 promos = caps & PROMO_RANKS[side];
 
                     if constexpr (depth == 1) {
-                        if (promos) nodes += Bitcount(promos) << 2;
-                        else nodes += Bitcount(enPassant | caps);
+                        if (promos) { int count = Bitcount(promos) << 2; nodes += count; if constexpr (isStats) { stats.prom += count; stats.caps += count; } }
+                        else { int count = Bitcount(enPassant | caps); nodes += count; if constexpr (isStats) { stats.eP += Bitcount(enPassant); stats.caps += count; } }
                     }
                     else {
                         caps ^= promos;
@@ -222,17 +224,17 @@ namespace movegen {
 
                             const BoardState newBoard = board.makeEnPassant<side>(from, board.eP, board);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(EnPassant, from, board.eP, true, newBoard));
-                            else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                            else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
                         }
 
-                        Bitloop(promos) { from = SquareOf(promos); makePromotionMoves<depth, side, kMMoved, kEMoved, true>(nodes, from, to, board); }
+                        Bitloop(promos) { from = SquareOf(promos); makePromotionMoves<depth, side, kMMoved, kEMoved, isStats, true>(nodes, from, to, board, stats); }
 
                         Bitloop(caps) {
                             from = SquareOf(caps);
 
                             const BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
-                            else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                            else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
                         }
                     }
 
@@ -245,14 +247,14 @@ namespace movegen {
                     if (bitboard)
                     {
                         attacks = getKnightAttacks(checkSquare) & bitboard;
-                        if constexpr (depth == 1) nodes += Bitcount(attacks);
+                        if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += count; }
                         else {
                             Bitloop(attacks) {
                                 from = SquareOf(attacks);
 
                                 const BoardState newBoard = board.make<Piece::Knight, side, true>(from, to, board);
                                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
-                                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
                             }
                         }
                     }
@@ -266,14 +268,14 @@ namespace movegen {
                     if (bitboard)
                     {
                         attacks = getBishopAttacks(checkSquare, board.occB) & bitboard;
-                        if constexpr (depth == 1) nodes += Bitcount(attacks);
+                        if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += count; }
                         else {
                             Bitloop(attacks) {
                                 from = SquareOf(attacks);
 
                                 const BoardState newBoard = board.make<Piece::Bishop, side, true>(from, to, board);
                                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
-                                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
                             }
                         }
                     }
@@ -287,14 +289,14 @@ namespace movegen {
                     if (bitboard)
                     {
                         attacks = getRookAttacks(checkSquare, board.occB) & bitboard;
-                        if constexpr (depth == 1) nodes += Bitcount(attacks);
+                        if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += count; }
                         else {
                             Bitloop(attacks) {
                                 from = SquareOf(attacks);
 
                                 const BoardState newBoard = board.make<Piece::Rook, side, true>(from, to, board);
                                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
-                                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
                             }
                         }
                     }
@@ -308,14 +310,14 @@ namespace movegen {
                     if (bitboard)
                     {
                         attacks = getQueenAttacks(checkSquare, board.occB) & bitboard;
-                        if constexpr (depth == 1) nodes += Bitcount(attacks);
+                        if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += count; }
                         else {
                             Bitloop(attacks) {
                                 from = SquareOf(attacks);
 
                                 const BoardState newBoard = board.make<Piece::Queen, side, true>(from, to, board);
                                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
-                                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
                             }
                         }
                     }
@@ -346,17 +348,24 @@ namespace movegen {
                         pawnsRight ^= promosRight;
                         pawnsFwd ^= promosFwd;
 
-                        if constexpr (depth == 1) nodes += (Bitcount(promosLeft) + Bitcount(promosRight | promosFwd)) << 2;
+                        if constexpr (depth == 1) {
+                            int count = (Bitcount(promosLeft) + Bitcount(promosRight | promosFwd)) << 2;
+                            nodes += count;
+                            if constexpr (isStats) {
+                                stats.prom += count;
+                                stats.caps += (Bitcount(promosLeft) + Bitcount(promosRight)) << 2;
+                            }
+                        }
                         else {
-                            Bitloop(promosLeft) { to = SquareOf(promosLeft);  from = to + PAWN_RIGHT[!side];  makePromotionMoves<depth, side, kMMoved, kEMoved, true>(nodes, from, to, board); }
-                            Bitloop(promosRight) { to = SquareOf(promosRight); from = to + PAWN_LEFT[!side];   makePromotionMoves<depth, side, kMMoved, kEMoved, true>(nodes, from, to, board); }
-                            Bitloop(promosFwd) { to = SquareOf(promosFwd);   from = to + PAWN_PUSH[!side];   makePromotionMoves<depth, side, kMMoved, kEMoved, false>(nodes, from, to, board); }
+                            Bitloop(promosLeft) { to = SquareOf(promosLeft);  from = to + PAWN_RIGHT[!side];  makePromotionMoves<depth, side, kMMoved, kEMoved, isStats, true>(nodes, from, to, board, stats); }
+                            Bitloop(promosRight) { to = SquareOf(promosRight); from = to + PAWN_LEFT[!side];   makePromotionMoves<depth, side, kMMoved, kEMoved, isStats, true>(nodes, from, to, board, stats); }
+                            Bitloop(promosFwd) { to = SquareOf(promosFwd);   from = to + PAWN_PUSH[!side];   makePromotionMoves<depth, side, kMMoved, kEMoved, isStats, false>(nodes, from, to, board, stats); }
                         }
                     }
 
                     if constexpr (depth == 1) {
-                        nodes += Bitcount(pawnsLeft);
-                        nodes += Bitcount(pawnsRight | pawnsFwd | pawnsDouble);
+                        nodes += Bitcount(pawnsLeft) + Bitcount(pawnsRight | pawnsFwd | pawnsDouble);
+                        if constexpr (isStats) stats.caps += Bitcount(pawnsLeft) + Bitcount(pawnsRight);
                     }
                     else {
                         Bitloop(pawnsLeft) {
@@ -365,7 +374,7 @@ namespace movegen {
 
                             const BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
-                            else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                            else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
                         }
 
                         Bitloop(pawnsRight) {
@@ -374,7 +383,7 @@ namespace movegen {
 
                             const BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
-                            else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                            else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
                         }
 
                         Bitloop(pawnsFwd) {
@@ -383,7 +392,7 @@ namespace movegen {
 
                             const BoardState newBoard = board.make<Piece::Pawn, side, false>(from, to, board);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
-                            else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                            else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
                         }
 
                         Bitloop(pawnsDouble) {
@@ -392,7 +401,7 @@ namespace movegen {
 
                             const BoardState newBoard = board.makeDoublePush<side>(from, to, board);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
-                            else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                            else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
                         }
                     }
                     /*
@@ -406,8 +415,8 @@ namespace movegen {
                         from = SquareOf(bitboard);
 
                         attacks = getKnightAttacks(from) & validSquares;
-                        if constexpr (depth == 1) nodes += Bitcount(attacks);
-                        else makeMoves<depth, side, kMMoved, kEMoved, Piece::Knight>(nodes, attacks, from, board);
+                        if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
+                        else makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Knight>(nodes, attacks, from, board, stats);
                     }
 
                     /*
@@ -421,8 +430,8 @@ namespace movegen {
                         from = SquareOf(bitboard);
 
                         attacks = getBishopAttacks(from, board.occB) & validSquares;
-                        if constexpr (depth == 1) nodes += Bitcount(attacks);
-                        else makeMoves<depth, side, kMMoved, kEMoved, Piece::Bishop>(nodes, attacks, from, board);
+                        if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
+                        else makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Bishop>(nodes, attacks, from, board, stats);
                     }
 
                     /*
@@ -436,8 +445,8 @@ namespace movegen {
                         from = SquareOf(bitboard);
 
                         attacks = getRookAttacks(from, board.occB) & validSquares;
-                        if constexpr (depth == 1) nodes += Bitcount(attacks);
-                        else makeMoves<depth, side, kMMoved, kEMoved, Piece::Rook>(nodes, attacks, from, board);
+                        if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
+                        else makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Rook>(nodes, attacks, from, board, stats);
                     }
 
                     /*
@@ -451,9 +460,22 @@ namespace movegen {
                         from = SquareOf(bitboard);
 
                         attacks = getQueenAttacks(from, board.occB) & validSquares;
-                        if constexpr (depth == 1) nodes += Bitcount(attacks);
-                        else makeMoves<depth, side, kMMoved, kEMoved, Piece::Queen>(nodes, attacks, from, board);
+                        if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
+                        else makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Queen>(nodes, attacks, from, board, stats);
                     }
+                }
+            }
+
+            if constexpr (depth == 1 && isStats) {
+                stats.chk++;
+                if (nodes == 0) stats.chkm++;
+                else {
+                    U64 to = (1ULL << board.to);
+                    if (board.checks & to) {
+                        U64 checks = board.checks ^ to;
+                        if (checks) stats.dblchk++;
+                    }
+                    else stats.dischck++;
                 }
             }
 
@@ -485,12 +507,12 @@ namespace movegen {
             Bitloop(ePP) {
                 from = SquareOf(ePP);
 
-                if constexpr (depth == 1) nodes += Bitcount(ePBit & passantPinMask<side>(board, from));
+                if constexpr (depth == 1) { int count = Bitcount(ePBit & passantPinMask<side>(board, from)); nodes += count; if constexpr (isStats) stats.eP += count; stats.caps += count; }
                 else {
                     if (ePBit & passantPinMask<side>(board, from)) {
                         const BoardState newBoard = board.makeEnPassant<side>(from, board.eP, board);
                         if constexpr (depth == 0) movesArray.add(MoveInfo(EnPassant, from, board.eP, true, newBoard));
-                        else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                        else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
                     }
                 }
             }
@@ -505,17 +527,24 @@ namespace movegen {
             pawnsRight ^= promosRight;
             pawnsFwd ^= promosFwd;
 
-            if constexpr (depth == 1) nodes += (Bitcount(promosLeft) + Bitcount(promosRight | promosFwd)) << 2;
+            if constexpr (depth == 1) {
+                int count = (Bitcount(promosLeft) + Bitcount(promosRight | promosFwd)) << 2;
+                nodes += count;
+                if constexpr (isStats) {
+                    stats.prom += count;
+                    stats.caps += (Bitcount(promosLeft) + Bitcount(promosRight)) << 2;
+                }
+            }
             else {
-                Bitloop(promosLeft) { to = SquareOf(promosLeft);  from = to + PAWN_RIGHT[!side];  makePromotionMoves<depth, side, kMMoved, kEMoved, true>(nodes, from, to, board); }
-                Bitloop(promosRight) { to = SquareOf(promosRight); from = to + PAWN_LEFT[!side];   makePromotionMoves<depth, side, kMMoved, kEMoved, true>(nodes, from, to, board); }
-                Bitloop(promosFwd) { to = SquareOf(promosFwd);   from = to + PAWN_PUSH[!side];   makePromotionMoves<depth, side, kMMoved, kEMoved, false>(nodes, from, to, board); }
+                Bitloop(promosLeft) { to = SquareOf(promosLeft);  from = to + PAWN_RIGHT[!side];  makePromotionMoves<depth, side, kMMoved, kEMoved, isStats, true>(nodes, from, to, board, stats); }
+                Bitloop(promosRight) { to = SquareOf(promosRight); from = to + PAWN_LEFT[!side];   makePromotionMoves<depth, side, kMMoved, kEMoved, isStats, true>(nodes, from, to, board, stats); }
+                Bitloop(promosFwd) { to = SquareOf(promosFwd);   from = to + PAWN_PUSH[!side];   makePromotionMoves<depth, side, kMMoved, kEMoved, isStats, false>(nodes, from, to, board, stats); }
             }
         }
 
         if constexpr (depth == 1) {
-            nodes += Bitcount(pawnsLeft);
-            nodes += Bitcount(pawnsRight | pawnsFwd | pawnsDouble);
+            nodes += Bitcount(pawnsLeft) + Bitcount(pawnsRight | pawnsFwd | pawnsDouble);
+            if constexpr (isStats) stats.caps += Bitcount(pawnsLeft) + Bitcount(pawnsRight);
         }
         else {
             Bitloop(pawnsLeft) {
@@ -524,7 +553,7 @@ namespace movegen {
 
                 const BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board);
                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
-                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
             }
 
             Bitloop(pawnsRight) {
@@ -533,7 +562,7 @@ namespace movegen {
 
                 const BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board);
                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
-                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
             }
 
             Bitloop(pawnsFwd) {
@@ -542,7 +571,7 @@ namespace movegen {
 
                 const BoardState newBoard = board.make<Piece::Pawn, side, false>(from, to, board);
                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
-                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
             }
 
             Bitloop(pawnsDouble) {
@@ -551,7 +580,7 @@ namespace movegen {
 
                 const BoardState newBoard = board.makeDoublePush<side>(from, to, board);
                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
-                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
+                else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved, isStats>::generateMoves(newBoard, stats);
             }
         }
 
@@ -566,8 +595,8 @@ namespace movegen {
             from = SquareOf(bitboard);
 
             attacks = getKnightAttacks(from) & ~board.occM;
-            if constexpr (depth == 1) nodes += Bitcount(attacks);
-            else makeMoves<depth, side, kMMoved, kEMoved, Piece::Knight>(nodes, attacks, from, board);
+            if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
+            else makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Knight>(nodes, attacks, from, board, stats);
         }
 
         /*
@@ -581,8 +610,8 @@ namespace movegen {
             from = SquareOf(bitboard);
 
             attacks = getBishopAttacks(from, board.occB) & ~board.occM;
-            if constexpr (depth == 1) nodes += Bitcount(attacks);
-            else makeMoves<depth, side, kMMoved, kEMoved, Piece::Bishop>(nodes, attacks, from, board);
+            if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
+            else makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Bishop>(nodes, attacks, from, board, stats);
         }
 
         bitboard = (board.bM | board.qM) & bPins;
@@ -591,10 +620,10 @@ namespace movegen {
             from = SquareOf(bitboard);
 
             attacks = validAttacksMasks[depth][from];
-            if constexpr (depth == 1) nodes += Bitcount(attacks);
+            if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
             else {
-                if ((1ULL << from) & board.qM)  makeMoves<depth, side, kMMoved, kEMoved, Piece::Queen>(nodes, attacks, from, board);
-                else                            makeMoves<depth, side, kMMoved, kEMoved, Piece::Bishop>(nodes, attacks, from, board);
+                if ((1ULL << from) & board.qM)  makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Queen>(nodes, attacks, from, board, stats);
+                else                            makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Bishop>(nodes, attacks, from, board, stats);
             }
         }
 
@@ -609,8 +638,8 @@ namespace movegen {
             from = SquareOf(bitboard);
 
             attacks = getRookAttacks(from, board.occB) & ~board.occM;
-            if constexpr (depth == 1) nodes += Bitcount(attacks);
-            else makeMoves<depth, side, kMMoved, kEMoved, Piece::Rook>(nodes, attacks, from, board);
+            if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
+            else makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Rook>(nodes, attacks, from, board, stats);
         }
 
         bitboard = (board.rM | board.qM) & rPins;
@@ -619,10 +648,10 @@ namespace movegen {
             from = SquareOf(bitboard);
 
             attacks = validAttacksMasks[depth][from];
-            if constexpr (depth == 1) nodes += Bitcount(attacks);
+            if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
             else {
-                if ((1ULL << from) & board.qM)  makeMoves<depth, side, kMMoved, kEMoved, Piece::Queen>(nodes, attacks, from, board);
-                else                            makeMoves<depth, side, kMMoved, kEMoved, Piece::Rook>(nodes, attacks, from, board);
+                if ((1ULL << from) & board.qM)  makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Queen>(nodes, attacks, from, board, stats);
+                else                            makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Rook>(nodes, attacks, from, board, stats);
             }
         }
 
@@ -637,26 +666,26 @@ namespace movegen {
             from = SquareOf(bitboard);
 
             attacks = getQueenAttacks(from, board.occB) & ~board.occM;
-            if constexpr (depth == 1) nodes += Bitcount(attacks);
-            else makeMoves<depth, side, kMMoved, kEMoved, Piece::Queen>(nodes, attacks, from, board);
+            if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
+            else makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Queen>(nodes, attacks, from, board, stats);
         }
 
         if constexpr (!kMMoved) {
             if (castle<CASTLING_SIDE_K[side]>(board, castleAttacks)) {
-                if constexpr (depth == 1) nodes++;
+                if constexpr (depth == 1) { nodes++; if constexpr (isStats) stats.cstl++; }
                 else {
                     const BoardState newBoard = board.makeCastling<CASTLING_SIDE_K[side]>(board);
                     if constexpr (depth == 0) movesArray.add(MoveInfo(Castle, CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_K[side]], false, newBoard));
-                    else nodes += PerftGenerator<depth - 1, !side, kEMoved, true>::generateMoves(newBoard);
+                    else nodes += PerftGenerator<depth - 1, !side, kEMoved, true, isStats>::generateMoves(newBoard, stats);
                 }
             }
 
             if (castle<CASTLING_SIDE_Q[side]>(board, castleAttacks)) {
-                if constexpr (depth == 1) nodes++;
+                if constexpr (depth == 1) { nodes++; if constexpr (isStats) stats.cstl++; }
                 else {
                     const BoardState newBoard = board.makeCastling<CASTLING_SIDE_Q[side]>(board);
                     if constexpr (depth == 0) movesArray.add(MoveInfo(Castle, CASTLING_KING_TARGET_SQUARE[CASTLING_SIDE_Q[side]], false, newBoard));
-                    else nodes += PerftGenerator<depth - 1, !side, kEMoved, true>::generateMoves(newBoard);
+                    else nodes += PerftGenerator<depth - 1, !side, kEMoved, true, isStats>::generateMoves(newBoard, stats);
                 }
             }
         }
@@ -664,24 +693,24 @@ namespace movegen {
         return nodes;
     }
 
-    template <int depth, bool side, bool kMMoved, bool kEMoved>
+    template <int depth, bool side, bool kMMoved, bool kEMoved, bool isStats>
     struct PerftGenerator {
-        static inline U64 generateMoves(const BoardState& board) {
-            return allMoves<depth, side, kMMoved, kEMoved>(board);
+        static inline U64 generateMoves(const BoardState& board, Stats& stats) {
+            return allMoves<depth, side, kMMoved, kEMoved, isStats>(board, stats);
         }
     };
 
-    template <bool side, bool kMMoved, bool kEMoved>
-    struct PerftGenerator<1, side, kMMoved, kEMoved> {
-        ForceInline U64 generateMoves(const BoardState& board) {
-            return allMoves<1, side, kMMoved, kEMoved>(board);
+    template <bool side, bool kMMoved, bool kEMoved, bool isStats>
+    struct PerftGenerator<1, side, kMMoved, kEMoved, isStats> {
+        ForceInline U64 generateMoves(const BoardState& board, Stats& stats) {
+            return allMoves<1, side, kMMoved, kEMoved, isStats>(board, stats);
         }
     };
 
-    template <bool side, bool kMMoved, bool kEMoved>
-    struct PerftGenerator<0, side, kMMoved, kEMoved> {
-        ForceInline U64 generateMoves(const BoardState& board) {
-            return allMoves<0, side, kMMoved, kEMoved>(board);
+    template <bool side, bool kMMoved, bool kEMoved, bool isStats>
+    struct PerftGenerator<0, side, kMMoved, kEMoved, isStats> {
+        ForceInline U64 generateMoves(const BoardState& board, Stats& stats) {
+            return allMoves<0, side, kMMoved, kEMoved, isStats>(board, stats);
         }
     };
 

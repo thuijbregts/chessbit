@@ -3,12 +3,14 @@
 
 #include "Game.h"
 #include "MoveInfo.h"
+#include "Stats.h"
 #include <string>
 #include <vector>
 
 using namespace std;
 using namespace game;
 using namespace moveinfo;
+using namespace stats;
 
 class MoveArray;
 
@@ -45,9 +47,12 @@ private:
 	void benchmark(string& depth, string& amount);
 	void executeBenchmark(int depth, int amount, bool print);
 	void compare();
-	U64 generateMoves(int depth);
-	template <bool side, bool kMMoved, bool kEMoved>
-	U64 generateMoves(int depth);
+
+	template <bool isStats>
+	U64 generateMoves(int depth, Stats& stats);
+	template <bool side, bool kMMoved, bool kEMoved, bool isStats>
+	U64 generateMoves(int depth, Stats& stats);
+
 	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);
 	void pieces();
 	void help();

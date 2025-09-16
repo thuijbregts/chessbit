@@ -247,7 +247,7 @@ namespace game {
                                     pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
                                     kMS, kES, getKingAttacks(kMS), getKingAttacks(kES),
                                     occupancies[side], occupancies[!side], occupancies[both],
-                                    checks, castlingPermissions, enPassant, side);
+                                    checks, castlingPermissions, enPassant, side, noSquare);
 
         movesPlayed[0] = MoveInfo(0, 0, false, board);
     }
