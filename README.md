@@ -22,6 +22,7 @@ It is structured as follows:
 1. **King moves**  
    - Because no matter how many checks, the only piece that can always move is the King.
 2. **Checks evaluation**  - Return if there are 2 checks, as only the King can move.
+
    a. **Find pins**  
       - Split between Bishop and Rook pins.  
       - The pinned pieces will only be able to move into their respective pin masks generated here.
@@ -29,7 +30,7 @@ It is structured as follows:
    b. **Check check piece**  
       - In case of pawn or knight, only captures are possible, so we have a specific branch for that.  
       - In other cases, generate normal moves (minus en passant, because if a single check occurs that is not a pawn, then en passant is not possible), into the pin masks.
-3. **If there are no checks**  
+4. **If there are no checks**  
    a. **Find pins**
    
    b. **Generate all moves**  
