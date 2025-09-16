@@ -21,8 +21,7 @@ It is structured as follows:
 
 1. **King moves**  
    - Because no matter how many checks, the only piece that can always move is the King.
-2. **Checks evaluation**  
-   - Return if there are 2 checks, as only the King can move.
+2. **Checks evaluation**  - Return if there are 2 checks, as only the King can move.
    a. **Find pins**  
       - Split between Bishop and Rook pins.  
       - The pinned pieces will only be able to move into their respective pin masks generated here.
