@@ -58,15 +58,11 @@ namespace movegen {
             attacks |= getKnightAttacks(SquareOf(bitboard));
         }
 
-        //kingAttacks &= ~attacks;
-
         if constexpr (!kMMoved) bitboard = (board.bE | board.qE) & getBishopAttackZoneCastle<side>(board.occM);
         else                    bitboard = (board.bE | board.qE) & getBishopAttackZone(board.kMS, board.occM, board.kMA);
         Bitloop(bitboard) {
             attacks |= getBishopAttacks(SquareOf(bitboard), occB);
         }
-
-        //kingAttacks &= ~attacks;
 
         if constexpr (!kMMoved) bitboard = (board.rE | board.qE) & getRookAttackZoneCastle<side>(board.occM);
         else                    bitboard = (board.rE | board.qE) & getRookAttackZone(board.kMS, board.occM, board.kMA);
