@@ -185,7 +185,7 @@ ForceInline U64 passantPinMask(const BoardState& board, int from) {
 }
 </pre>
 
-This just returns a mask (either 0 or all 1s if not pinned) that is then used to validate the EP bit.
+This just removes the two pawns from the board, then checks Rook attacks between the King and Rooks/Queens, then returns a mask (either 0 or all 1s if not pinned) that is then used to validate the EP bit.
 
 ### Other improvements
 
