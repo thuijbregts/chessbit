@@ -121,7 +121,7 @@ The one that is currently implemented is like this:
 3. We still keep track of castling permissions, but this is easily done for each move. We remove permissions when a Rook or King moves, and also when the initial square of Rooks are taken. No IFs needed.
 4. The Castling function is just a combination of: check castling permissions + squares between King and Rook empty + attacks on King squares (calculated in Filter King attacks)
 
-The other approach would be to use the castling permissions as a template paramter, but this costs in terms of size (16 values vs 4), and I found that bigger code size sometimes means less performance, even though "constexpr" conditions are free at runtime. The compilation time also increases a lot, up to 12 minutes, so I discarded this approach as it was giving very similar results (TBConfirmed).
+The other approach would be to use the castling permissions as a template parameter, but this costs in terms of size (16 values vs 4), and I found that bigger code size sometimes means less performance, even though "constexpr" conditions are free at runtime. The compilation time also increases a lot, up to 12 minutes, so I discarded this approach as it was giving very similar results (TBConfirmed).
 
 <pre>
 template <int castlingSide>
