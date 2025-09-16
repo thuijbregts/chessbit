@@ -240,9 +240,12 @@ namespace game {
             }
         }
 
+        int kMS = SquareOf(pieces[side][k]);
+        int kES = SquareOf(pieces[!side][k]);
+
         board = bstate::BoardState(pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
                                     pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
-                                    getKingAttacks(SquareOf(pieces[side][k])), getKingAttacks(SquareOf(pieces[!side][k])),
+                                    kMS, kES, getKingAttacks(kMS), getKingAttacks(kES),
                                     occupancies[side], occupancies[!side], occupancies[both],
                                     checks, castlingPermissions, enPassant, side);
 

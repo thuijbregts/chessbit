@@ -24,6 +24,9 @@ namespace bstate {
         U64 qE;
         U64 kE;
 
+        int kMS;
+        int kES;
+
         U64 kMA;
         U64 kEA;
 
@@ -40,12 +43,12 @@ namespace bstate {
         constexpr BoardState(
             U64 pM, U64 nM, U64 bM, U64 rM, U64 qM, U64 kM,
             U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, U64 kE,
-            U64 kMA, U64 kEA,
+            int kMS, int kES, U64 kMA, U64 kEA,
             U64 occM, U64 occE, U64 occB,
             U64 checks, int casPerms, int eP, bool side) :
             pM(pM), nM(nM), bM(bM), rM(rM), qM(qM), kM(kM),
             pE(pE), nE(nE), bE(bE), rE(rE), qE(qE), kE(kE),
-            kMA(kMA), kEA(kEA),
+            kMS(kMS), kES(kES), kMA(kMA), kEA(kEA),
             occM(occM), occE(occE), occB(occB),
             checks(checks), casPerms(casPerms), eP(eP), side(side)
         {
@@ -57,7 +60,7 @@ namespace bstate {
         }
 
         template <Piece piece, bool side, bool capture>
-        ForceInline BoardState make(int from, int to, const BoardState& board, int kES) {
+        ForceInline BoardState make(int from, int to, const BoardState& board) {
             const U64 t = (1ULL << to);
             const U64 move = (1ULL << from) | t;
 
@@ -77,11 +80,11 @@ namespace bstate {
 
             if constexpr (Piece::Pawn == piece) {
                 pM ^= move;
-                checks |= PAWN_CAPTURES[!side][kES] & pM;
+                checks |= PAWN_CAPTURES[!side][board.kES] & pM;
             }
             if constexpr (Piece::Knight == piece) {
                 nM ^= move;
-                checks |= KNIGHT_ATTACKS[kES] & nM;
+                checks |= KNIGHT_ATTACKS[board.kES] & nM;
             }
             if constexpr (Piece::Bishop == piece)   bM ^= move;
             if constexpr (Piece::Rook == piece) {
@@ -99,21 +102,21 @@ namespace bstate {
                 casPerms &= NO_CASTLE_ROOK[to];
 
                 const U64 occB = occM | occE;
-                checks |= sliderChecks(bM, rM, qM, occB, kES);
-                if constexpr (Piece::King == piece)         return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side);
-                else                                        return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side);
+                checks |= sliderChecks(bM, rM, qM, occB, board.kES);
+                if constexpr (Piece::King == piece)         return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side);
+                else                                        return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side);
             }
             else {
                 const U64 occB = occM | occE;
-                checks |= sliderChecks(bM, rM, qM, occB, kES);
+                checks |= sliderChecks(bM, rM, qM, occB, board.kES);
 
-                if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side);
-                else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side);
+                if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side);
+                else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side);
             }
         }
 
         template <Piece piece, bool side, bool capture>
-        ForceInline BoardState makePromotion(int from, int to, const BoardState& board, int kES) {
+        ForceInline BoardState makePromotion(int from, int to, const BoardState& board) {
             const U64 f = (1ULL << from);
             const U64 t = (1ULL << to);
 
@@ -130,7 +133,7 @@ namespace bstate {
 
             if constexpr (Piece::Knight == piece) {
                 nM ^= t;
-                checks |= KNIGHT_ATTACKS[kES] & nM;
+                checks |= KNIGHT_ATTACKS[board.kES] & nM;
             }
             if constexpr (Piece::Bishop == piece)   bM ^= t;
             if constexpr (Piece::Rook == piece)     rM ^= t;
@@ -141,18 +144,18 @@ namespace bstate {
                 const int casPerms = board.casPerms & NO_CASTLE_ROOK[to];
 
                 const U64 occB = occM | occE;
-                checks |= sliderChecks(bM, rM, qM, occB, kES);
-                return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side);
+                checks |= sliderChecks(bM, rM, qM, occB, board.kES);
+                return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side);
             }
             else {
                 const U64 occB = occM | occE;
-                checks |= sliderChecks(bM, rM, qM, occB, kES);
-                return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side);
+                checks |= sliderChecks(bM, rM, qM, occB, board.kES);
+                return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side);
             }
         }
 
         template <bool side>
-        ForceInline BoardState makeDoublePush(int from, int to, const BoardState& board, int kES) {
+        ForceInline BoardState makeDoublePush(int from, int to, const BoardState& board) {
             const U64 move = (1ULL << from) | (1ULL << to);
 
             const U64 pM = board.pM ^ move;
@@ -160,13 +163,13 @@ namespace bstate {
 
             const U64 occB = occM | board.occE;
 
-            const U64 checks = (PAWN_CAPTURES[!side][kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, kES);
+            const U64 checks = (PAWN_CAPTURES[!side][board.kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, board.kES);
 
-            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, from + PAWN_PUSH[side], !side);
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, from + PAWN_PUSH[side], !side);
         }
 
         template <bool side>
-        ForceInline BoardState makeEnPassant(int from, int to, const BoardState& board, int kES) {
+        ForceInline BoardState makeEnPassant(int from, int to, const BoardState& board) {
             const U64 move = (1ULL << from) | (1ULL << to);
 
             const U64 pM = board.pM ^ move;
@@ -178,9 +181,9 @@ namespace bstate {
 
             const U64 occB = occM | occE;
 
-            const U64 checks = (PAWN_CAPTURES[!side][kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, kES);
+            const U64 checks = (PAWN_CAPTURES[!side][board.kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, board.kES);
 
-            return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side);
+            return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side);
         }
 
         template <int castlingSide>
@@ -208,7 +211,7 @@ namespace bstate {
         }
 
         template <int castlingSide>
-        ForceInline BoardState makeCastling(const BoardState& board, int kES) {
+        ForceInline BoardState makeCastling(const BoardState& board) {
             const U64 kM = board.kM ^ kingSwitch<castlingSide>();
             const U64 rM = board.rM ^ rookSwitch<castlingSide>();
 
@@ -218,13 +221,13 @@ namespace bstate {
             const bool side = CASTLING_SIDE[castlingSide];
             const int casPerms = board.casPerms & NO_CASTLE[side];
 
-            const U64 checks = getRookAttacks(kES, occB) & rM;
+            const U64 checks = getRookAttacks(board.kES, occB) & rM;
 
             const int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
 
-            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kEA, getKingAttacks(to), board.occE, occM, occB, checks, casPerms, noSquare, !side);
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, getKingAttacks(to), board.occE, occM, occB, checks, casPerms, noSquare, !side);
         }
     };
 
-    inline static BoardState dummy = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    inline static BoardState dummy = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
