@@ -161,6 +161,7 @@ This just returns a mask (either 0 or all 1s if not pinned) that is then used to
 
 ### Conclusion
 That's basically it. The implementation is in the end not that complex. However the journey to reach this result was! I came from A LOT of code, down to something more concise but this took a lot of trying, doing, undoing and redoing before I could get to a satisfying result.
+
 This is probably my favorite project ever, and I'm even sad that I don't really see what else to do with it... perhaps an actual chess engine based on this is next!
 
 Thanks for reading!
