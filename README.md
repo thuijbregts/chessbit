@@ -113,6 +113,41 @@ Here is an example, with red dots for the Bishop mask, and green for the Rook. A
 
 ![](https://i.imgur.com/RjqXfCB.png)
 
+<pre>
+template <bool side, bool kMMoved>
+ForceInline void filterKingAttacks(const BoardState& board, U64& kingAttacks, U64& castleAttacks) {
+    U64 attacks = 0ULL;
+    attacks |= pawnsAtkLeft<!side>(board.pE & ~FIRST_COL) | pawnsAtkRight<!side>(board.pE & ~LAST_COL);
+    attacks |= board.kEA;
+
+    //remove king to avoid collisions, as it should not be considered when checking for threats
+    U64 occB = board.occB ^ board.kM;
+
+    U64 bitboard;
+    if constexpr (!kMMoved) bitboard = board.nE & KNIGHT_ATTACK_ZONE_CASTLE[side];
+    else                    bitboard = board.nE & KNIGHT_ATTACK_ZONES[board.kMS];
+    Bitloop(bitboard) {
+        attacks |= getKnightAttacks(SquareOf(bitboard));
+    }
+
+    if constexpr (!kMMoved) bitboard = (board.bE | board.qE) & getBishopAttackZoneCastle<side>(board.occM);
+    else                    bitboard = (board.bE | board.qE) & getBishopAttackZone(board.kMS, board.occM, board.kMA);
+    Bitloop(bitboard) {
+        attacks |= getBishopAttacks(SquareOf(bitboard), occB);
+    }
+
+    if constexpr (!kMMoved) bitboard = (board.rE | board.qE) & getRookAttackZoneCastle<side>(board.occM);
+    else                    bitboard = (board.rE | board.qE) & getRookAttackZone(board.kMS, board.occM, board.kMA);
+    Bitloop(bitboard) {
+        attacks |= getRookAttacks(SquareOf(bitboard), occB);
+    }
+
+    kingAttacks &= ~attacks;
+
+    if constexpr (!kMMoved) castleAttacks = attacks;
+}
+</pre>
+
 ### Castling
 I tried several approaches, with 2 good candidates. 
 The one that is currently implemented is like this:
