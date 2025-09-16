@@ -2,7 +2,7 @@
 
 This project was inspired by [Gigantua](https://github.com/Gigantua/Gigantua), and a desire to push the limits. Although most of the logic is my own, I had no idea about bmi instructions and templates before starting the project, so Gigantua's source code was of immense help to discover these concepts. Credit where credit is due! You will find some code that I took from there.
 
-Here are some number on an AMD Ryzen 7 9800x3d. Chessbit is able to calculate some positions at over 4BNodes/s on this CPU (~25-30% increase from Gigantua)
+Here are some numbers on an AMD Ryzen 7 9800x3d. Chessbit is able to calculate some positions at over 4BNodes/s on this CPU (~25-30% increase from Gigantua)
 
 ![](https://i.imgur.com/NQqTkCE.png)
 
