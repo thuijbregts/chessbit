@@ -20,11 +20,13 @@ After much optimization, the code is actually quite compact, with a main recursi
 It is structured as follows:
 
 1. King moves - because no matter how many checks, the only piece that can always move is the King
+   
 2a. Checks evaluation - return if there are 2 checks, as only the King can move
   a. Find pins - Split between Bishop and Rook pins. The pinned pieces will only be able to move into their respective pin masks generated here
   b. Check check piece
     - In case of pawn or knight, only captures are possible, so we have a specific branch for that
     - In other cases, generate normal moves (minus en passant, because if a single check occurs that is not a pawn, then en passant is not possible), into the pin masks
+    
 2b. If there are no checks...
   a. Find pins
   b. Generate all moves. The pieces are efficiently pruned based on the pins (for example, a pinned knight cannot move, so we can easily ignore it).
