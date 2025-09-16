@@ -109,7 +109,7 @@ Note: I also tried this approach for pins, but it turned out to be slower.
 An idea I had here was to add precalculated tables of piece "zones", using PEXT and the King attacks as a mask, for Knights, Bishops and Rooks (Pawns are slightly faster with simple bit shifts).
 The idea is to build a mask, based on the ally occupancy around the king. If a square is taken, then there is no need to calculate attacks on it. What remains is a mask of only the possible squares that could attack the free squares, while the ally occupancy blocks the rays.
 
-Here is an example, with red dots for the Bishop mask, and red for the Rook. As you can see, both rooks here are ignored because they cannot possibly attack the King squares, which saves a lot in calculations.
+Here is an example, with red dots for the Bishop mask, and green for the Rook. As you can see, both rooks here are ignored because they cannot possibly attack the King squares, which saves a lot in calculations.
 
 ![](https://i.imgur.com/RjqXfCB.png)
 
