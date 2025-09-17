@@ -111,9 +111,9 @@ namespace movegen {
             U64 pinnedPieces = pinMask & occB;
 
             if (Bitcount(pinnedPieces) == 1) {
-                U64 attacks = pinMask | SQUARE_BITS[sliderSquare];
-                validAttacksMasks[depth][SquareOf(pinnedPieces)] = attacks ^ pinnedPieces;
-                pins |= attacks;
+                SetBit(pinMask, sliderSquare);
+                validAttacksMasks[depth][SquareOf(pinnedPieces)] = pinMask ^ pinnedPieces;
+                pins |= pinMask;
             }
         }
 
