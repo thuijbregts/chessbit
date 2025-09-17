@@ -41,6 +41,7 @@ private:
 	void perftDivide(int depth);
 	__forceinline U64 divide(int depth);
 	void perftFull(int depth);
+	__forceinline U64 full(int depth, Stats& stats);
 	void test();
 	void perftsuite();
 	void benchmark(string& depth, string& amount);
@@ -48,9 +49,9 @@ private:
 	void compare();
 
 	template <bool isStats>
-	U64 generateMoves(int depth, Stats& stats);
+	U64 generateMoves(int depth, const BoardState& board, Stats& stats);
 	template <bool side, bool kMMoved, bool kEMoved, bool isStats>
-	U64 generateMoves(int depth, Stats& stats);
+	U64 generateMoves(int depth, const BoardState& board, Stats& stats);
 
 	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);
 	void pieces();

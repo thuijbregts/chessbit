@@ -6,6 +6,10 @@
 #include <fstream>
 #include <algorithm>
 #include <chrono>
+#include <future>
+#include <vector>
+#include <utility>
+#include <cstdio>
 
 using namespace std::chrono;
 using namespace movegen;
@@ -41,7 +45,7 @@ void Cui::start() {
 
 void Cui::initMoves() {
 	movarray::movesArray.reset();
-	generateMoves<false>(0, stats::dummy);
+	generateMoves<false>(0, game::board, stats::dummy);
 }
 
 bool Cui::isCommand(vector<string>& cmd) {
@@ -274,7 +278,7 @@ void Cui::perftFast(int depth) {
 	high_resolution_clock::time_point start, end;
 
 	start = high_resolution_clock::now();
-	U64 nodes = generateMoves<false>(depth, stats::dummy);
+	U64 nodes = generateMoves<false>(depth, game::board, stats::dummy);
 	end = high_resolution_clock::now();
 
 	long long total = duration_cast<microseconds>(end - start).count();
@@ -312,7 +316,6 @@ void Cui::perftDivide(int depth) {
 
 __forceinline U64 Cui::divide(int depth) {
 	U64 nodes = 0;
-	U64 current = 0;
 
 	initMoves();
 	int size = movarray::movesArray.size();
@@ -320,12 +323,18 @@ __forceinline U64 Cui::divide(int depth) {
 		return size;
 	}
 	MoveInfo* m = movarray::movesArray.moves();
+	std::vector<std::future<U64>> futures;
+	futures.reserve(size);
 	for (int i = 0; i < size; i++) {
-		game::makeMove(m[i]);
-		current = generateMoves<false>(depth - 1, stats::dummy);
-		nodes += current;
-		printf("%s %llu\n", utils::getMoveSimple(m[i]).c_str(), current);
-		game::unmakeMove();
+		futures.push_back(std::async(std::launch::async, [this, depth, move = m[i]]() {
+			U64 current = generateMoves<false>(depth - 1, move.board, stats::dummy);
+			printf("%s %llu\n", utils::getMoveSimple(move).c_str(), current);
+			return current;
+		}));
+	}
+
+	for (auto& f : futures) {
+		nodes += f.get();
 	}
 
 	return nodes;
@@ -338,8 +347,11 @@ void Cui::perftFull(int depth) {
 
 	high_resolution_clock::time_point start, end;
 
+	U64 nodes;
+
 	start = high_resolution_clock::now();
-	U64 nodes = generateMoves<true>(depth, stats);
+	if (depth == 1) nodes = generateMoves<true>(depth, game::board, stats);
+	else			nodes = full(depth, stats);
 	end = high_resolution_clock::now();
 
 	long long total = duration_cast<microseconds>(end - start).count();
@@ -369,6 +381,40 @@ void Cui::perftFull(int depth) {
 	initMoves();
 }
 
+__forceinline U64 Cui::full(int depth, Stats& stats) {
+	U64 nodes = 0;
+
+	initMoves();
+	int size = movarray::movesArray.size();
+	MoveInfo* m = movarray::movesArray.moves();
+	std::vector<std::future<std::pair<U64, Stats>>> futures;
+	futures.reserve(size);
+	for (int i = 0; i < size; i++) {
+		futures.push_back(std::async(std::launch::async, [this, depth, move = m[i]]() {
+			Stats s;
+			U64 current = generateMoves<true>(depth - 1, move.board, s);
+			//printf("%s %llu\n", utils::getMoveSimple(move).c_str(), current);
+			return std::make_pair(current, s);
+		}));
+	}
+
+	for (auto& f : futures) {
+		auto [current, s] = f.get();
+		nodes += current;
+
+		stats.caps += s.caps;
+		stats.eP += s.eP;
+		stats.cstl += s.cstl;
+		stats.prom += s.prom;
+		stats.chk += s.chk;
+		stats.dischck += s.dischck;
+		stats.dblchk += s.dblchk;
+		stats.chkm += s.chkm;
+	}
+
+	return nodes;
+}
+
 void Cui::test() {
 	string fen = game::getFen();
 
@@ -382,7 +428,7 @@ void Cui::test() {
 		cout << "Depth:\t\t\t" << test.depth << endl;
 		setFen(test.fen);
 		start = high_resolution_clock::now();
-		nodes = generateMoves<false>(test.depth, stats::dummy);
+		nodes = generateMoves<false>(test.depth, game::board, stats::dummy);
 		end = high_resolution_clock::now();
 
 		long long total = duration_cast<microseconds>(end - start).count();
@@ -423,7 +469,7 @@ void Cui::perftsuite() {
 
 			auto perftvals = test::GetElements(v[i], ' ');
 			U64 expected = static_cast<U64>(std::strtol(perftvals[1].c_str(), NULL, 10));
-			U64 result = generateMoves<false>(i, stats::dummy);
+			U64 result = generateMoves<false>(i, game::board, stats::dummy);
 			std::string status = expected == result ? "OK" : "ERROR";
 			if (expected == result) {
 				cout << "   " << i << ": " << result << " " << status << endl;
@@ -491,7 +537,7 @@ void Cui::executeBenchmark(int depth, int amount, bool print) {
 
 	for (int i = 0; i < amount; i++) {
 		start = high_resolution_clock::now();
-		auto volatile result = generateMoves<false>(depth, stats::dummy);
+		auto volatile result = generateMoves<false>(depth, game::board, stats::dummy);
 		end = high_resolution_clock::now();
 
 		total = duration_cast<microseconds>(end - start).count();
@@ -521,7 +567,7 @@ void Cui::compare() {
 	for (int i = 1; i <= 7; i++)
 	{
 		start = high_resolution_clock::now();
-		result = generateMoves<false>(i, stats::dummy);
+		result = generateMoves<false>(i, game::board, stats::dummy);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
 		std::cout << "Perft Start " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
@@ -533,7 +579,7 @@ void Cui::compare() {
 	for (int i = 1; i <= 6; i++)
 	{
 		start = high_resolution_clock::now();
-		result = generateMoves<false>(i, stats::dummy);
+		result = generateMoves<false>(i, game::board, stats::dummy);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
 		std::cout << "Perft Kiwi " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
@@ -545,7 +591,7 @@ void Cui::compare() {
 	for (int i = 1; i <= 6; i++)
 	{
 		start = high_resolution_clock::now();
-		result = generateMoves<false>(i, stats::dummy);
+		result = generateMoves<false>(i, game::board, stats::dummy);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
 		std::cout << "Perft Midgame " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
@@ -557,7 +603,7 @@ void Cui::compare() {
 	for (int i = 1; i <= 7; i++)
 	{
 		start = high_resolution_clock::now();
-		result = generateMoves<false>(i, stats::dummy);
+		result = generateMoves<false>(i, game::board , stats::dummy);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
 		std::cout << "Perft Endgame " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
@@ -575,72 +621,72 @@ void Cui::compare() {
 }
 
 template <bool isStats>
-U64 Cui::generateMoves(int depth, Stats& stats) {
-	if (game::board.side == white) {
-		switch (game::board.casPerms) {
-		case 0b0000: return generateMoves<white, true, true, isStats>(depth, stats);
-		case 0b0001: return generateMoves<white, false, true, isStats>(depth, stats);
-		case 0b0010: return generateMoves<white, false, true, isStats>(depth, stats);
-		case 0b0011: return generateMoves<white, false, true, isStats>(depth, stats);
-		case 0b0100: return generateMoves<white, true, false, isStats>(depth, stats);
-		case 0b0101: return generateMoves<white, false, false, isStats>(depth, stats);
-		case 0b0110: return generateMoves<white, false, false, isStats>(depth, stats);
-		case 0b0111: return generateMoves<white, false, false, isStats>(depth, stats);
-		case 0b1000: return generateMoves<white, true, false, isStats>(depth, stats);
-		case 0b1001: return generateMoves<white, false, false, isStats>(depth, stats);
-		case 0b1010: return generateMoves<white, false, false, isStats>(depth, stats);
-		case 0b1011: return generateMoves<white, false, false, isStats>(depth, stats);
-		case 0b1100: return generateMoves<white, true, false, isStats>(depth, stats);
-		case 0b1101: return generateMoves<white, false, false, isStats>(depth, stats);
-		case 0b1110: return generateMoves<white, false, false, isStats>(depth, stats);
-		default: return generateMoves<white, false, false, isStats>(depth, stats);
+U64 Cui::generateMoves(int depth, const BoardState& board, Stats& stats) {
+	if (board.side == white) {
+		switch (board.casPerms) {
+		case 0b0000: return generateMoves<white, true, true, isStats>(depth, board, stats);
+		case 0b0001: return generateMoves<white, false, true, isStats>(depth, board, stats);
+		case 0b0010: return generateMoves<white, false, true, isStats>(depth, board, stats);
+		case 0b0011: return generateMoves<white, false, true, isStats>(depth, board, stats);
+		case 0b0100: return generateMoves<white, true, false, isStats>(depth, board, stats);
+		case 0b0101: return generateMoves<white, false, false, isStats>(depth, board, stats);
+		case 0b0110: return generateMoves<white, false, false, isStats>(depth, board, stats);
+		case 0b0111: return generateMoves<white, false, false, isStats>(depth, board, stats);
+		case 0b1000: return generateMoves<white, true, false, isStats>(depth, board, stats);
+		case 0b1001: return generateMoves<white, false, false, isStats>(depth, board, stats);
+		case 0b1010: return generateMoves<white, false, false, isStats>(depth, board, stats);
+		case 0b1011: return generateMoves<white, false, false, isStats>(depth, board, stats);
+		case 0b1100: return generateMoves<white, true, false, isStats>(depth, board, stats);
+		case 0b1101: return generateMoves<white, false, false, isStats>(depth, board, stats);
+		case 0b1110: return generateMoves<white, false, false, isStats>(depth, board, stats);
+		default: return generateMoves<white, false, false, isStats>(depth, board, stats);
 		}
 
 	}
 	else {
-		switch (game::board.casPerms) {
-		case 0b0000: return generateMoves<black, true, true, isStats>(depth, stats);
-		case 0b0001: return generateMoves<black, true, false, isStats>(depth, stats);
-		case 0b0010: return generateMoves<black, true, false, isStats>(depth, stats);
-		case 0b0011: return generateMoves<black, true, false, isStats>(depth, stats);
-		case 0b0100: return generateMoves<black, false, true, isStats>(depth, stats);
-		case 0b0101: return generateMoves<black, false, false, isStats>(depth, stats);
-		case 0b0110: return generateMoves<black, false, false, isStats>(depth, stats);
-		case 0b0111: return generateMoves<black, false, false, isStats>(depth, stats);
-		case 0b1000: return generateMoves<black, false, true, isStats>(depth, stats);
-		case 0b1001: return generateMoves<black, false, false, isStats>(depth, stats);
-		case 0b1010: return generateMoves<black, false, false, isStats>(depth, stats);
-		case 0b1011: return generateMoves<black, false, false, isStats>(depth, stats);
-		case 0b1100: return generateMoves<black, false, true, isStats>(depth, stats);
-		case 0b1101: return generateMoves<black, false, false, isStats>(depth, stats);
-		case 0b1110: return generateMoves<black, false, false, isStats>(depth, stats);
-		default: return generateMoves<black, false, false, isStats>(depth, stats);
+		switch (board.casPerms) {
+		case 0b0000: return generateMoves<black, true, true, isStats>(depth, board, stats);
+		case 0b0001: return generateMoves<black, true, false, isStats>(depth, board, stats);
+		case 0b0010: return generateMoves<black, true, false, isStats>(depth, board, stats);
+		case 0b0011: return generateMoves<black, true, false, isStats>(depth, board, stats);
+		case 0b0100: return generateMoves<black, false, true, isStats>(depth, board, stats);
+		case 0b0101: return generateMoves<black, false, false, isStats>(depth, board, stats);
+		case 0b0110: return generateMoves<black, false, false, isStats>(depth, board, stats);
+		case 0b0111: return generateMoves<black, false, false, isStats>(depth, board, stats);
+		case 0b1000: return generateMoves<black, false, true, isStats>(depth, board, stats);
+		case 0b1001: return generateMoves<black, false, false, isStats>(depth, board, stats);
+		case 0b1010: return generateMoves<black, false, false, isStats>(depth, board, stats);
+		case 0b1011: return generateMoves<black, false, false, isStats>(depth, board, stats);
+		case 0b1100: return generateMoves<black, false, true, isStats>(depth, board, stats);
+		case 0b1101: return generateMoves<black, false, false, isStats>(depth, board, stats);
+		case 0b1110: return generateMoves<black, false, false, isStats>(depth, board, stats);
+		default: return generateMoves<black, false, false, isStats>(depth, board, stats);
 		}
 	}
 }
 
 template <bool side, bool kMMoved, bool kEMoved, bool isStats>
-U64 Cui::generateMoves(int depth, Stats& stats) {
+U64 Cui::generateMoves(int depth, const BoardState& board, Stats& stats) {
 	switch (depth) {
-	case 18: return PerftGenerator<18, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 17: return PerftGenerator<17, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 16: return PerftGenerator<16, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 15: return PerftGenerator<15, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 14: return PerftGenerator<14, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 13: return PerftGenerator<13, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 12: return PerftGenerator<12, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 11: return PerftGenerator<11, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 10: return PerftGenerator<10, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 9: return PerftGenerator<9, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 8: return PerftGenerator<8, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 7: return PerftGenerator<7, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 6: return PerftGenerator<6, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 5: return PerftGenerator<5, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 4: return PerftGenerator<4, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 3: return PerftGenerator<3, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 2: return PerftGenerator<2, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	case 1: return PerftGenerator<1, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
-	default: return PerftGenerator<0, side, kMMoved, kEMoved, isStats>::generateMoves(game::board, stats);
+	case 18: return PerftGenerator<18, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 17: return PerftGenerator<17, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 16: return PerftGenerator<16, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 15: return PerftGenerator<15, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 14: return PerftGenerator<14, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 13: return PerftGenerator<13, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 12: return PerftGenerator<12, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 11: return PerftGenerator<11, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 10: return PerftGenerator<10, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 9: return PerftGenerator<9, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 8: return PerftGenerator<8, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 7: return PerftGenerator<7, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 6: return PerftGenerator<6, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 5: return PerftGenerator<5, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 4: return PerftGenerator<4, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 3: return PerftGenerator<3, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 2: return PerftGenerator<2, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	case 1: return PerftGenerator<1, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
+	default: return PerftGenerator<0, side, kMMoved, kEMoved, isStats>::generateMoves(board, stats);
 	}
 }
 

@@ -24,7 +24,7 @@ vector<string> utils::split(const string& str, const char delim)
 	return result;
 }
 
-string utils::getMoveSimple(MoveInfo& move) {
+string utils::getMoveSimple(const MoveInfo& move) {
 	string result;
 
 	result += SQUARE_NAMES[move.from];
