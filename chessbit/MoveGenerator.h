@@ -23,9 +23,6 @@ namespace movegen {
     *
     *****************************************************/
 
-    //union of pinMask and the slider piece square, where index is the square of the pinned piece
-    static inline U64 validAttacksMasks[100][64];
-
     template <int depth, bool side, bool kMMoved, bool kEMoved, bool isStats>
     struct PerftGenerator;
 
@@ -112,7 +109,6 @@ namespace movegen {
 
             if (Bitcount(pinnedPieces) == 1) {
                 SetBit(pinMask, sliderSquare);
-                validAttacksMasks[depth][SquareOf(pinnedPieces)] = pinMask ^ pinnedPieces;
                 pins |= pinMask;
             }
         }
@@ -619,7 +615,7 @@ namespace movegen {
         {
             from = SquareOf(bitboard);
 
-            attacks = validAttacksMasks[depth][from];
+            attacks = getBishopAttacks(from, board.occB) & bPins;
             if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
             else {
                 if ((1ULL << from) & board.qM)  makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Queen>(nodes, attacks, from, board, stats);
@@ -647,7 +643,7 @@ namespace movegen {
         {
             from = SquareOf(bitboard);
 
-            attacks = validAttacksMasks[depth][from];
+            attacks = getRookAttacks(from, board.occB) & rPins;
             if constexpr (depth == 1) { int count = Bitcount(attacks); nodes += count; if constexpr (isStats) stats.caps += Bitcount(attacks & board.occE); }
             else {
                 if ((1ULL << from) & board.qM)  makeMoves<depth, side, kMMoved, kEMoved, isStats, Piece::Queen>(nodes, attacks, from, board, stats);

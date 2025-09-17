@@ -369,46 +369,6 @@ void Cui::perftFull(int depth) {
 	initMoves();
 }
 
-__forceinline U64 Cui::full(int depth, int& caps, int& eP, int& cstl, int& prom, int& chk, int& dischck, int& dblchk, int& chkm) {
-	if (depth == 0) {
-		return 1;
-	}
-	U64 nodes = 0;
-
-	movarray::movesArray = movarray::movesArrayPool[depth];
-	initMoves();
-	int size = movarray::movesArray.size();
-	MoveInfo* m = movarray::movesArray.moves();
-	for (int i = 0; i < size; i++) {
-		game::makeMove(m[i]);
-
-		if (depth == 1) {
-			if (m[i].capture) caps++;
-			if (m[i].type == Promotion) prom++;
-			else if (m[i].type == EnPassant) eP++;
-			else if (m[i].type == Castle) cstl++;
-			U64 checks = m[i].board.checks;
-			if (checks) {
-				chk++;
-				if (!generateMoves<false>(1, stats::dummy)) chkm++;
-				else {
-					U64 to = (1ULL << m[i].to);
-					if (checks & to) {
-						checks ^= to;
-						if (checks) dblchk++;
-					}
-					else dischck++;
-				}
-			}
-		}
-
-		nodes += full(depth - 1, caps, eP, cstl, prom, chk, dischck, dblchk, chkm);
-		game::unmakeMove();
-	}
-
-	return nodes;
-}
-
 void Cui::test() {
 	string fen = game::getFen();
 

@@ -41,7 +41,6 @@ private:
 	void perftDivide(int depth);
 	__forceinline U64 divide(int depth);
 	void perftFull(int depth);
-	__forceinline U64 full(int depth, int& caps, int& eP, int& cstl, int& prom, int& chk, int& dischck, int& dblchk, int& chkm);
 	void test();
 	void perftsuite();
 	void benchmark(string& depth, string& amount);
