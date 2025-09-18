@@ -29,6 +29,7 @@ void Cui::start() {
 	cout << "+---+---+---+---+---+---+---+---+---+---+" << endl;
 	cout << "|     chessbit by Thomas Huijbregts     |" << endl;
 	cout << "+---+---+---+---+---+---+---+---+---+---+" << endl;
+	help();
 	do {
 		getline(cin, input);
 		cmd = utils::split(input, ' ');
@@ -716,6 +717,8 @@ void Cui::help() {
 	cout << "setfen\t\tSets the position given by a FEN record" << endl;
 	cout << "perft\t\tGenerates all moves down to a given depth" << endl;
 	cout << "\t-d\tShows total of moves for each current legal move" << endl;
+	cout << "\t-f\tGives statistics about the position (not optimized)" << endl;
+	cout << "cmp\t\tIterates over popular positions and provides an average" << endl;
 	cout << "test\t\tTests popular positions to validate perft results" << endl;
 	cout << "perftsuite\tTests full list of positions to validate perft results" << endl;
 	cout << "benchmark\tPerforms a series of perft and returns the best time" << endl;
