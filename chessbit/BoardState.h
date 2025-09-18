@@ -42,17 +42,19 @@ namespace bstate {
         //used only for check stats
         int to;
 
+        U64 zobrist;
+
         constexpr BoardState(
             U64 pM, U64 nM, U64 bM, U64 rM, U64 qM, U64 kM,
             U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, U64 kE,
             int kMS, int kES, U64 kMA, U64 kEA,
             U64 occM, U64 occE, U64 occB,
-            U64 checks, int casPerms, int eP, bool side, int to) :
+            U64 checks, int casPerms, int eP, bool side, int to, U64 zobrist) :
             pM(pM), nM(nM), bM(bM), rM(rM), qM(qM), kM(kM),
             pE(pE), nE(nE), bE(bE), rE(rE), qE(qE), kE(kE),
             kMS(kMS), kES(kES), kMA(kMA), kEA(kEA),
             occM(occM), occE(occE), occB(occB),
-            checks(checks), casPerms(casPerms), eP(eP), side(side), to(to)
+            checks(checks), casPerms(casPerms), eP(eP), side(side), to(to), zobrist(zobrist)
         {
 
         }
@@ -108,15 +110,15 @@ namespace bstate {
 
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, board.kES);
-                if constexpr (Piece::King == piece)         return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side, to);
-                else                                        return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to);
+                if constexpr (Piece::King == piece)         return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side, to, 0);
+                else                                        return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to, 0);
             }
             else {
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, board.kES);
 
-                if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side, to);
-                else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to);
+                if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side, to, 0);
+                else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to, 0);
             }
         }
 
@@ -150,12 +152,12 @@ namespace bstate {
 
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, board.kES);
-                return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to);
+                return BoardState(board.pE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to, 0);
             }
             else {
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, board.kES);
-                return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, to);
+                return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, to, 0);
             }
         }
 
@@ -170,7 +172,7 @@ namespace bstate {
 
             const U64 checks = (PAWN_CAPTURES[!side][board.kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, board.kES);
 
-            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, from + PAWN_PUSH[side], !side, to);
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, from + PAWN_PUSH[side], !side, to, 0);
         }
 
         template <bool side>
@@ -188,7 +190,7 @@ namespace bstate {
 
             const U64 checks = (PAWN_CAPTURES[!side][board.kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, board.kES);
 
-            return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, to);
+            return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, to, 0);
         }
 
         template <int castlingSide>
@@ -230,9 +232,9 @@ namespace bstate {
 
             const int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
 
-            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, getKingAttacks(to), board.occE, occM, occB, checks, casPerms, noSquare, !side, CASTLING_ROOK_TARGET_SQUARE[castlingSide]);
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, getKingAttacks(to), board.occE, occM, occB, checks, casPerms, noSquare, !side, CASTLING_ROOK_TARGET_SQUARE[castlingSide], 0);
         }
     };
 
-    inline static BoardState dummy = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    inline static BoardState dummy = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }

@@ -102,6 +102,8 @@ namespace game {
         int enPassant = noSquare;
         int castlingPermissions = 0;
 
+        U64 zobrist = 0ULL;
+
         for (int rank = 0; rank < 8; rank++) {
             for (int file = 0; file < 8; file++) {
                 int square = rank * 8 + file;
@@ -247,7 +249,7 @@ namespace game {
                                     pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
                                     kMS, kES, getKingAttacks(kMS), getKingAttacks(kES),
                                     occupancies[side], occupancies[!side], occupancies[both],
-                                    checks, castlingPermissions, enPassant, side, noSquare);
+                                    checks, castlingPermissions, enPassant, side, noSquare, zobrist);
 
         movesPlayed[0] = MoveInfo(0, 0, false, board);
     }
