@@ -6,7 +6,7 @@ Executable: [Download chessbit](https://github.com/thuijbregts/chessbit/releases
 
 Here are some numbers on an AMD Ryzen 7 9800x3d. Chessbit is able to calculate some positions at over 4BNodes/s on this CPU (~25-30% increase from Gigantua)
 
-![](https://i.imgur.com/NQqTkCE.png)
+![](https://i.imgur.com/LH9Wl4J.png)
 
 ## A little about the implementation...
 ### Overall
