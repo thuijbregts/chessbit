@@ -28,11 +28,13 @@ namespace defs {
 #define ClearBit(X, S) (X &= ~(1ULL << S))//SQUARE_BITS[S]) same perf
 #define MoveBit(X, F, T) (X ^= 1ULL << F | 1ULL << T)// faster than U64 matrix
 
-//#define ForceInline inline static
-#define ForceInline __forceinline static constexpr
+#define ForceInline inline static
+//#define ForceInline __forceinline static constexpr
 #define Inline inline static
 
 	enum Pieces { p, n, b, r, q, k, noPiece };
+
+	enum class Piece { Pawn, Knight, Bishop, Rook, Queen, King };
 
 	enum Sides { white, black, both };
 
@@ -114,15 +116,15 @@ namespace defs {
 
 	constexpr U64 FIRST_PUSH_RANK[2] = { 0xff0000000000, 0xff0000 };
 
-	constexpr int FILES[64] = {
-		1, 2, 3, 4, 5, 6, 7, 8,
-		1, 2, 3, 4, 5, 6, 7, 8,
-		1, 2, 3, 4, 5, 6, 7, 8,
-		1, 2, 3, 4, 5, 6, 7, 8,
-		1, 2, 3, 4, 5, 6, 7, 8,
-		1, 2, 3, 4, 5, 6, 7, 8,
-		1, 2, 3, 4, 5, 6, 7, 8,
-		1, 2, 3, 4, 5, 6, 7, 8
+	constexpr int FILES[65] = {
+		0, 1, 2, 3, 4, 5, 6, 7,
+		0, 1, 2, 3, 4, 5, 6, 7,
+		0, 1, 2, 3, 4, 5, 6, 7,
+		0, 1, 2, 3, 4, 5, 6, 7,
+		0, 1, 2, 3, 4, 5, 6, 7,
+		0, 1, 2, 3, 4, 5, 6, 7,
+		0, 1, 2, 3, 4, 5, 6, 7,
+		0, 1, 2, 3, 4, 5, 6, 7, 8
 	};
 
 
@@ -331,6 +333,16 @@ namespace defs {
 	};
 
 	constexpr int CASTLING_BOTH[2] = { wk | wq, bk | bq };
+
+	constexpr int CASTLING_KING_SOURCE_SQUARE[4] = {
+		e1, e1,
+		e8, e8
+	};
+
+	constexpr int CASTLING_ROOK_SOURCE_SQUARE[4] = {
+		h1, a1,
+		h8, a8
+	};
 
 	constexpr int CASTLING_KING_TARGET_SQUARE[4] = {
 		g1, c1,

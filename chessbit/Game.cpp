@@ -6,6 +6,7 @@
 #include <ctime>
 #include <iostream>
 #include "Game.h"
+#include "Zobrist.h"
 
 using std::string;
 
@@ -82,6 +83,7 @@ namespace game {
         moveCount++;
         movesPlayed[moveCount] = move;
         board = move.board;
+        printf("0x%llx\n", board.zobrist);
     }
 
     void unmakeMove() {
@@ -101,8 +103,6 @@ namespace game {
         bool side = 0;
         int enPassant = noSquare;
         int castlingPermissions = 0;
-
-        U64 zobrist = 0ULL;
 
         for (int rank = 0; rank < 8; rank++) {
             for (int file = 0; file < 8; file++) {
@@ -244,6 +244,10 @@ namespace game {
 
         int kMS = SquareOf(pieces[side][k]);
         int kES = SquareOf(pieces[!side][k]);
+
+        U64 zobrist = zobrist::init(pieces, side, castlingPermissions, enPassant);
+
+        printf("0x%llx\n", zobrist);
 
         board = bstate::BoardState(pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
                                     pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],

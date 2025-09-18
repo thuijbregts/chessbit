@@ -5,12 +5,13 @@
 #include "BoardState.h"
 #include "Stats.h"
 #include "Game.h"
-#include <vector>
+#include "TranspositionTable.h"
 
 using namespace movarray;
 using namespace moveinfo;
 using namespace bstate;
 using namespace stats;
+using namespace tt;
 
 namespace movegen {
 

@@ -1,16 +1,11 @@
 #include "Cui.h"
-#include <chrono>
-#include <bitset>
-
-#include <iostream>
-#include <fstream>
-
-using namespace std::chrono;
-using namespace game;
+#include "TranspositionTable.h"
 
 int main()
 {
-    setFen(StartPosition);
+    //tt::init();
+
+    game::setFen(StartPosition);
 
     Cui cui;
 }

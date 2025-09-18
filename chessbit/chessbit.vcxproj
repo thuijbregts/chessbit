@@ -177,6 +177,7 @@
     <ClCompile Include="MoveArray.cpp" />
     <ClCompile Include="Test.hpp" />
     <ClCompile Include="Utils.cpp" />
+    <ClCompile Include="Zobrist.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AttackTables.h" />
@@ -188,7 +189,9 @@
     <ClInclude Include="MoveGenerator.h" />
     <ClInclude Include="MoveInfo.h" />
     <ClInclude Include="Stats.h" />
+    <ClInclude Include="TranspositionTable.h" />
     <ClInclude Include="Utils.h" />
+    <ClInclude Include="Zobrist.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,14 +1,12 @@
 #pragma once
 
 #include "Definitions.h"
+#include "Zobrist.h"
 
 using namespace defs;
+using namespace zobrist;
 
 namespace bstate {
-    enum class Piece {
-        Pawn, Knight, Bishop, Rook, Queen, King
-    };
-
     struct BoardState {
         U64 pM;
         U64 nM;
@@ -54,7 +52,8 @@ namespace bstate {
             pE(pE), nE(nE), bE(bE), rE(rE), qE(qE), kE(kE),
             kMS(kMS), kES(kES), kMA(kMA), kEA(kEA),
             occM(occM), occE(occE), occB(occB),
-            checks(checks), casPerms(casPerms), eP(eP), side(side), to(to), zobrist(zobrist)
+            checks(checks), casPerms(casPerms), eP(eP), side(side), to(to),
+            zobrist(zobrist)
         {
 
         }
@@ -108,17 +107,21 @@ namespace bstate {
                 occE ^= t;
                 casPerms &= NO_CASTLE_ROOK[to];
 
+                const U64 zobrist = zobrist::basic<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.pE, board.nE, board.bE, board.rE, board.qE, board.zobrist);
+
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, board.kES);
-                if constexpr (Piece::King == piece)         return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side, to, 0);
-                else                                        return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to, 0);
+                if constexpr (Piece::King == piece)         return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side, to, zobrist);
+                else                                        return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to, zobrist);
             }
             else {
+                const U64 zobrist = zobrist::basic<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.pE, board.nE, board.bE, board.rE, board.qE, board.zobrist);
+
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, board.kES);
 
-                if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side, to, 0);
-                else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to, 0);
+                if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side, to, zobrist);
+                else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to, zobrist);
             }
         }
 
@@ -150,14 +153,18 @@ namespace bstate {
                 occE ^= t;
                 const int casPerms = board.casPerms & NO_CASTLE_ROOK[to];
 
+                const U64 zobrist = zobrist::promotion<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.nE, board.bE, board.rE, board.qE, board.zobrist);
+
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, board.kES);
-                return BoardState(board.pE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to, 0);
+                return BoardState(board.pE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to, zobrist);
             }
             else {
+                const U64 zobrist = zobrist::promotion<piece, side, capture>(from, to, board.casPerms, board.casPerms, board.eP, board.nE, board.bE, board.rE, board.qE, board.zobrist);
+
                 const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, board.kES);
-                return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, to, 0);
+                return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, to, zobrist);
             }
         }
 
@@ -171,8 +178,12 @@ namespace bstate {
             const U64 occB = occM | board.occE;
 
             const U64 checks = (PAWN_CAPTURES[!side][board.kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, board.kES);
+            
+            const int eP = from + PAWN_PUSH[side];
 
-            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, from + PAWN_PUSH[side], !side, to, 0);
+            const U64 zobrist = zobrist::doublePush<side>(from, to, eP, board.eP, board.zobrist);
+            
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, eP, !side, to, zobrist);
         }
 
         template <bool side>
@@ -182,15 +193,18 @@ namespace bstate {
             const U64 pM = board.pM ^ move;
             const U64 occM = board.occM ^ move;
 
-            const U64 ePawnSquare = (1ULL << (to + PAWN_PUSH[!side]));
-            const U64 pE = board.pE ^ ePawnSquare;
-            const U64 occE = board.occE ^ ePawnSquare;
+            const int ePS = to + PAWN_PUSH[!side];
+            const U64 ePP = (1ULL << ePS);
+            const U64 pE = board.pE ^ ePP;
+            const U64 occE = board.occE ^ ePP;
 
             const U64 occB = occM | occE;
 
             const U64 checks = (PAWN_CAPTURES[!side][board.kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, board.kES);
 
-            return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, to, 0);
+            const U64 zobrist = zobrist::enPassant<side>(from, to, ePS, board.eP, board.zobrist);
+
+            return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, to, zobrist);
         }
 
         template <int castlingSide>
@@ -232,7 +246,9 @@ namespace bstate {
 
             const int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
 
-            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, getKingAttacks(to), board.occE, occM, occB, checks, casPerms, noSquare, !side, CASTLING_ROOK_TARGET_SQUARE[castlingSide], 0);
+            const U64 zobrist = zobrist::castle<castlingSide>(casPerms, board.casPerms, board.eP, board.zobrist);
+
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, getKingAttacks(to), board.occE, occM, occB, checks, casPerms, noSquare, !side, CASTLING_ROOK_TARGET_SQUARE[castlingSide], zobrist);
         }
     };
 
