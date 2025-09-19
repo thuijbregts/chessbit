@@ -6,22 +6,22 @@ using namespace defs;
 
 namespace tt {
 
-	struct Data {
+	struct Entry {
 		U64 zobrist;
 		U64 nodes;
 
-		constexpr Data() : zobrist(0), nodes(0) { }
+		constexpr Entry() : zobrist(0), nodes(0) { }
 	};
 
-	constexpr int SIZE = (1 << 16);
+	constexpr int SIZE = (1 << 20);
 	constexpr U64 MASK = SIZE - 1;
 
-	inline Data** TT;
+	inline Entry** TT;
 
 	static inline void init() {
-		TT = new Data*[18];
+		TT = new Entry *[18];
 		for (int i = 0; i < 18; i++) {
-			TT[i] = new Data[SIZE];
+			TT[i] = new Entry[SIZE];
 		}
 	}
 }

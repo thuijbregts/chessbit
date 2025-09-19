@@ -11,8 +11,8 @@
 using std::string;
 
 namespace game {
-    int moveCount;
-    bstate::BoardState board = bstate::dummy;
+    int count;
+    MoveInfo* moves[5949];
 
     void printBoard(U64 bitboard) {
         for (int rank = 0; rank < 8; rank++)
@@ -80,15 +80,12 @@ namespace game {
     }
 
     void makeMove(MoveInfo& move) {
-        moveCount++;
-        movesPlayed[moveCount] = move;
-        board = move.board;
-        printf("0x%llx\n", board.zobrist);
+        count++;
+        moves[count] = &move;
     }
 
     void unmakeMove() {
-        moveCount--;
-        board = movesPlayed[moveCount].board;
+        count--;
     }
 
     void setFen(const char* fen) {
@@ -98,7 +95,7 @@ namespace game {
         memset(pieces, 0ULL, sizeof(pieces));
         memset(occupancies, 0ULL, sizeof(occupancies));
 
-        moveCount = 0;
+        count = 0;
 
         bool side = 0;
         int enPassant = noSquare;
@@ -247,19 +244,19 @@ namespace game {
 
         U64 zobrist = zobrist::init(pieces, side, castlingPermissions, enPassant);
 
-        printf("0x%llx\n", zobrist);
-
-        board = bstate::BoardState(pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
+        BoardState board = bstate::BoardState(pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
                                     pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
                                     kMS, kES, getKingAttacks(kMS), getKingAttacks(kES),
                                     occupancies[side], occupancies[!side], occupancies[both],
                                     checks, castlingPermissions, enPassant, side, noSquare, zobrist);
 
-        movesPlayed[0] = MoveInfo(0, 0, false, board);
+        moves[0] = new MoveInfo(0, 0, false, board);
     }
 
     string getFen() {
         string fen;
+
+        BoardState& board = moves[count]->board;
 
         int empty;
         int piece;

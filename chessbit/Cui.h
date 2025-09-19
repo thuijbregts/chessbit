@@ -38,8 +38,10 @@ private:
 	void getFen();
 	void perft(string& option, string& depth);
 	void perftFast(int depth);
-	void perftDivide(int depth);
+	void perftDivide(int depth);	
 	__forceinline U64 divide(int depth);
+	void perftTest(int depth);
+	__forceinline U64 pTest(int depth, U64& hits);
 	void perftFull(int depth);
 	__forceinline U64 full(int depth, Stats& stats);
 	void test();

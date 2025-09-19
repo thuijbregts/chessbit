@@ -3,7 +3,7 @@
 
 int main()
 {
-    //tt::init();
+    tt::init();
 
     game::setFen(StartPosition);
 
