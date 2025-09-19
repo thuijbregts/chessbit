@@ -7,8 +7,8 @@ namespace movarray {
 	class MoveArray {
 
 	public:
-		MoveArray();
-		~MoveArray();
+		MoveArray() { _size = 0; }
+		~MoveArray() { }
 
 		__forceinline  int size() {
 			return _size;
@@ -26,12 +26,9 @@ namespace movarray {
 		}
 
 	private:
-		moveinfo::MoveInfo* _moves;
+		moveinfo::MoveInfo _moves[218];
 		int _size;
 	};
-
-	inline static MoveArray movesArrayPool[50];
-	extern MoveArray movesArray;
 }
 
 #endif

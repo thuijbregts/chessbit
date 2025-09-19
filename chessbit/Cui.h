@@ -2,7 +2,7 @@
 #define CUI_H
 
 #include "Game.h"
-#include "MoveInfo.h"
+#include "MoveArray.h"
 #include "Stats.h"
 #include <string>
 #include <vector>
@@ -11,8 +11,7 @@ using namespace std;
 using namespace game;
 using namespace moveinfo;
 using namespace stats;
-
-class MoveArray;
+using namespace movarray;
 
 class Cui {
 
@@ -40,8 +39,9 @@ private:
 	void perftFast(int depth);
 	void perftDivide(int depth);	
 	__forceinline U64 divide(int depth);
-	void perftTest(int depth);
-	__forceinline U64 pTest(int depth, U64& hits);
+	void perftTT(int depth);
+	__forceinline U64 pTT(int depth, Stats& stats);
+	__forceinline U64 pTTR(int depth, const BoardState& board, MoveArray(&moves)[18], Stats& stats);
 	void perftFull(int depth);
 	__forceinline U64 full(int depth, Stats& stats);
 	void test();
@@ -51,13 +51,15 @@ private:
 	void compare();
 
 	template <bool isStats>
-	U64 generateMoves(int depth, const BoardState& board, Stats& stats);
+	U64 generateMoves(int depth, const BoardState& board, Stats& stats, MoveArray& movesArray);
 	template <bool side, bool kMMoved, bool kEMoved, bool isStats>
-	U64 generateMoves(int depth, const BoardState& board, Stats& stats);
+	U64 generateMoves(int depth, const BoardState& board, Stats& stats, MoveArray& movesArray);
 
 	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);
 	void pieces();
 	void help();
+
+	MoveArray movesArray;
 };
 
 struct Command {

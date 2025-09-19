@@ -13,7 +13,7 @@ namespace tt {
 		constexpr Entry() : zobrist(0), nodes(0) { }
 	};
 
-	constexpr int SIZE = (1 << 20);
+	constexpr int SIZE = (1 << 23);
 	constexpr U64 MASK = SIZE - 1;
 
 	inline Entry** TT;

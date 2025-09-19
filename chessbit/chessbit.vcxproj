@@ -174,7 +174,6 @@
     <ClCompile Include="Cui.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="MoveArray.cpp" />
     <ClCompile Include="Test.hpp" />
     <ClCompile Include="Utils.cpp" />
     <ClCompile Include="Zobrist.cpp" />
