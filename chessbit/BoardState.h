@@ -81,7 +81,8 @@ namespace bstate {
 
             const U64 occM = board.occM ^ move;
             U64 occE = board.occE;
-
+            const U64 occB = occM | occE;
+            
             U64 checks = 0ULL;
 
             if constexpr (Piece::Pawn == piece) {
@@ -103,22 +104,20 @@ namespace bstate {
                 casPerms &= NO_CASTLE[side];
             }
 
+            checks |= sliderChecks(bM, rM, qM, occB, board.kES);
+
             if constexpr (capture) {
                 occE ^= t;
                 casPerms &= NO_CASTLE_ROOK[to];
 
                 const U64 zobrist = zobrist::basic<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.pE, board.nE, board.bE, board.rE, board.qE, board.zobrist);
 
-                const U64 occB = occM | occE;
                 checks |= sliderChecks(bM, rM, qM, occB, board.kES);
                 if constexpr (Piece::King == piece)         return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side, to, zobrist);
                 else                                        return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to, zobrist);
             }
             else {
                 const U64 zobrist = zobrist::basic<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.pE, board.nE, board.bE, board.rE, board.qE, board.zobrist);
-
-                const U64 occB = occM | occE;
-                checks |= sliderChecks(bM, rM, qM, occB, board.kES);
 
                 if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side, to, zobrist);
                 else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to, zobrist);
@@ -138,6 +137,7 @@ namespace bstate {
 
             const U64 occM = board.occM ^ (f | t);
             U64 occE = board.occE;
+            const U64 occB = occM | occE;
 
             U64 checks = 0ULL;
 
@@ -149,21 +149,19 @@ namespace bstate {
             if constexpr (Piece::Rook == piece)     rM ^= t;
             if constexpr (Piece::Queen == piece)    qM ^= t;
 
+            checks |= sliderChecks(bM, rM, qM, occB, board.kES);
+
             if constexpr (capture) {
                 occE ^= t;
                 const int casPerms = board.casPerms & NO_CASTLE_ROOK[to];
 
                 const U64 zobrist = zobrist::promotion<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.nE, board.bE, board.rE, board.qE, board.zobrist);
-
-                const U64 occB = occM | occE;
-                checks |= sliderChecks(bM, rM, qM, occB, board.kES);
+  
                 return BoardState(board.pE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, to, zobrist);
             }
             else {
                 const U64 zobrist = zobrist::promotion<piece, side, capture>(from, to, board.casPerms, board.casPerms, board.eP, board.nE, board.bE, board.rE, board.qE, board.zobrist);
 
-                const U64 occB = occM | occE;
-                checks |= sliderChecks(bM, rM, qM, occB, board.kES);
                 return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, to, zobrist);
             }
         }
