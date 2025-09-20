@@ -390,12 +390,12 @@ void Cui::perftTest(int depth) {
 }
 
 template <>
-__forceinline U64 Cui::perftT<0>(const BoardState& board, MoveArray(&moves)[19]) {
+__forceinline U64 Cui::perftT<0>(const BoardState& board, MoveArray* moves) {
 	return 1;
 }
 
 template <int depth>
-__forceinline U64 Cui::perftT(const BoardState& board, MoveArray(&moves)[19]) {
+__forceinline U64 Cui::perftT(const BoardState& board, MoveArray* moves) {
 	if constexpr (depth == 1) return generateMoves<false>(1, board, stats::dummy, moves[1]);
 
 	U64 nodes = 0ULL;
@@ -417,27 +417,12 @@ void Cui::perftTT(int depth) {
 
 	high_resolution_clock::time_point start, end;
 
-	Stats stats;
-
 	start = high_resolution_clock::now();
-	U64 nodes = pTT(depth, stats);
+	U64 nodes = pTT(depth);
 	end = high_resolution_clock::now();
 
 	long long total = duration_cast<microseconds>(end - start).count();
 
-	printf("Captures:\t%llu\n", stats.caps);
-	printf("En passant:\t%llu\n", stats.eP);
-	printf("Castles:\t%llu\n", stats.cstl);
-	printf("Promotions:\t%llu\n", stats.prom);
-	printf("\n");
-	printf("Checks at depth %d:\n", depth - 1);
-	printf("\n");
-	printf("Checks:\t\t%llu\n", stats.chk);
-	printf("Disc. checks:\t%llu\n", stats.dischck);
-	printf("Double checks:\t%llu\n", stats.dblchk);
-	printf("Checkmates:\t%llu\n", stats.chkm);
-	printf("\n");
-	cout << "TT Hits:\t" << stats.ttHits << endl;
 	cout << "Depth:\t\t" << depth << endl;
 	cout << "Nodes:\t\t" << nodes << endl;
 	cout << "Time:\t\t" << total / 1000 << " ms" << endl;
@@ -448,7 +433,7 @@ void Cui::perftTT(int depth) {
 	game::setFen(fen.c_str());
 }
 
-__forceinline U64 Cui::pTT(int depth, Stats& stats) {
+__forceinline U64 Cui::pTT(int depth) {
 	U64 nodes = 0;
 
 	int size = movesArray.size();
@@ -456,30 +441,27 @@ __forceinline U64 Cui::pTT(int depth, Stats& stats) {
 		return size;
 	}
 	MoveInfo* m = movesArray.moves();
-	std::vector<std::future<std::pair<U64, Stats>>> futures;
+	std::vector<std::future<U64>> futures;
 	futures.reserve(size);
 
 	for (int i = 0; i < size; i++) {
 		futures.push_back(std::async(std::launch::async, [this, depth, move = m[i]]() {
 			MoveArray moves[18];
-			Stats s;
-			U64 current = pTTR(depth - 1, move.board, moves, s);
-			return std::make_pair(current, s);
-			}));
+			U64 current = pTTR(depth - 1, move.board, moves);
+			return current;
+		}));
 	}
 
 	for (auto& f : futures) {
-		auto [n, s] = f.get();
-		nodes += n;
-		stats += s;
+		nodes += f.get();
 	}
 
 	return nodes;
 }
 
-__forceinline U64 Cui::pTTR(int depth, const BoardState& board, MoveArray(&moves)[18], Stats& stats) {
+__forceinline U64 Cui::pTTR(int depth, const BoardState& board, MoveArray* moves) {
 	if (depth == 1) {
-		return generateMoves<true>(1, board, stats, movesArray);
+		return generateMoves<true>(1, board, stats::dummy, movesArray);
 	}
 
 	U64 nodes = 0ULL;
@@ -494,19 +476,13 @@ __forceinline U64 Cui::pTTR(int depth, const BoardState& board, MoveArray(&moves
 		Entry& e = TT[depth][b.zobrist % tt::MASK];
 		if ((e.zobrist ^ e.nodes) == b.zobrist) {
 			nodes += e.nodes;
-			stats += e.stats;
-			stats.ttHits++;
 			continue;
 		}
-		Stats s;
-		U64 current = pTTR(depth - 1, b, moves, s);
+		U64 current = pTTR(depth - 1, b, moves);
 		nodes += current;
 
 		e.zobrist = b.zobrist ^ current;
 		e.nodes = current;
-		e.stats = s;
-
-		stats += s;
 	}
 
 	return nodes;
