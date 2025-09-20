@@ -403,16 +403,7 @@ __forceinline U64 Cui::pTT(int depth, Stats& stats) {
 	for (auto& f : futures) {
 		auto [n, s] = f.get();
 		nodes += n;
-		
-		stats.caps += s.caps;
-		stats.eP += s.eP;
-		stats.cstl += s.cstl;
-		stats.prom += s.prom;
-		stats.chk += s.chk;
-		stats.dischck += s.dischck;
-		stats.dblchk += s.dblchk;
-		stats.chkm += s.chkm;
-		stats.ttHits = s.ttHits;
+		stats += s;
 	}
 
 	return nodes;
@@ -435,14 +426,19 @@ __forceinline U64 Cui::pTTR(int depth, const BoardState& board, MoveArray(&moves
 		Entry& e = TT[depth][b.zobrist % tt::MASK];
 		if ((e.zobrist ^ e.nodes) == b.zobrist) {
 			nodes += e.nodes;
+			stats += e.stats;
 			stats.ttHits++;
 			continue;
 		}
-		U64 current = pTTR(depth - 1, b, moves, stats);
+		Stats s;
+		U64 current = pTTR(depth - 1, b, moves, s);
 		nodes += current;
 
 		e.zobrist = b.zobrist ^ current;
 		e.nodes = current;
+		e.stats = s;
+
+		stats += s;
 	}
 
 	return nodes;
