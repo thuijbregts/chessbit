@@ -173,9 +173,11 @@ namespace movegen {
 
     template <int depth, bool side, bool kMMoved, bool kEMoved, bool isStats>
     ForceInline U64 allMoves(const BoardState& board, Stats& stats, MoveArray& movesArray) {
-        Entry& e = TT[depth][board.zobrist % tt::MASK];
-        if ((e.zobrist ^ e.nodes) == board.zobrist) {
-            return e.nodes;
+        if constexpr (depth > 1) {
+            Entry& e = TT[depth][board.zobrist % tt::MASK];
+            if ((e.zobrist ^ e.nodes) == board.zobrist) {
+                return e.nodes;
+            }
         }
 
         int from, to;
@@ -481,8 +483,11 @@ namespace movegen {
                 }
             }
 
-            e.zobrist = board.zobrist ^ nodes;
-            e.nodes = nodes;
+            if constexpr (depth > 1) {
+                Entry& e = TT[depth][board.zobrist % tt::MASK];
+                e.zobrist = board.zobrist ^ nodes;
+                e.nodes = nodes;
+            }
 
             return nodes;
         }
@@ -695,8 +700,11 @@ namespace movegen {
             }
         }
 
-        e.zobrist = board.zobrist ^ nodes;
-        e.nodes = nodes;
+        if constexpr (depth > 1) {
+            Entry& e = TT[depth][board.zobrist % tt::MASK];
+            e.zobrist = board.zobrist ^ nodes;
+            e.nodes = nodes;
+        }
 
         return nodes;
     }
