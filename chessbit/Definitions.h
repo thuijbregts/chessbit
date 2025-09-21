@@ -85,6 +85,8 @@ namespace defs {
 
 	constexpr U64 FULL_BOARD = ~0;
 
+	constexpr int MAX_DEPTH = 18;
+
 	constexpr int RANKS[64] = {
 		8, 8, 8, 8, 8, 8, 8, 8,
 		7, 7, 7, 7, 7, 7, 7, 7,

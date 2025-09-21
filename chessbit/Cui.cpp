@@ -352,7 +352,7 @@ void Cui::perftTest(int depth) {
 
 	high_resolution_clock::time_point start, end;
 
-	MoveArray moves[19];
+	MoveArray moves[MAX_DEPTH + 1];
 	U64 nodes;
 	start = high_resolution_clock::now();
 	switch (depth) {
@@ -446,7 +446,7 @@ __forceinline U64 Cui::pTT(int depth) {
 
 	for (int i = 0; i < size; i++) {
 		futures.push_back(std::async(std::launch::async, [this, depth, move = m[i]]() {
-			MoveArray moves[18];
+			MoveArray moves[MAX_DEPTH];
 			U64 current = pTTR(depth - 1, move.board, moves);
 			return current;
 		}));
