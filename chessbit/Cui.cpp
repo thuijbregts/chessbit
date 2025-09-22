@@ -329,15 +329,26 @@ __forceinline U64 Cui::divide(int depth) {
 	if (depth == 1) {
 		return size;
 	}
-	MoveInfo* m = movesArray.moves();
 	std::vector<std::future<U64>> futures;
-	futures.reserve(size);
+
+	MoveInfo* m = movesArray.moves();
+	MoveArray* arr = new MoveArray[size];
 	for (int i = 0; i < size; i++) {
-		futures.push_back(std::async(std::launch::async, [this, depth, move = m[i]]() {
-			U64 current = generateMoves<false>(depth - 1, move.board, stats::dummy, movesArray);
-			printf("%s %llu\n", utils::getMoveSimple(move).c_str(), current);
-			return current;
-		}));
+		generateMoves<false>(0, m[i].board, stats::dummy, arr[i]);
+		MoveInfo* m1 = arr[i].moves();
+		MoveArray* arr1 = new MoveArray[arr[i].size()];
+		for (int j = 0; j < arr[i].size(); j++) {
+			generateMoves<false>(0, m1[j].board, stats::dummy, arr1[j]);
+			MoveInfo* m2 = arr1[j].moves();
+			for (int k = 0; k < arr1[j].size(); k++) {
+				futures.push_back(std::async(std::launch::async, [this, depth, move = m2[k]]() {
+					MoveArray dummy;
+					U64 current = generateMoves<false>(depth - 3, move.board, stats::dummy, dummy);
+					//printf("%s %llu\n", utils::getMoveSimple(move).c_str(), current);
+					return current;
+				}));
+			}
+		}
 	}
 
 	for (auto& f : futures) {

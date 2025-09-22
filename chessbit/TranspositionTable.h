@@ -7,7 +7,8 @@ using namespace defs;
 namespace tt {
 
 	struct Entry {
-		U64 zobrist;
+		uint8_t zobrist;
+		U64 key;
 		U64 nodes;
 	};
 
@@ -18,7 +19,7 @@ namespace tt {
 	inline Entry** TT;
 
 	static inline void init() {
-		TT = new Entry *[MAX_DEPTH];
+		TT = new Entry*[MAX_DEPTH];
 		for (int i = 0; i < MAX_DEPTH; i++) {
 			TT[i] = new Entry[SIZE];
 		}
