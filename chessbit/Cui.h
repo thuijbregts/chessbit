@@ -39,12 +39,6 @@ private:
 	void perftFast(int depth);
 	void perftDivide(int depth);	
 	__forceinline U64 divide(int depth);
-	void perftTest(int depth);
-	template <int depth>
-	__forceinline U64 perftT(const BoardState& board, MoveArray* moves);
-	void perftTT(int depth);
-	__forceinline U64 pTT(int depth);
-	__forceinline U64 pTTR(int depth, const BoardState& board, MoveArray* moves);
 	void perftFull(int depth);
 	__forceinline U64 full(int depth, Stats& stats);
 	void test();

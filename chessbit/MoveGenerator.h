@@ -174,10 +174,8 @@ namespace movegen {
     template <int depth, bool side, bool kMMoved, bool kEMoved, bool isStats>
     ForceInline U64 allMoves(const BoardState& board, Stats& stats, MoveArray& movesArray) {
         if constexpr (depth > 1) {
-            Entry& e = TT[depth][board.zobrist % tt::MASK];
-            U64 tmp = e.zobrist;
-            U64 zob = (tmp << 56);
-            if ((zob | (e.key ^ e.nodes)) == board.zobrist) {
+            Entry& e = TT[depth][board.zobrist & tt::MASK];
+            if ((e.key ^ e.nodes) == board.zobrist) {
                 return e.nodes;
             }
         }
@@ -486,10 +484,11 @@ namespace movegen {
             }
 
             if constexpr (depth > 1) {
-                Entry& e = TT[depth][board.zobrist % tt::MASK];
-                e.zobrist = board.zobrist >> 56;
+                //Entry& e = TT[depth][board.zobrist % tt::MASK];
+                /*e.zobrist = board.zobrist;
                 e.key = board.zobrist ^ nodes;
-                e.nodes = nodes;
+                e.nodes = nodes;*/
+                tt::write<depth>(board.zobrist, nodes);
             }
 
             return nodes;
@@ -704,10 +703,11 @@ namespace movegen {
         }
 
         if constexpr (depth > 1) {
-            Entry& e = TT[depth][board.zobrist % tt::MASK];
-            e.zobrist = board.zobrist >> 56;
+            //Entry& e = TT[depth][board.zobrist % tt::MASK];
+            /*e.zobrist = board.zobrist;
             e.key = board.zobrist ^ nodes;
-            e.nodes = nodes;
+            e.nodes = nodes;*/
+            tt::write<depth>(board.zobrist, nodes);
         }
 
         return nodes;

@@ -1,27 +1,33 @@
 #pragma once
-
 #include "Definitions.h"
+#include <cstdint>
+#include <atomic>
 
 using namespace defs;
 
 namespace tt {
 
-	struct Entry {
-		uint8_t zobrist;
-		U64 key;
-		U64 nodes;
-	};
+    struct Entry {
+        U64 key;
+        U64 nodes;
+    };
 
-	//max on 9800x3d
-	constexpr int SIZE = (1 << 28);
-	constexpr U64 MASK = SIZE - 1;
+    constexpr U64 SIZE = 1ULL << 28;
+    constexpr U64 MASK = SIZE - 1;
 
-	inline Entry** TT;
+    inline Entry** TT;
 
-	static inline void init() {
-		TT = new Entry*[MAX_DEPTH];
-		for (int i = 0; i < MAX_DEPTH; i++) {
-			TT[i] = new Entry[SIZE];
-		}
-	}
+    static inline void init() {
+        TT = new Entry*[MAX_DEPTH];
+        for (int d = 0; d < MAX_DEPTH; ++d) {
+            TT[d] = new Entry[SIZE];
+        }
+    }
+
+    template <int depth>
+    __forceinline static void write(U64 zobrist, U64 nodes) {
+        Entry& e = TT[depth][zobrist & MASK];
+        e.nodes = nodes;
+        e.key = zobrist ^ nodes;
+    }
 }

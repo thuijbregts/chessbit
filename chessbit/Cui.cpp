@@ -261,12 +261,6 @@ void Cui::perft(string& option, string& depth) {
 			else if (option == cui::PERFT_F) {
 				perftFull(d);
 			}
-			else if (option == "-t") {
-				perftTT(d);
-			}
-			else if (option == "-a") {
-				perftTest(d);
-			}
 			else {
 				cout << "incorrect perft option" << endl;
 			}
@@ -330,7 +324,6 @@ __forceinline U64 Cui::divide(int depth) {
 		return size;
 	}
 	std::vector<std::future<U64>> futures;
-
 	MoveInfo* m = movesArray.moves();
 	MoveArray* arr = new MoveArray[size];
 	for (int i = 0; i < size; i++) {
@@ -353,147 +346,6 @@ __forceinline U64 Cui::divide(int depth) {
 
 	for (auto& f : futures) {
 		nodes += f.get();
-	}
-
-	return nodes;
-}
-
-void Cui::perftTest(int depth) {
-	string fen = game::getFen();
-
-	high_resolution_clock::time_point start, end;
-
-	MoveArray moves[MAX_DEPTH + 1];
-	U64 nodes;
-	start = high_resolution_clock::now();
-	switch (depth) {
-	case 18: nodes = perftT<18>(game::moves[game::count]->board, moves); break;
-	case 17: nodes = perftT<17>(game::moves[game::count]->board, moves); break;
-	case 16: nodes = perftT<16>(game::moves[game::count]->board, moves); break;
-	case 15: nodes = perftT<15>(game::moves[game::count]->board, moves); break;
-	case 14: nodes = perftT<14>(game::moves[game::count]->board, moves); break;
-	case 13: nodes = perftT<13>(game::moves[game::count]->board, moves); break;
-	case 12: nodes = perftT<12>(game::moves[game::count]->board, moves); break;
-	case 11: nodes = perftT<11>(game::moves[game::count]->board, moves); break;
-	case 10: nodes = perftT<10>(game::moves[game::count]->board, moves); break;
-	case 9: nodes = perftT<9>(game::moves[game::count]->board, moves); break;
-	case 8: nodes = perftT<8>(game::moves[game::count]->board, moves); break;
-	case 7: nodes = perftT<7>(game::moves[game::count]->board, moves); break;
-	case 6: nodes = perftT<6>(game::moves[game::count]->board, moves); break;
-	case 5: nodes = perftT<5>(game::moves[game::count]->board, moves); break;
-	case 4: nodes = perftT<4>(game::moves[game::count]->board, moves); break;
-	case 3: nodes = perftT<3>(game::moves[game::count]->board, moves); break;
-	case 2: nodes = perftT<2>(game::moves[game::count]->board, moves); break;
-	default: nodes = perftT<1>(game::moves[game::count]->board, moves);
-	}
-	end = high_resolution_clock::now();
-
-	long long total = duration_cast<microseconds>(end - start).count();
-
-	cout << "Depth:\t\t" << depth << endl;
-	cout << "Nodes:\t\t" << nodes << endl;
-	cout << "Time:\t\t" << total / 1000 << " ms" << endl;
-	if (total > 0) {
-		cout << "Average:\t" << (nodes * 1.0 / total) << " Mn/s" << endl;
-	}
-
-	game::setFen(fen.c_str());
-}
-
-template <>
-__forceinline U64 Cui::perftT<0>(const BoardState& board, MoveArray* moves) {
-	return 1;
-}
-
-template <int depth>
-__forceinline U64 Cui::perftT(const BoardState& board, MoveArray* moves) {
-	if constexpr (depth == 1) return generateMoves<false>(1, board, stats::dummy, moves[1]);
-
-	U64 nodes = 0ULL;
-
-	MoveArray& arr = moves[depth];
-	arr.reset();
-	generateMoves<false>(0, board, stats::dummy, arr);
-	int size = arr.size();
-	MoveInfo* m = arr.moves();
-	for (int i = 0; i < size; i++) {
-		nodes += perftT<depth - 1>(m[i].board, moves);
-	}
-
-	return nodes;
-}
-
-void Cui::perftTT(int depth) {
-	string fen = game::getFen();
-
-	high_resolution_clock::time_point start, end;
-
-	start = high_resolution_clock::now();
-	U64 nodes = pTT(depth);
-	end = high_resolution_clock::now();
-
-	long long total = duration_cast<microseconds>(end - start).count();
-
-	cout << "Depth:\t\t" << depth << endl;
-	cout << "Nodes:\t\t" << nodes << endl;
-	cout << "Time:\t\t" << total / 1000 << " ms" << endl;
-	if (total > 0) {
-		cout << "Average:\t" << (nodes * 1.0 / total) << " Mn/s" << endl;
-	}
-
-	game::setFen(fen.c_str());
-}
-
-__forceinline U64 Cui::pTT(int depth) {
-	U64 nodes = 0;
-
-	int size = movesArray.size();
-	if (depth == 1) {
-		return size;
-	}
-	MoveInfo* m = movesArray.moves();
-	std::vector<std::future<U64>> futures;
-	futures.reserve(size);
-
-	for (int i = 0; i < size; i++) {
-		futures.push_back(std::async(std::launch::async, [this, depth, move = m[i]]() {
-			MoveArray moves[MAX_DEPTH];
-			U64 current = pTTR(depth - 1, move.board, moves);
-			return current;
-		}));
-	}
-
-	for (auto& f : futures) {
-		nodes += f.get();
-	}
-
-	return nodes;
-}
-
-__forceinline U64 Cui::pTTR(int depth, const BoardState& board, MoveArray* moves) {
-	if (depth == 1) {
-		return generateMoves<true>(1, board, stats::dummy, movesArray);
-	}
-
-	U64 nodes = 0ULL;
-
-	MoveArray& arr = moves[depth];
-	arr.reset();
-	generateMoves<false>(0, board, stats::dummy, arr);
-	int size = arr.size();
-	MoveInfo* m = arr.moves();
-	for (int i = 0; i < size; i++) {
-		BoardState& b = m[i].board;
-		Entry& e = TT[depth][b.zobrist % tt::MASK];
-		if ((e.zobrist ^ e.nodes) == b.zobrist) {
-			nodes += e.nodes;
-			continue;
-		}
-		U64 current = pTTR(depth - 1, b, moves);
-		nodes += current;
-
-		e.zobrist = b.zobrist ^ current;
-		e.nodes = current;
 	}
 
 	return nodes;
