@@ -51,6 +51,11 @@ namespace defs {
 		a1, b1, c1, d1, e1, f1, g1, h1, noSquare
 	};
 
+	struct Zobrist { 
+		U64 high;
+		U64 low;
+	};
+
 	constexpr char ASCII_PIECES[2][7] = { { 'P', 'N', 'B', 'R', 'Q', 'K', '.' }, { 'p', 'n', 'b', 'r', 'q', 'k', '.' } };
 
 	inline constexpr int getPieceForCharacter(char c) {

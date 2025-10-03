@@ -242,7 +242,7 @@ namespace game {
         int kMS = SquareOf(pieces[side][k]);
         int kES = SquareOf(pieces[!side][k]);
 
-        U64 zobrist = zobrist::init(pieces, side, castlingPermissions, enPassant);
+        Zobrist zobrist = zobrist::init(pieces, side, castlingPermissions, enPassant);
 
         BoardState board = bstate::BoardState(pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
                                     pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
