@@ -38,8 +38,10 @@ namespace tt {
         U64 h = e.high.load(std::memory_order_relaxed);
         U64 l = e.low.load(std::memory_order_relaxed);
         U64 n = e.nodes.load(std::memory_order_relaxed);
-        if ((h ^ n) != zobrist.high && (l ^ n) != zobrist.low) return false;
-        nodes = n;
-        return true;
+        if ((h ^ n) == zobrist.high && (l ^ n) == zobrist.low) {
+            nodes = n;
+            return true;
+        }
+        return false;
     }
 }
