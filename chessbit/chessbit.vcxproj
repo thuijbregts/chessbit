@@ -187,7 +187,6 @@
     <ClInclude Include="MoveArray.h" />
     <ClInclude Include="MoveGenerator.h" />
     <ClInclude Include="MoveInfo.h" />
-    <ClInclude Include="Stats.h" />
     <ClInclude Include="TranspositionTable.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="Zobrist.h" />
