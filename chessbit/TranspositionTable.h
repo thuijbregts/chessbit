@@ -19,7 +19,7 @@ namespace tt {
 
     static inline void init() {
         TT = new Entry*[MAX_DEPTH];
-        for (int d = 2; d <= 7; ++d) {
+        for (int d = 2; d < 13; ++d) {
             TT[d] = new Entry[SIZE];
         }
     }
