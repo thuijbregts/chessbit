@@ -11,8 +11,9 @@
 #include <vector>
 #include <utility>
 #include <cstdio>
+#include <filesystem>
 
-using namespace std::chrono;
+using namespace chrono;
 using namespace movegen;
 using namespace game;
 using namespace movarray;
@@ -258,6 +259,12 @@ void Cui::perft(string& option, string& depth) {
 			if (option == cui::PERFT_D) {
 				perftDivide(d);
 			}
+			else if (option == "-w") {
+				perftWrite(d);
+			}
+			else if (option == "-r") {
+				perftRead(d);
+			}
 			else {
 				cout << "incorrect perft option" << endl;
 			}
@@ -320,7 +327,7 @@ __forceinline U64 Cui::divide(int depth) {
 	if (depth == 1) {
 		return size;
 	}
-	std::vector<std::future<U64>> futures;
+	vector<future<U64>> futures;
 	MoveInfo* m = movesArray.moves();
 	MoveArray* arr = new MoveArray[size];
 	for (int i = 0; i < size; i++) {
@@ -331,12 +338,12 @@ __forceinline U64 Cui::divide(int depth) {
 			generateMoves(0, m1[j].board, arr1[j]);
 			MoveInfo* m2 = arr1[j].moves();
 			for (int k = 0; k < arr1[j].size(); k++) {
-				futures.push_back(std::async(std::launch::async, [this, depth, move = m2[k]]() {
+				futures.push_back(async(launch::async, [this, depth, move = m2[k]]() {
 					MoveArray dummy;
 					U64 current = generateMoves(depth - 3, move.board, dummy);
 					//printf("%s %llu\n", utils::getMoveSimple(move).c_str(), current);
 					return current;
-				}));
+					}));
 			}
 		}
 	}
@@ -346,6 +353,204 @@ __forceinline U64 Cui::divide(int depth) {
 	}
 
 	return nodes;
+}
+
+namespace std {
+	template<>
+	struct hash<Zobrist> {
+		size_t operator()(const Zobrist& z) const noexcept {
+			return static_cast<size_t>(z.high ^ (z.low * 0x9E3779B97F4A7C15ULL));
+		}
+	};
+}
+
+void Cui::perftWrite(int depth) {
+	string fen = game::getFen();
+
+	auto start = high_resolution_clock::now();
+
+	// Vérifie si store_temp.dat existe déjà
+	bool tempExists = std::filesystem::exists("store_temp.dat");
+
+	if (!tempExists) {
+		cout << "[INFO] store_temp.dat non trouvé, génération brute..." << endl;
+
+		ofstream raw("store_temp.dat", ios::binary | ios::trunc);
+		if (!raw) {
+			cerr << "Erreur: impossible de créer store_temp.dat" << endl;
+			return;
+		}
+
+		std::function<void(int, MoveArray&)> dump;
+		dump = [&](int d, MoveArray& movesArray) {
+			int size = movesArray.size();
+			MoveInfo* m = movesArray.moves();
+			if (d > 1) {
+				for (int i = 0; i < size; i++) {
+					MoveArray arr;
+					generateMoves(0, m[i].board, arr);
+					dump(d - 1, arr);
+				}
+			}
+			else {
+				for (int i = 0; i < size; i++) {
+					bstate::Entry e(m[i].board, 1);
+					raw.write(reinterpret_cast<const char*>(&e), sizeof(bstate::Entry));
+				}
+			}
+			};
+
+		dump(depth, movesArray);
+		raw.close();
+
+		auto mid = high_resolution_clock::now();
+		cout << "Brute dump terminé en "
+			<< duration_cast<milliseconds>(mid - start).count() << " ms" << endl;
+	}
+	else {
+		cout << "[INFO] store_temp.dat déjà présent, skip génération brute." << endl;
+	}
+
+	// Phase de tri/merge externe
+	const size_t CHUNK = 500'000;
+	vector<bstate::Entry> buffer(CHUNK);
+
+	ifstream in("store_temp.dat", ios::binary);
+	if (!in) {
+		cerr << "Erreur: store_temp.dat introuvable" << endl;
+		return;
+	}
+
+	vector<string> chunkFiles;
+	size_t part = 0;
+
+	while (in) {
+		in.read(reinterpret_cast<char*>(buffer.data()), CHUNK * sizeof(bstate::Entry));
+		size_t count = in.gcount() / sizeof(bstate::Entry);
+		if (count == 0) break;
+
+		sort(buffer.begin(), buffer.begin() + count, [](const auto& a, const auto& b) {
+			if (a.board.zobrist.high != b.board.zobrist.high)
+				return a.board.zobrist.high < b.board.zobrist.high;
+			return a.board.zobrist.low < b.board.zobrist.low;
+			});
+
+		string chunkName = "chunk_" + to_string(part++) + ".dat";
+		ofstream chunk(chunkName, ios::binary | ios::trunc);
+		chunk.write(reinterpret_cast<const char*>(buffer.data()), count * sizeof(bstate::Entry));
+		chunk.close();
+		chunkFiles.push_back(chunkName);
+	}
+	in.close();
+
+	ofstream out("store.dat", ios::binary | ios::trunc);
+	vector<ifstream> parts;
+	for (auto& f : chunkFiles) parts.emplace_back(f, ios::binary);
+
+	vector<bstate::Entry> heads(parts.size());
+	vector<bool> valid(parts.size(), false);
+
+	auto refill = [&](size_t i) {
+		if (parts[i].read(reinterpret_cast<char*>(&heads[i]), sizeof(bstate::Entry)))
+			valid[i] = true;
+		else
+			valid[i] = false;
+		};
+
+	for (size_t i = 0; i < parts.size(); i++) refill(i);
+
+	bstate::Entry current;
+	bool hasCurrent = false;
+
+	while (true) {
+		int idx = -1;
+		Zobrist minKey{};
+		for (size_t i = 0; i < parts.size(); i++) {
+			if (!valid[i]) continue;
+			Zobrist k = heads[i].board.zobrist;
+			if (idx == -1 || k.high < minKey.high || (k.high == minKey.high && k.low < minKey.low)) {
+				idx = (int)i;
+				minKey = k;
+			}
+		}
+		if (idx == -1) break;
+
+		bstate::Entry e = heads[idx];
+		refill(idx);
+
+		if (!hasCurrent) {
+			current = e;
+			hasCurrent = true;
+		}
+		else if (e.board.zobrist.high == current.board.zobrist.high &&
+			e.board.zobrist.low == current.board.zobrist.low) {
+			current.qty += e.qty;
+		}
+		else {
+			out.write(reinterpret_cast<const char*>(&current), sizeof(bstate::Entry));
+			current = e;
+		}
+	}
+	if (hasCurrent)
+		out.write(reinterpret_cast<const char*>(&current), sizeof(bstate::Entry));
+
+	out.close();
+
+	for (auto& f : chunkFiles)
+		std::filesystem::remove(f);
+
+	auto end = high_resolution_clock::now();
+	cout << "Fusion externe terminée en "
+		<< duration_cast<milliseconds>(end - start).count() << " ms" << endl;
+
+	game::setFen(fen.c_str());
+}
+
+
+void Cui::perftRead(int depth) {
+	ifstream in("store.dat", ios::binary);
+	if (!in) {
+		cerr << "File store.dat not found" << endl;
+		return;
+	}
+
+	string fen = game::getFen();
+	high_resolution_clock::time_point start, end;
+
+	// lire nombre d'entrées
+	uint64_t size = 0;
+	in.read(reinterpret_cast<char*>(&size), sizeof(size));
+
+	const size_t CHUNK_SIZE = 1'000'000;
+	vector<bstate::Entry> buffer(CHUNK_SIZE);
+
+	U64 nodes = 0;
+	start = high_resolution_clock::now();
+
+	while (size > 0 && in) {
+		size_t readCount = min(size, (uint64_t)CHUNK_SIZE);
+		in.read(reinterpret_cast<char*>(buffer.data()), readCount * sizeof(bstate::Entry));
+
+		vector<future<U64>> futures;
+		for (size_t i = 0; i < readCount; i++) {
+			bstate::Entry& entry = buffer[i];
+			futures.push_back(async(launch::async, [this, depth, &entry]() {
+				return generateMoves(depth, entry.board, movesArray) * entry.qty;
+				}));
+		}
+
+		for (auto& f : futures) nodes += f.get();
+		size -= readCount;
+	}
+	in.close();
+
+	end = high_resolution_clock::now();
+
+	cout << "Depth:\t\t" << depth << endl;
+	cout << "Nodes:\t\t" << nodes << endl;
+	cout << "Time:\t\t"
+		<< duration_cast<milliseconds>(end - start).count() << " ms" << endl;
+	game::setFen(fen.c_str());
 }
 
 void Cui::test() {
@@ -394,16 +599,16 @@ void Cui::perftsuite() {
 	for (auto pos : test::Positions)
 	{
 		auto v = test::GetElements(pos, ';');
-		std::string fen = v[0];
+		string fen = v[0];
 		cout << fen << endl;
 		int to = v.size();
 		for (int i = 1; i < to; i++) {
 			game::setFen(fen.c_str());
 
 			auto perftvals = test::GetElements(v[i], ' ');
-			U64 expected = static_cast<U64>(std::strtol(perftvals[1].c_str(), NULL, 10));
+			U64 expected = static_cast<U64>(strtol(perftvals[1].c_str(), NULL, 10));
 			U64 result = generateMoves(i, game::moves[game::count]->board, movesArray);
-			std::string status = expected == result ? "OK" : "ERROR";
+			string status = expected == result ? "OK" : "ERROR";
 			if (expected == result) {
 				cout << "   " << i << ": " << result << " " << status << endl;
 				success++;
@@ -428,7 +633,7 @@ void Cui::benchmark(string& depth, string& amount) {
 			a = 15;
 			print = false;
 			string fen = game::getFen();
-			
+
 			setFen(StartPosition); cout << StartPosition << endl; executeBenchmark(6, a, print);
 			setFen(KiwiPete); cout << KiwiPete << endl; executeBenchmark(5, a, print);
 			setFen(Pos3); cout << Pos3 << endl; executeBenchmark(7, a, print);
@@ -458,7 +663,7 @@ void Cui::benchmark(string& depth, string& amount) {
 			return;
 		}
 	}
-	
+
 	executeBenchmark(d, a, print);
 }
 
@@ -495,7 +700,7 @@ void Cui::compare() {
 	U64 result;
 	long long total;
 
-	auto ts = std::chrono::steady_clock::now();
+	auto ts = chrono::steady_clock::now();
 	setFen(StartPosition);
 	for (int i = 1; i <= 7; i++)
 	{
@@ -503,10 +708,10 @@ void Cui::compare() {
 		result = generateMoves(i, game::moves[game::count]->board, movesArray);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
-		std::cout << "Perft Start " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
+		cout << "Perft Start " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
 	}
-	if (result == 3195901860ull) std::cout << "OK\n\n";
-	else std::cout << "ERROR!\n\n";
+	if (result == 3195901860ull) cout << "OK\n\n";
+	else cout << "ERROR!\n\n";
 
 	setFen(KiwiPete);
 	for (int i = 1; i <= 6; i++)
@@ -515,10 +720,10 @@ void Cui::compare() {
 		result = generateMoves(i, game::moves[game::count]->board, movesArray);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
-		std::cout << "Perft Kiwi " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
+		cout << "Perft Kiwi " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
 	}
-	if (result == 8031647685ull) std::cout << "OK\n\n";
-	else std::cout << "ERROR!\n\n";
+	if (result == 8031647685ull) cout << "OK\n\n";
+	else cout << "ERROR!\n\n";
 
 	setFen(Pos6);
 	for (int i = 1; i <= 6; i++)
@@ -527,27 +732,27 @@ void Cui::compare() {
 		result = generateMoves(i, game::moves[game::count]->board, movesArray);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
-		std::cout << "Perft Midgame " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
+		cout << "Perft Midgame " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
 	}
-	if (result == 6923051137ull) std::cout << "OK\n\n";
-	else std::cout << "ERROR!\n\n";
+	if (result == 6923051137ull) cout << "OK\n\n";
+	else cout << "ERROR!\n\n";
 
 	setFen(EndGame);
 	for (int i = 1; i <= 7; i++)
 	{
 		start = high_resolution_clock::now();
-		result = generateMoves(i, game::moves[game::count]->board , movesArray);
+		result = generateMoves(i, game::moves[game::count]->board, movesArray);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
-		std::cout << "Perft Endgame " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
+		cout << "Perft Endgame " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
 	}
-	if (result == 24958831314ull) std::cout << "OK\n\n";
-	else std::cout << "ERROR!\n\n";
+	if (result == 24958831314ull) cout << "OK\n\n";
+	else cout << "ERROR!\n\n";
 
 	U64 nodes = (3195901860ull + 8031647685ull + 6923051137ull + 24958831314ull);
-	auto te = std::chrono::steady_clock::now();
+	auto te = chrono::steady_clock::now();
 	total = duration_cast<microseconds>(te - ts).count();
-	std::cout << "Perft aggregate: " << nodes
+	cout << "Perft aggregate: " << nodes
 		<< " " << total / 1000 << "ms " << nodes * 1.0 / total << " MNodes/s\n";
 
 	game::setFen(fen.c_str());

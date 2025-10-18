@@ -54,6 +54,10 @@ namespace defs {
 	struct Zobrist { 
 		U64 high;
 		U64 low;
+
+		bool operator==(const Zobrist& z) const noexcept {
+			return high == z.high && low == z.low;
+		}
 	};
 
 	constexpr char ASCII_PIECES[2][7] = { { 'P', 'N', 'B', 'R', 'Q', 'K', '.' }, { 'p', 'n', 'b', 'r', 'q', 'k', '.' } };

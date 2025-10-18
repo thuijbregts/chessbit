@@ -5,6 +5,7 @@
 #include "MoveArray.h"
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 using namespace std;
 using namespace game;
@@ -35,8 +36,11 @@ private:
 	void getFen();
 	void perft(string& option, string& depth);
 	void perftFast(int depth);
-	void perftDivide(int depth);	
+	void perftDivide(int depth);
 	__forceinline U64 divide(int depth);
+	void perftWrite(int depth);
+	__forceinline void write(int depth, MoveArray& movesArray, std::unordered_map<Zobrist, bstate::Entry>& map);
+	void perftRead(int depth);
 	void test();
 	void perftsuite();
 	void benchmark(string& depth, string& amount);
