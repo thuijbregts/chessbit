@@ -57,8 +57,8 @@ namespace bstate {
 
         ForceInline U64 sliderChecks(U64 bM, U64 rM, U64 qM, U64 occB, int kES) {
             U64 checks = 0ULL;
-            if (BISHOP_XRAYS[kES] & (bM | qM)) checks |= getBishopAttacks(kES, occB) & (bM | qM);
-            if (ROOK_XRAYS[kES] & (rM | qM)) checks |= getRookAttacks(kES, occB) & (rM | qM);
+            if (BISHOP_XRAYS[kES] & (bM | qM))  checks |= getBishopAttacks(kES, occB) & (bM | qM);
+            if (ROOK_XRAYS[kES] & (rM | qM))    checks |= getRookAttacks(kES, occB) & (rM | qM);
             return checks;
         }
 
