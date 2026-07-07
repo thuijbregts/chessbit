@@ -221,14 +221,14 @@ namespace bstate {
             const U64 occM = board.occM ^ bothSwitch<castlingSide>();
             const U64 occB = occM | board.occE;
 
-            const bool side = CASTLING_SIDE[castlingSide];
+            constexpr bool side = CASTLING_SIDE[castlingSide];
             const int casPerms = board.casPerms & NO_CASTLE[side];
 
             const U64 checks = getRookAttacks(board.kES, occB) & rM;
 
-            const int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
+            constexpr int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
 
-            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, getKingAttacks(to), board.occE, occM, occB, checks, casPerms, noSquare, !side);
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, KING_ATTACKS[to], board.occE, occM, occB, checks, casPerms, noSquare, !side);
         }
     };
 

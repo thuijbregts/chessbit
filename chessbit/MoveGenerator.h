@@ -81,17 +81,15 @@ namespace movegen {
     }
 
     template <bool side>
-    ForceInline U64 passantPinMask(const BoardState& board, int from) {
-        if (!(EN_PASSANT_RANK[side] & board.kM)) {
-            return FULL_BOARD;
-        }
+    ForceInline bool passantPinned(const BoardState& board, int from) {
+        if (!(EN_PASSANT_RANK[side] & board.kM)) return false;
 
         U64 occB = board.occB;
         int enemyPawn = board.eP + PAWN_PUSH[!side];
         PopBit(occB, enemyPawn);
         PopBit(occB, from);
 
-        return PASSANT_PIN_RESULT[SquareOf(getRookAttacks(board.kMS, occB) & (board.rE | board.qE))];
+        return getRookAttacks(board.kMS, occB) & (board.rE | board.qE);
     }
 
     template <int depth>
@@ -465,12 +463,13 @@ namespace movegen {
         if (board.eP != noSquare) {
             const U64 ePBit = (1ULL << board.eP);
             U64 ePP = pawnsAtkRight<!side>(pawnsLeftAll & ePBit) | pawnsAtkLeft<!side>(pawnsRightAll & ePBit);
-            Bitloop(ePP) {
-                from = SquareOf(ePP);
 
-                if constexpr (depth == 1) nodes += Bitcount(ePBit & passantPinMask<side>(board, from));
+            if (!passantPinned<side>(board, SquareOf(ePP))) {
+                if constexpr (depth == 1) nodes += Bitcount(ePP);
                 else {
-                    if (ePBit & passantPinMask<side>(board, from)) {
+                    Bitloop(ePP) {
+                        from = SquareOf(ePP);
+
                         const BoardState newBoard = board.makeEnPassant<side>(from, board.eP, board);
                         if constexpr (depth == 0) movesArray.add(MoveInfo(EnPassant, from, board.eP, true, newBoard));
                         else nodes += PerftGenerator<depth - 1, !side, kEMoved, kMMoved>::generateMoves(newBoard);
