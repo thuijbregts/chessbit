@@ -43,7 +43,7 @@ namespace movegen {
     }
 
     template <bool side, bool kMMoved>
-    ForceInline void filterKingAttacks(const BoardState& board, U64& kingAttacks, U64& castleAttacks) {
+    ForceInline U64 enemyAttacks(const BoardState& board) {
         U64 attacks = 0ULL;
         attacks |= pawnsAtkLeft<!side>(board.pE & ~FIRST_COL) | pawnsAtkRight<!side>(board.pE & ~LAST_COL);
         attacks |= board.kEA;
@@ -70,9 +70,7 @@ namespace movegen {
             attacks |= getRookAttacks(SquareOf(bitboard), occB);
         }
 
-        kingAttacks &= ~attacks;
-
-        if constexpr (!kMMoved) castleAttacks = attacks;
+        return attacks;
     }
 
     template <int castlingSide>
@@ -176,15 +174,13 @@ namespace movegen {
         U64 bitboard, attacks;
 
         U64 nodes = 0ULL;
-        U64 castleAttacks = 0ULL;
-
+        U64 eAttacks = enemyAttacks<side, kMMoved>(board);
         /*
 
             KING MOVES
 
         */
-        attacks = board.kMA & ~board.occM;
-        filterKingAttacks<side, kMMoved>(board, attacks, castleAttacks);
+        attacks = board.kMA & ~board.occM & ~eAttacks;
         if constexpr (depth == 1) nodes += Bitcount(attacks);
         else makeMoves<depth, side, kMMoved, kEMoved, Piece::King>(nodes, attacks, board.kMS, board);
 
@@ -624,7 +620,7 @@ namespace movegen {
         }
 
         if constexpr (!kMMoved) {
-            if (castle<CASTLING_SIDE_K[side]>(board, castleAttacks)) {
+            if (castle<CASTLING_SIDE_K[side]>(board, eAttacks)) {
                 if constexpr (depth == 1) nodes++;
                 else {
                     const BoardState newBoard = board.makeCastling<CASTLING_SIDE_K[side]>(board);
@@ -633,7 +629,7 @@ namespace movegen {
                 }
             }
 
-            if (castle<CASTLING_SIDE_Q[side]>(board, castleAttacks)) {
+            if (castle<CASTLING_SIDE_Q[side]>(board, eAttacks)) {
                 if constexpr (depth == 1) nodes++;
                 else {
                     const BoardState newBoard = board.makeCastling<CASTLING_SIDE_Q[side]>(board);
