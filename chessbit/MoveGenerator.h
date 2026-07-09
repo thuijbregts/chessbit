@@ -93,19 +93,19 @@ namespace movegen {
     }
 
     template <int depth>
-    ForceInline U64 iteratePieces(U64 pieces, U64 occB, int kMS) {
+    ForceInline U64 findPins(U64 sE, U64 occB, int kMS) {
         U64 pins = 0ULL;
 
-        Bitloop(pieces)
+        Bitloop(sE)
         {
-            int sliderSquare = SquareOf(pieces);
+            int sS = SquareOf(sE);
 
-            U64 pinMask = PIN_MASKS[sliderSquare][kMS];
-            U64 pinnedPieces = pinMask & occB;
+            U64 pinMask = PIN_MASKS[sS][kMS];
+            U64 pin = pinMask & occB;
 
-            if (Bitcount(pinnedPieces) == 1) {
-                U64 attacks = pinMask | SQUARE_BITS[sliderSquare];
-                validAttacksMasks[depth][SquareOf(pinnedPieces)] = attacks ^ pinnedPieces;
+            if (Bitcount(pin) == 1) {
+                U64 attacks = pinMask | SQUARE_BITS[sS];
+                validAttacksMasks[depth][SquareOf(pin)] = attacks ^ pin;
                 pins |= attacks;
             }
         }
@@ -115,12 +115,12 @@ namespace movegen {
 
     template <int depth>
     ForceInline U64 findBishopPins(const BoardState& board) {
-        return iteratePieces<depth>((board.bE | board.qE) & BISHOP_XRAYS[board.kMS] & ~board.checks, board.occB, board.kMS);
+        return findPins<depth>((board.bE | board.qE) & BISHOP_XRAYS[board.kMS] & ~board.checks, board.occB, board.kMS);
     }
 
     template <int depth>
     ForceInline U64 findRookPins(const BoardState& board) {
-        return iteratePieces<depth>((board.rE | board.qE) & ROOK_XRAYS[board.kMS] & ~board.checks, board.occB, board.kMS);
+        return findPins<depth>((board.rE | board.qE) & ROOK_XRAYS[board.kMS] & ~board.checks, board.occB, board.kMS);
     }
 
     template <int depth, bool side, bool kMMoved, bool kEMoved>
