@@ -58,15 +58,6 @@ namespace bstate {
 
         }
 
-        ForceInline U64 sliderChecks(U64 bM, U64 rM, U64 qM, U64 occB, int kES) noexcept {
-            U64 checks = 0ULL;
-            const U64 bqM = bM | qM;
-            const U64 rqM = rM | qM;
-            if (BISHOP_XRAYS[kES] & bqM)  checks |= getBishopAttacks(kES, occB) & bqM;
-            if (ROOK_XRAYS[kES] & rqM)  checks |= getRookAttacks(kES, occB) & rqM;
-            return checks;
-        }
-
         template <Piece piece, bool side, bool capture>
         ForceInline BoardState make(int from, int to, const BoardState& board, U64 discoverMask) noexcept {
             const U64 t = (1ULL << to);
@@ -203,13 +194,21 @@ namespace bstate {
             const U64 pM = board.pM ^ move;
             const U64 occM = board.occM ^ move;
 
-            const U64 ePawnSquare = (1ULL << (to + PAWN_PUSH[!side]));
-            const U64 pE = board.pE ^ ePawnSquare;
-            const U64 occE = board.occE ^ ePawnSquare;
+            const int ePS = (to + PAWN_PUSH[!side]);
+            const U64 ePB = (1ULL << ePS);
+            const U64 pE = board.pE ^ ePB;
+            const U64 occE = board.occE ^ ePB;
 
             const U64 occB = occM | occE;
 
-            const U64 checks = (PAWN_CAPTURES[!side][board.kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, board.kES);
+            U64 checks = (PAWN_CAPTURES[!side][board.kES] & pM);
+
+            const U64 bqM = board.bM | board.qM;
+            const U64 rqM = board.rM | board.qM;
+            if (!checks && (BISHOP_XRAYS[board.kES] & (BISHOP_XRAYS[from] | BISHOP_XRAYS[ePS]) & bqM)) [[unlikely]] 
+                checks |= getBishopAttacks(board.kES, occB) & bqM;
+            else if (ROOK_XRAYS[board.kES] & ROOK_XRAYS[from] & rqM) [[unlikely]] 
+                checks |= getRookAttacks(board.kES, occB) & rqM;
 
             return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side);
         }
@@ -252,7 +251,7 @@ namespace bstate {
             const U64 checks = getRookAttacks(board.kES, occB) & rM;
             /*U64 checks = 0ULL;
             const U64 pinMask = PIN_MASKS[CASTLING_ROOK_TARGET_SQUARE[castlingSide]][board.kES];
-            if (pinMask && !(pinMask & occB)) [[unlikely]] checks = rM & rookSwitch<castlingSide>();*/
+            if ((pinMask & ROOK_XRAYS[board.kES]) && !(pinMask & occB)) [[unlikely]] checks = rM & rookSwitch<castlingSide>();*/
 
             constexpr int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
 
