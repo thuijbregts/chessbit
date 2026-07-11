@@ -664,7 +664,7 @@ U64 Cui::generateMoves(int depth) {
 template <bool side, bool kMMoved, bool kEMoved>
 U64 Cui::generateMoves(int depth) {
 	switch (depth) {
-	case 18: return PerftGenerator<18, side, kMMoved, kEMoved>::generateMoves(game::board);
+	/*case 18: return PerftGenerator<18, side, kMMoved, kEMoved>::generateMoves(game::board);
 	case 17: return PerftGenerator<17, side, kMMoved, kEMoved>::generateMoves(game::board);
 	case 16: return PerftGenerator<16, side, kMMoved, kEMoved>::generateMoves(game::board);
 	case 15: return PerftGenerator<15, side, kMMoved, kEMoved>::generateMoves(game::board);
@@ -674,7 +674,7 @@ U64 Cui::generateMoves(int depth) {
 	case 11: return PerftGenerator<11, side, kMMoved, kEMoved>::generateMoves(game::board);
 	case 10: return PerftGenerator<10, side, kMMoved, kEMoved>::generateMoves(game::board);
 	case 9: return PerftGenerator<9, side, kMMoved, kEMoved>::generateMoves(game::board);
-	case 8: return PerftGenerator<8, side, kMMoved, kEMoved>::generateMoves(game::board);
+	case 8: return PerftGenerator<8, side, kMMoved, kEMoved>::generateMoves(game::board);*/
 	case 7: return PerftGenerator<7, side, kMMoved, kEMoved>::generateMoves(game::board);
 	case 6: return PerftGenerator<6, side, kMMoved, kEMoved>::generateMoves(game::board);
 	case 5: return PerftGenerator<5, side, kMMoved, kEMoved>::generateMoves(game::board);

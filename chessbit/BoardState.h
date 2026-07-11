@@ -68,7 +68,7 @@ namespace bstate {
         }
 
         template <Piece piece, bool side, bool capture>
-        ForceInline BoardState make(int from, int to, const BoardState& board) noexcept {
+        ForceInline BoardState make(int from, int to, const BoardState& board, U64 discoverMask) noexcept {
             const U64 t = (1ULL << to);
             const U64 move = (1ULL << from) | t;
 
@@ -94,29 +94,37 @@ namespace bstate {
                 nM ^= move;
                 checks |= KNIGHT_ATTACKS[board.kES] & nM;
             }
-            if constexpr (Piece::Bishop == piece)   bM ^= move;
+            if constexpr (Piece::Bishop == piece) {
+                bM ^= move;
+                if ((BISHOP_XRAYS[board.kES] & t) && !(PIN_MASKS[to][board.kES] & (occM | occE))) [[unlikely]] checks |= t;
+            }
             if constexpr (Piece::Rook == piece) {
                 rM ^= move;
                 casPerms &= NO_CASTLE_ROOK[from];
+                if ((ROOK_XRAYS[board.kES] & t) && !(PIN_MASKS[to][board.kES] & (occM | occE))) [[unlikely]] checks |= t;
             }
-            if constexpr (Piece::Queen == piece)    qM ^= move;
+            if constexpr (Piece::Queen == piece) {
+                qM ^= move;
+                if ((QUEEN_XRAYS[board.kES] & t) && !(PIN_MASKS[to][board.kES] & (occM | occE))) [[unlikely]] checks |= t;
+            }
             if constexpr (Piece::King == piece) {
                 kM ^= move;
                 casPerms &= NO_CASTLE[side];
             }
+
+            if constexpr (Piece::Queen != piece) if (discoverMask && !(discoverMask & t)) [[unlikely]] checks |= discoverMask & occM;
 
             if constexpr (capture) {
                 occE ^= t;
                 casPerms &= NO_CASTLE_ROOK[to];
 
                 const U64 occB = board.occB ^ (1ULL << from);
-                checks |= sliderChecks(bM, rM, qM, occB, board.kES);
+
                 if constexpr (Piece::King == piece)         return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side);
                 else                                        return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side);
             }
             else {
                 const U64 occB = board.occB ^ move;
-                checks |= sliderChecks(bM, rM, qM, occB, board.kES);
 
                 if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side);
                 else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side);
@@ -124,7 +132,7 @@ namespace bstate {
         }
 
         template <Piece piece, bool side, bool capture>
-        ForceInline BoardState makePromotion(int from, int to, const BoardState& board) noexcept {
+        ForceInline BoardState makePromotion(int from, int to, const BoardState& board, U64 discoverMask) noexcept {
             const U64 f = (1ULL << from);
             const U64 t = (1ULL << to);
 
@@ -143,35 +151,47 @@ namespace bstate {
                 nM ^= t;
                 checks |= KNIGHT_ATTACKS[board.kES] & nM;
             }
-            if constexpr (Piece::Bishop == piece)   bM ^= t;
-            if constexpr (Piece::Rook == piece)     rM ^= t;
-            if constexpr (Piece::Queen == piece)    qM ^= t;
+            if constexpr (Piece::Bishop == piece) {
+                bM ^= t;
+                if ((BISHOP_XRAYS[board.kES] & t) && !(PIN_MASKS[to][board.kES] & (occM | occE))) [[unlikely]] checks |= t;
+            }
+            if constexpr (Piece::Rook == piece) {
+                rM ^= t;
+                if ((ROOK_XRAYS[board.kES] & t) && !(PIN_MASKS[to][board.kES] & (occM | occE))) [[unlikely]] checks |= t;
+            }
+            if constexpr (Piece::Queen == piece) {
+                qM ^= t;
+                if ((QUEEN_XRAYS[board.kES] & t) && !(PIN_MASKS[to][board.kES] & (occM | occE))) [[unlikely]] checks |= t;
+            }
+
+            if (discoverMask && !(discoverMask & t)) [[unlikely]] checks |= discoverMask & occM;
 
             if constexpr (capture) {
                 occE ^= t;
                 const int casPerms = board.casPerms & NO_CASTLE_ROOK[to];
 
                 const U64 occB = board.occB ^ f;
-                checks |= sliderChecks(bM, rM, qM, occB, board.kES);
                 return BoardState(board.pE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side);
             }
             else {
                 const U64 occB = board.occB ^ (f | t);
-                checks |= sliderChecks(bM, rM, qM, occB, board.kES);
                 return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side);
             }
         }
 
         template <bool side>
-        ForceInline BoardState makeDoublePush(int from, int to, const BoardState& board) noexcept {
-            const U64 move = (1ULL << from) | (1ULL << to);
+        ForceInline BoardState makeDoublePush(int from, int to, const BoardState& board, U64 discoverMask) noexcept {
+            const U64 t = (1ULL << to);
+            const U64 move = (1ULL << from) | t;
 
             const U64 pM = board.pM ^ move;
             const U64 occM = board.occM ^ move;
 
             const U64 occB = board.occB ^ move;
 
-            const U64 checks = (PAWN_CAPTURES[!side][board.kES] & pM) | sliderChecks(board.bM, board.rM, board.qM, occB, board.kES);
+            U64 checks;
+            if (discoverMask && !(discoverMask & t)) [[unlikely]] checks = discoverMask & occM;
+            else checks = (PAWN_CAPTURES[!side][board.kES] & pM);
 
             return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, from + PAWN_PUSH[side], !side);
         }
@@ -230,6 +250,9 @@ namespace bstate {
             const int casPerms = board.casPerms & NO_CASTLE[side];
 
             const U64 checks = getRookAttacks(board.kES, occB) & rM;
+            /*U64 checks = 0ULL;
+            const U64 pinMask = PIN_MASKS[CASTLING_ROOK_TARGET_SQUARE[castlingSide]][board.kES];
+            if (pinMask && !(pinMask & occB)) [[unlikely]] checks = rM & rookSwitch<castlingSide>();*/
 
             constexpr int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
 
