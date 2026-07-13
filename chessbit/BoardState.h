@@ -249,9 +249,6 @@ namespace bstate {
             const int casPerms = board.casPerms & NO_CASTLE[side];
 
             const U64 checks = getRookAttacks(board.kES, occB) & rM;
-            /*U64 checks = 0ULL;
-            const U64 pinMask = PIN_MASKS[CASTLING_ROOK_TARGET_SQUARE[castlingSide]][board.kES];
-            if ((pinMask & ROOK_XRAYS[board.kES]) && !(pinMask & occB)) [[unlikely]] checks = rM & rookSwitch<castlingSide>();*/
 
             constexpr int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
 

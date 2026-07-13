@@ -124,12 +124,12 @@ namespace movegen {
 
     template <int depth>
     ForceInline U64 findDiscoverers(const BoardState& board) {
-        U64 discoverers = 0ULL;
+        U64 disc = 0ULL;
 
-        U64 snipers = ((board.bM | board.qM) & BISHOP_XRAYS[board.kES]) | ((board.rM | board.qM) & ROOK_XRAYS[board.kES]);
+        U64 sM = ((board.bM | board.qM) & BISHOP_XRAYS[board.kES]) | ((board.rM | board.qM) & ROOK_XRAYS[board.kES]);
 
-        Bitloop(snipers) {
-            int sS = SquareOf(snipers);
+        Bitloop(sM) {
+            int sS = SquareOf(sM);
 
             U64 pinMask = PIN_MASKS[sS][board.kES];
             U64 pin = pinMask & board.occB;
@@ -137,17 +137,17 @@ namespace movegen {
             if (Bitcount(pin) == 1) [[unlikely]] {
                 U64 attacks = pinMask | SQUARE_BITS[sS];
                 discoverMasks[depth][SquareOf(pin)] = attacks ^ pin;
-                discoverers |= pin;
+                disc |= pin;
             }
         }
 
-        return discoverers;
+        return disc;
     }
 
     template <int depth>
-    ForceInline U64 getDiscoverMask(int from, U64 discoverers) {
-        if (discoverers) [[unlikely]] {
-            return discoverMasks[depth][SquareOf((1ULL << from) & discoverers)];
+    ForceInline U64 getDiscoverMask(int from, U64 disc) {
+        if (disc) [[unlikely]] {
+            return discoverMasks[depth][SquareOf((1ULL << from) & disc)];
         }
         return 0ULL;
     }
@@ -198,8 +198,8 @@ namespace movegen {
         U64 nodes = 0ULL;
         U64 eAttacks = enemyAttacks<side, kMMoved>(board);
 
-        U64 discoverers = 0ULL;
-        if constexpr (depth != 1) discoverers = findDiscoverers<depth>(board);
+        U64 disc = 0ULL;
+        if constexpr (depth != 1) disc = findDiscoverers<depth>(board);
 
         /*
 
@@ -208,7 +208,7 @@ namespace movegen {
         */
         attacks = board.kMA & ~board.occM & ~eAttacks;
         if constexpr (depth == 1) nodes += Bitcount(attacks);
-        else makeMoves<depth, side, true, kEMoved, Piece::King>(nodes, attacks, board.kMS, board, getDiscoverMask<depth>(board.kMS, discoverers));
+        else makeMoves<depth, side, true, kEMoved, Piece::King>(nodes, attacks, board.kMS, board, getDiscoverMask<depth>(board.kMS, disc));
 
         if (board.checks) [[unlikely]] {
             if (Bitcount(board.checks) == 1) [[likely]] {
@@ -244,14 +244,14 @@ namespace movegen {
 
                         Bitloop(promos) {
                             from = SquareOf(promos);
-                            const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                            const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                             makePromotionMoves<depth, side, kMMoved, kEMoved, true>(nodes, from, to, board, discoverMask);
                         }
 
                         Bitloop(caps) {
                             from = SquareOf(caps);
-                            const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                            const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                             const BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, discoverMask);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
@@ -270,7 +270,7 @@ namespace movegen {
                     else {
                         Bitloop(attacks) {
                             from = SquareOf(attacks);
-                            const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                            const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                             const BoardState newBoard = board.make<Piece::Knight, side, true>(from, to, board, discoverMask);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
@@ -290,7 +290,7 @@ namespace movegen {
                         else {
                             Bitloop(attacks) {
                                 from = SquareOf(attacks);
-                                const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                                const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                                 const BoardState newBoard =
                                     ((1ULL << from) & board.qM)
@@ -315,7 +315,7 @@ namespace movegen {
                         else {
                             Bitloop(attacks) {
                                 from = SquareOf(attacks);
-                                const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                                const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                                 const BoardState newBoard =
                                     ((1ULL << from) & board.qM)
@@ -358,21 +358,21 @@ namespace movegen {
                             Bitloop(promosLeft) {
                                 to = SquareOf(promosLeft);
                                 from = to + PAWN_RIGHT[!side];
-                                const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                                const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                                 makePromotionMoves<depth, side, kMMoved, kEMoved, true>(nodes, from, to, board, discoverMask);
                             }
                             Bitloop(promosRight) {
                                 to = SquareOf(promosRight);
                                 from = to + PAWN_LEFT[!side];
-                                const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                                const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                                 makePromotionMoves<depth, side, kMMoved, kEMoved, true>(nodes, from, to, board, discoverMask);
                             }
                             Bitloop(promosFwd) {
                                 to = SquareOf(promosFwd);
                                 from = to + PAWN_PUSH[!side];
-                                const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                                const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                                 makePromotionMoves<depth, side, kMMoved, kEMoved, false>(nodes, from, to, board, discoverMask);
                             }
@@ -387,7 +387,7 @@ namespace movegen {
                         Bitloop(pawnsLeft) {
                             to = SquareOf(pawnsLeft);
                             from = to + PAWN_RIGHT[!side];
-                            const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                            const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                             const BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, discoverMask);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
@@ -397,7 +397,7 @@ namespace movegen {
                         Bitloop(pawnsRight) {
                             to = SquareOf(pawnsRight);
                             from = to + PAWN_LEFT[!side];
-                            const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                            const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                             const BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, discoverMask);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
@@ -407,7 +407,7 @@ namespace movegen {
                         Bitloop(pawnsFwd) {
                             to = SquareOf(pawnsFwd);
                             from = to + PAWN_PUSH[!side];
-                            const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                            const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                             const BoardState newBoard = board.make<Piece::Pawn, side, false>(from, to, board, discoverMask);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
@@ -417,7 +417,7 @@ namespace movegen {
                         Bitloop(pawnsDouble) {
                             to = SquareOf(pawnsDouble);
                             from = to + PAWN_DOUBLE_PUSH[!side];
-                            const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                            const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                             const BoardState newBoard = board.makeDoublePush<side>(from, to, board, discoverMask);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
@@ -433,7 +433,7 @@ namespace movegen {
                     Bitloop(bitboard)
                     {
                         from = SquareOf(bitboard);
-                        const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                        const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                         attacks = getKnightAttacks(from) & validSquares;
                         if constexpr (depth == 1) nodes += Bitcount(attacks);
@@ -449,7 +449,7 @@ namespace movegen {
                     Bitloop(bitboard)
                     {
                         from = SquareOf(bitboard);
-                        const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                        const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                         attacks = getBishopAttacks(from, board.occB) & validSquares;
                         if constexpr (depth == 1) nodes += Bitcount(attacks);
@@ -465,7 +465,7 @@ namespace movegen {
                     Bitloop(bitboard)
                     {
                         from = SquareOf(bitboard);
-                        const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                        const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                         attacks = getRookAttacks(from, board.occB) & validSquares;
                         if constexpr (depth == 1) nodes += Bitcount(attacks);
@@ -543,21 +543,21 @@ namespace movegen {
                 Bitloop(promosLeft) {
                     to = SquareOf(promosLeft);
                     from = to + PAWN_RIGHT[!side];
-                    const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                    const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                     makePromotionMoves<depth, side, kMMoved, kEMoved, true>(nodes, from, to, board, discoverMask);
                 }
                 Bitloop(promosRight) {
                     to = SquareOf(promosRight);
                     from = to + PAWN_LEFT[!side];
-                    const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                    const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                     makePromotionMoves<depth, side, kMMoved, kEMoved, true>(nodes, from, to, board, discoverMask);
                 }
                 Bitloop(promosFwd) {
                     to = SquareOf(promosFwd);
                     from = to + PAWN_PUSH[!side];
-                    const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                    const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                     makePromotionMoves<depth, side, kMMoved, kEMoved, false>(nodes, from, to, board, discoverMask);
                 }
@@ -572,7 +572,7 @@ namespace movegen {
             Bitloop(pawnsLeft) {
                 to = SquareOf(pawnsLeft);
                 from = to + PAWN_RIGHT[!side];
-                const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                 const BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, discoverMask);
                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
@@ -582,7 +582,7 @@ namespace movegen {
             Bitloop(pawnsRight) {
                 to = SquareOf(pawnsRight);
                 from = to + PAWN_LEFT[!side];
-                const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                 const BoardState newBoard = board.make<Piece::Pawn, side, true>(from, to, board, discoverMask);
                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
@@ -592,7 +592,7 @@ namespace movegen {
             Bitloop(pawnsFwd) {
                 to = SquareOf(pawnsFwd);
                 from = to + PAWN_PUSH[!side];
-                const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                 const BoardState newBoard = board.make<Piece::Pawn, side, false>(from, to, board, discoverMask);
                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
@@ -602,7 +602,7 @@ namespace movegen {
             Bitloop(pawnsDouble) {
                 to = SquareOf(pawnsDouble);
                 from = to + PAWN_DOUBLE_PUSH[!side];
-                const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+                const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
                 const BoardState newBoard = board.makeDoublePush<side>(from, to, board, discoverMask);
                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
@@ -619,7 +619,7 @@ namespace movegen {
         Bitloop(bitboard)
         {
             from = SquareOf(bitboard);
-            const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+            const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
             attacks = getKnightAttacks(from) & ~board.occM;
             if constexpr (depth == 1) nodes += Bitcount(attacks);
@@ -635,7 +635,7 @@ namespace movegen {
         Bitloop(bitboard)
         {
             from = SquareOf(bitboard);
-            const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+            const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
             attacks = getBishopAttacks(from, board.occB) & ~board.occM;
             if constexpr (depth == 1) nodes += Bitcount(attacks);
@@ -646,7 +646,7 @@ namespace movegen {
         Bitloop(bitboard)
         {
             from = SquareOf(bitboard);
-            const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+            const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
             attacks = validAttacksMasks[depth][from];
             if constexpr (depth == 1) nodes += Bitcount(attacks);
@@ -665,7 +665,7 @@ namespace movegen {
         Bitloop(bitboard)
         {
             from = SquareOf(bitboard);
-            const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+            const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
             attacks = getRookAttacks(from, board.occB) & ~board.occM;
             if constexpr (depth == 1) nodes += Bitcount(attacks);
@@ -676,7 +676,7 @@ namespace movegen {
         Bitloop(bitboard)
         {
             from = SquareOf(bitboard);
-            const U64 discoverMask = getDiscoverMask<depth>(from, discoverers);
+            const U64 discoverMask = getDiscoverMask<depth>(from, disc);
 
             attacks = validAttacksMasks[depth][from];
             if constexpr (depth == 1) nodes += Bitcount(attacks);
