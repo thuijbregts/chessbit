@@ -25,28 +25,10 @@ namespace movegen {
     alignas(64) static inline U64 validAttacksMasks[100][64];
     alignas(64) static inline U64 discoverMasks[100][65];
 
-    template <bool side>
-    ForceInline U64 pawnsAtkLeft(U64 pM) {
-        if constexpr (side == white) return pM >> 9;
-        return pM << 7;
-    }
-
-    template <bool side>
-    ForceInline U64 pawnsAtkRight(U64 pM) {
-        if constexpr (side == white) return pM >> 7;
-        return pM << 9;
-    }
-
-    template <bool side>
-    ForceInline U64 pawnsAtkForward(U64 pM) {
-        if constexpr (side == white) return pM >> 8;
-        return pM << 8;
-    }
-
     template <bool side, bool kMMoved>
     ForceInline U64 enemyAttacks(const BoardState& board) {
         U64 attacks = 0ULL;
-        attacks |= pawnsAtkLeft<!side>(board.pE & ~FIRST_COL) | pawnsAtkRight<!side>(board.pE & ~LAST_COL);
+        attacks |= pawnsAtkLeft<!side>(board.pE) | pawnsAtkRight<!side>(board.pE);
         attacks |= board.kEA;
 
         //remove king to avoid collisions, as it should not be considered when checking for threats
@@ -92,15 +74,15 @@ namespace movegen {
     }
 
     template <int depth>
-    ForceInline U64 findPins(U64 sE, U64 occB, int kMS) {
+    ForceInline U64 findPins(U64 sE, const BoardState& board) {
         U64 pins = 0ULL;
 
         Bitloop(sE)
         {
             int sS = SquareOf(sE);
 
-            U64 pinMask = PIN_MASKS[kMS][sS];
-            U64 pin = pinMask & occB;
+            U64 pinMask = PIN_MASKS[board.kMS][sS];
+            U64 pin = pinMask & board.occB;
 
             if (Bitcount(pin) == 1) {
                 U64 attacks = pinMask | SQUARE_BITS[sS];
@@ -114,12 +96,12 @@ namespace movegen {
 
     template <int depth>
     ForceInline U64 findBishopPins(const BoardState& board) {
-        return findPins<depth>((board.bE | board.qE) & BISHOP_XRAYS[board.kMS] & ~board.checks, board.occB, board.kMS);
+        return findPins<depth>((board.bE | board.qE) & BISHOP_XRAYS[board.kMS] & ~board.checks, board);
     }
 
     template <int depth>
     ForceInline U64 findRookPins(const BoardState& board) {
-        return findPins<depth>((board.rE | board.qE) & ROOK_XRAYS[board.kMS] & ~board.checks, board.occB, board.kMS);
+        return findPins<depth>((board.rE | board.qE) & ROOK_XRAYS[board.kMS] & ~board.checks, board);
     }
 
     template <int depth>
@@ -134,7 +116,7 @@ namespace movegen {
             U64 pinMask = PIN_MASKS[board.kES][sS];
             U64 pin = pinMask & board.occB;
 
-            if (Bitcount(pin) == 1) [[unlikely]] {
+            if (!BitReset(pin) && (pin & board.occM)) [[unlikely]] {
                 U64 attacks = pinMask | SQUARE_BITS[sS];
                 discoverMasks[depth][SquareOf(pin)] = attacks ^ pin;
                 disc |= pin;
@@ -213,7 +195,7 @@ namespace movegen {
         else makeMoves<depth, side, (kMoved | KING_MOVED[side]), Piece::King>(nodes, attacks, board.kMS, board, getDiscoverMask<depth>(board.kMS, disc));
 
         if (board.checks) [[unlikely]] {
-            if (Bitcount(board.checks) == 1) [[likely]] {
+            if (!BitReset(board.checks)) [[likely]] {
                 int checkSquare = SquareOf(board.checks);
 
                 const U64 bPins = findBishopPins<depth>(board);
@@ -340,8 +322,8 @@ namespace movegen {
                     */
                     const U64 pawns = board.pM & ~allPins;
 
-                    U64 pawnsLeft = pawnsAtkLeft<side>(pawns & ~FIRST_COL) & board.occE & validSquares;
-                    U64 pawnsRight = pawnsAtkRight<side>(pawns & ~LAST_COL) & board.occE & validSquares;
+                    U64 pawnsLeft = pawnsAtkLeft<side>(pawns) & board.occE & validSquares;
+                    U64 pawnsRight = pawnsAtkRight<side>(pawns) & board.occE & validSquares;
                     U64 pawnsFwd = pawnsAtkForward<side>(pawns) & ~board.occB;
                     U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~board.occB & validSquares;
                     pawnsFwd &= validSquares;
@@ -503,9 +485,9 @@ namespace movegen {
         const U64 pawnsAtk = board.pM & ~rPins;
         const U64 pawnsPush = board.pM & ~bPins;
 
-        const U64 pawnsLeftAll = pawnsAtkLeft<side>(pawnsAtk & ~bPins & ~FIRST_COL) | (pawnsAtkLeft<side>(pawnsAtk & bPins & ~FIRST_COL) & bPins);
+        const U64 pawnsLeftAll = pawnsAtkLeft<side>(pawnsAtk & ~bPins) | (pawnsAtkLeft<side>(pawnsAtk & bPins) & bPins);
         U64 pawnsLeft = pawnsLeftAll & board.occE;
-        const U64 pawnsRightAll = pawnsAtkRight<side>(pawnsAtk & ~bPins & ~LAST_COL) | (pawnsAtkRight<side>(pawnsAtk & bPins & ~LAST_COL) & bPins);
+        const U64 pawnsRightAll = pawnsAtkRight<side>(pawnsAtk & ~bPins) | (pawnsAtkRight<side>(pawnsAtk & bPins) & bPins);
         U64 pawnsRight = pawnsRightAll & board.occE;
         U64 pawnsFwd = (pawnsAtkForward<side>(pawnsPush & ~rPins) & ~board.occB) | (pawnsAtkForward<side>(pawnsPush & rPins) & ~board.occB & rPins);
         U64 pawnsDouble = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]) & ~board.occB;

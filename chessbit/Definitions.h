@@ -19,6 +19,7 @@ namespace defs {
 #define Bitloop(X) for(;X; X = _blsr_u64(X))
 #define BitReset(X) _blsr_u64(X)
 #define SquareOf(X) _tzcnt_u64(X)
+#define SquareBit(X) _blsi_u64(X)
 #define Ms1b(X) (63 - __lzcnt64(X))
 #define Bitcount(X) __popcnt64(X)
 #define GetBit(X, S) (X & 1ULL << S)//SQUARE_BITS[S]) same perf
@@ -879,6 +880,31 @@ namespace defs {
 	template <bool side>
 	ForceInline U64 getRookAttackZoneCastle(U64 occupancy) {
 		return ROOK_ATTACK_ZONE_CASTLE[side][_pext_u64(occupancy, ROOK_ATTACK_ZONE_CASTLE_MASK[side])];
+	}
+
+	template <bool side>
+	ForceInline U64 pawnsAtkLeft(U64 pM) {
+		pM &= ~FIRST_COL;
+		if constexpr (side == white) return pM >> 9;
+		return pM << 7;
+	}
+
+	template <bool side>
+	ForceInline U64 pawnsAtkRight(U64 pM) {
+		pM &= ~LAST_COL;
+		if constexpr (side == white) return pM >> 7;
+		return pM << 9;
+	}
+
+	template <bool side>
+	ForceInline U64 pawnsAtkForward(U64 pM) {
+		if constexpr (side == white) return pM >> 8;
+		return pM << 8;
+	}
+
+	template <bool side>
+	ForceInline U64 pawnsAtkBoth(U64 pM) {
+		return pawnsAtkLeft<side>(pM) | pawnsAtkRight<side>(pM);
 	}
 }
 
