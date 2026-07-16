@@ -46,7 +46,7 @@ private:
 	void executeBenchmark(int depth, int amount, bool print);
 	void compare();
 	U64 generateMoves(int depth);
-	template <bool side, bool kMMoved, bool kEMoved>
+	template <bool side, uint8_t kMoved>
 	U64 generateMoves(int depth);
 	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);
 	void pieces();

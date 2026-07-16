@@ -235,6 +235,8 @@ namespace defs {
 
 	constexpr bool CAPTURE_ONLY[] = { true, true, false, false, false, false };
 
+	constexpr uint8_t KING_MOVED[] = { 1, 2, 3 };
+
 	constexpr int CASTLE_K = 0;
 	constexpr int CASTLE_Q = 1;
 
