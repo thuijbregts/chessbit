@@ -59,7 +59,7 @@ namespace bstate {
         }
 
         template <Piece piece, bool side, bool capture, uint8_t kMoved>
-        ForceInline BoardState make(int from, int to, const BoardState& board, U64 discoverMask) noexcept {
+        ForceInline BoardState make(int from, int to, const BoardState& board, U64 discovers) noexcept {
             const U64 t = (1ULL << to);
             const U64 move = (1ULL << from) | t;
 
@@ -109,7 +109,12 @@ namespace bstate {
                 if constexpr (!kMMoved) casPerms &= NO_CASTLE[side];
             }
 
-            if constexpr (Piece::Queen != piece) if (discoverMask && !(discoverMask & t)) [[unlikely]] checks |= discoverMask & occM;
+            if constexpr (Piece::Queen != piece) {
+                if (discovers) [[unlikely]] {
+                    U64 disc = discovers & PIN_RAYS[board.kES][from];
+                    if (disc && !(PIN_RAYS[board.kES][to] & disc)) [[unlikely]] checks |= disc;
+                }
+            }
 
             if constexpr (capture) {
                 occE ^= t;
@@ -129,7 +134,7 @@ namespace bstate {
         }
 
         template <Piece piece, bool side, bool capture, uint8_t kMoved>
-        ForceInline BoardState makePromotion(int from, int to, const BoardState& board, U64 discoverMask) noexcept {
+        ForceInline BoardState makePromotion(int from, int to, const BoardState& board, U64 discovers) noexcept {
             const U64 f = (1ULL << from);
             const U64 t = (1ULL << to);
 
@@ -167,7 +172,7 @@ namespace bstate {
                 if ((QUEEN_XRAYS[board.kES] & t) && !(PIN_MASKS[board.kES][to] & occB)) [[unlikely]] checks |= t;
             }
 
-            if (discoverMask) [[unlikely]] checks |= discoverMask & occM;
+            if (discovers) [[unlikely]] checks |= discovers & PIN_RAYS[board.kES][from];
 
             if constexpr (capture) {
                 occE ^= t;
@@ -186,7 +191,7 @@ namespace bstate {
         }
 
         template <bool side>
-        ForceInline BoardState makeDoublePush(int from, int to, const BoardState& board, U64 discoverMask) noexcept {
+        ForceInline BoardState makeDoublePush(int from, int to, const BoardState& board, U64 discovers) noexcept {
             const U64 t = (1ULL << to);
             const U64 move = (1ULL << from) | t;
 
@@ -196,8 +201,12 @@ namespace bstate {
             const U64 occB = board.occB ^ move;
 
             U64 checks;
-            if (discoverMask && !(discoverMask & t)) [[unlikely]] checks = discoverMask & occM;
-            else checks = (PAWN_CAPTURES[!side][board.kES] & pM);
+            if (discovers) [[unlikely]] {
+                U64 disc = discovers & PIN_RAYS[board.kES][from] & ~FILE_BIT[from];
+                if (disc) [[unlikely]]  checks = disc;
+                else                    checks = (PAWN_CAPTURES[!side][board.kES] & pM);
+            }
+            else                        checks = (PAWN_CAPTURES[!side][board.kES] & pM);
 
             const int8_t eP = from + PAWN_PUSH[side];
 
