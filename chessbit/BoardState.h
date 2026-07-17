@@ -111,8 +111,8 @@ namespace bstate {
 
             if constexpr (Piece::Queen != piece) {
                 if (discovers) [[unlikely]] {
-                    U64 disc = discovers & PIN_RAYS[board.kES][from];
-                    if (disc && !(PIN_RAYS[board.kES][to] & disc)) [[unlikely]] checks |= disc;
+                    U64 disc = discovers & DISCOVER_RAYS[board.kES][from];
+                    if (disc && !(DISCOVER_RAYS[board.kES][to] & disc)) [[unlikely]] checks |= disc;
                 }
             }
 
@@ -172,7 +172,7 @@ namespace bstate {
                 if ((QUEEN_XRAYS[board.kES] & t) && !(PIN_MASKS[board.kES][to] & occB)) [[unlikely]] checks |= t;
             }
 
-            if (discovers) [[unlikely]] checks |= discovers & PIN_RAYS[board.kES][from];
+            if (discovers) [[unlikely]] checks |= discovers & DISCOVER_RAYS[board.kES][from];
 
             if constexpr (capture) {
                 occE ^= t;
@@ -202,7 +202,7 @@ namespace bstate {
 
             U64 checks;
             if (discovers) [[unlikely]] {
-                U64 disc = discovers & PIN_RAYS[board.kES][from] & ~FILE_BIT[from];
+                U64 disc = discovers & DISCOVER_RAYS[board.kES][from] & ~FILE_BIT[from];
                 if (disc) [[unlikely]]  checks = disc;
                 else                    checks = (PAWN_CAPTURES[!side][board.kES] & pM);
             }

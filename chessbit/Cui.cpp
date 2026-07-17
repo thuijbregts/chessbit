@@ -48,7 +48,7 @@ void Cui::start() {
 
 void Cui::initMoves() {
 	movesArray.reset();
-	generateMoves(0, game::moves[game::count]->board, movesArray);
+	generateMoves(0, game::board, movesArray);
 }
 
 bool Cui::isCommand(vector<string>& cmd) {
@@ -203,7 +203,7 @@ void Cui::play() {
 }
 
 void Cui::undo() {
-	if (game::count > 0) {
+	if (game::moveCount > 0) {
 		game::unmakeMove();
 		initMoves();
 	}
@@ -222,7 +222,7 @@ void Cui::showMoves() {
 }
 
 void Cui::printBoard() {
-	game::printBoard(game::moves[game::count]->board);
+	game::printBoard(game::board);
 }
 
 void Cui::reset() {
@@ -278,7 +278,7 @@ void Cui::perftFast(int depth) {
 	high_resolution_clock::time_point start, end;
 
 	start = high_resolution_clock::now();
-	U64 nodes = generateMoves(depth, game::moves[game::count]->board, movesArray);
+	U64 nodes = generateMoves(depth, game::board, movesArray);
 	end = high_resolution_clock::now();
 
 	long long total = duration_cast<microseconds>(end - start).count();
@@ -316,34 +316,22 @@ void Cui::perftDivide(int depth) {
 
 __forceinline U64 Cui::divide(int depth) {
 	U64 nodes = 0;
+	U64 current = 0;
 
+	initMoves();
 	int size = movesArray.size();
 	if (depth == 1) {
 		return size;
 	}
-	vector<future<U64>> futures;
-	MoveInfo* m = movesArray.moves();
-	MoveArray* arr = new MoveArray[size];
-	for (int i = 0; i < size; i++) {
-		generateMoves(0, m[i].board, arr[i]);
-		MoveInfo* m1 = arr[i].moves();
-		MoveArray* arr1 = new MoveArray[arr[i].size()];
-		for (int j = 0; j < arr[i].size(); j++) {
-			generateMoves(0, m1[j].board, arr1[j]);
-			MoveInfo* m2 = arr1[j].moves();
-			for (int k = 0; k < arr1[j].size(); k++) {
-				futures.push_back(async(launch::async, [this, depth, move = m2[k]]() {
-					MoveArray dummy;
-					U64 current = generateMoves(depth - 3, move.board, dummy);
-					//printf("%s %llu\n", utils::getMoveSimple(move).c_str(), current);
-					return current;
-					}));
-			}
-		}
-	}
 
-	for (auto& f : futures) {
-		nodes += f.get();
+	MoveInfo* m = movesArray.moves();
+
+	for (int i = 0; i < size; i++) {
+		game::makeMove(m[i]);
+		current = generateMoves(depth - 1, game::board, movesArray);
+		nodes += current;
+		printf("%s %llu\n", utils::getMoveSimple(m[i]).c_str(), current);
+		game::unmakeMove();
 	}
 
 	return nodes;
@@ -362,7 +350,7 @@ void Cui::test() {
 		cout << "Depth:\t\t\t" << test.depth << endl;
 		setFen(test.fen);
 		start = high_resolution_clock::now();
-		nodes = generateMoves(test.depth, game::moves[game::count]->board, movesArray);
+		nodes = generateMoves(test.depth, game::board, movesArray);
 		end = high_resolution_clock::now();
 
 		long long total = duration_cast<microseconds>(end - start).count();
@@ -403,7 +391,7 @@ void Cui::perftsuite() {
 
 			auto perftvals = test::GetElements(v[i], ' ');
 			U64 expected = static_cast<U64>(strtol(perftvals[1].c_str(), NULL, 10));
-			U64 result = generateMoves(i, game::moves[game::count]->board, movesArray);
+			U64 result = generateMoves(i, game::board, movesArray);
 			string status = expected == result ? "OK" : "ERROR";
 			if (expected == result) {
 				cout << "   " << i << ": " << result << " " << status << endl;
@@ -471,7 +459,7 @@ void Cui::executeBenchmark(int depth, int amount, bool print) {
 
 	for (int i = 0; i < amount; i++) {
 		start = high_resolution_clock::now();
-		auto volatile result = generateMoves(depth, game::moves[game::count]->board, movesArray);
+		auto volatile result = generateMoves(depth, game::board, movesArray);
 		end = high_resolution_clock::now();
 
 		total = duration_cast<microseconds>(end - start).count();
@@ -501,7 +489,7 @@ void Cui::compare() {
 	for (int i = 1; i <= 7; i++)
 	{
 		start = high_resolution_clock::now();
-		result = generateMoves(i, game::moves[game::count]->board, movesArray);
+		result = generateMoves(i, game::board, movesArray);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
 		cout << "Perft Start " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
@@ -513,7 +501,7 @@ void Cui::compare() {
 	for (int i = 1; i <= 6; i++)
 	{
 		start = high_resolution_clock::now();
-		result = generateMoves(i, game::moves[game::count]->board, movesArray);
+		result = generateMoves(i, game::board, movesArray);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
 		cout << "Perft Kiwi " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
@@ -525,7 +513,7 @@ void Cui::compare() {
 	for (int i = 1; i <= 6; i++)
 	{
 		start = high_resolution_clock::now();
-		result = generateMoves(i, game::moves[game::count]->board, movesArray);
+		result = generateMoves(i, game::board, movesArray);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
 		cout << "Perft Midgame " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
@@ -537,7 +525,7 @@ void Cui::compare() {
 	for (int i = 1; i <= 7; i++)
 	{
 		start = high_resolution_clock::now();
-		result = generateMoves(i, game::moves[game::count]->board, movesArray);
+		result = generateMoves(i, game::board, movesArray);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
 		cout << "Perft Endgame " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
@@ -633,12 +621,12 @@ void Cui::iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q) {
 
 void Cui::pieces() {
 	cout << "WHITE:" << endl;
-	if (game::moves[game::count]->board.side == white) iteratePieces(game::moves[game::count]->board.pM, game::moves[game::count]->board.nM, game::moves[game::count]->board.bM, game::moves[game::count]->board.rM, game::moves[game::count]->board.qM);
-	else						iteratePieces(game::moves[game::count]->board.pE, game::moves[game::count]->board.nE, game::moves[game::count]->board.bE, game::moves[game::count]->board.rE, game::moves[game::count]->board.qE);
+	if (game::board.side == white) iteratePieces(game::board.pM, game::board.nM, game::board.bM, game::board.rM, game::board.qM);
+	else						iteratePieces(game::board.pE, game::board.nE, game::board.bE, game::board.rE, game::board.qE);
 
 	cout << "BLACK:" << endl;
-	if (game::moves[game::count]->board.side == black) iteratePieces(game::moves[game::count]->board.pM, game::moves[game::count]->board.nM, game::moves[game::count]->board.bM, game::moves[game::count]->board.rM, game::moves[game::count]->board.qM);
-	else						iteratePieces(game::moves[game::count]->board.pE, game::moves[game::count]->board.nE, game::moves[game::count]->board.bE, game::moves[game::count]->board.rE, game::moves[game::count]->board.qE);
+	if (game::board.side == black) iteratePieces(game::board.pM, game::board.nM, game::board.bM, game::board.rM, game::board.qM);
+	else						iteratePieces(game::board.pE, game::board.nE, game::board.bE, game::board.rE, game::board.qE);
 }
 
 void Cui::help() {
