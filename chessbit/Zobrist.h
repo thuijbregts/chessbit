@@ -484,15 +484,18 @@ namespace zobrist {
 		low ^= EN_PASSANT1[FILES[prevEP]];
 
 		if constexpr (capture) {
-			high ^= CASTLINGS[prevCP];
-			low ^= CASTLINGS1[prevCP];
-			high ^= CASTLINGS[casPerms];
-			low ^= CASTLINGS1[casPerms];
-
 			U64 t = (1ULL << to);
 			if		(nE & t) { high ^= KNIGHTS[!side][to];	low ^= KNIGHTS1[!side][to]; }
 			else if (bE & t) { high ^= BISHOPS[!side][to];	low ^= BISHOPS1[!side][to]; }
-			else if (rE & t) { high ^= ROOKS[!side][to];	low ^= ROOKS1[!side][to]; }
+			else if (rE & t) {
+				high ^= CASTLINGS[prevCP];
+				low ^= CASTLINGS1[prevCP];
+				high ^= CASTLINGS[casPerms];
+				low ^= CASTLINGS1[casPerms];
+
+				high ^= ROOKS[!side][to];	
+				low ^= ROOKS1[!side][to];
+			}
 			else if (qE & t) { high ^= QUEENS[!side][to];	low ^= QUEENS1[!side][to]; }
 		}
 

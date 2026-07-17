@@ -1,16 +1,11 @@
 #pragma once
 #include "Definitions.h"
-#include <atomic>
 
 using namespace defs;
 
 namespace tt {
 
-    struct Entry {
-        U64 high;
-        U64 low;
-        U64 nodes;
-    };
+    struct alignas(16) Entry { U64 key; U64 nodes; };
 
     constexpr U64 SIZE = 1ULL << 28;
     constexpr U64 MASK = SIZE - 1;
@@ -26,9 +21,8 @@ namespace tt {
 
     template <int depth>
     __forceinline static void write(Zobrist zobrist, U64 nodes) {
-        Entry& e = TT[depth][zobrist.high & MASK];
-        e.high = zobrist.high ^ nodes;
-        e.low = zobrist.low ^ nodes;
+        Entry& e = TT[depth][zobrist.low & MASK];
+        e.key = zobrist.high ^ nodes;
         e.nodes = nodes;
     }
 }
