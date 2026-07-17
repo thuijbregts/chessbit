@@ -144,7 +144,6 @@ namespace bstate {
 
             constexpr bool kEMoved = kMoved & KING_MOVED[!side];
 
-            //meme raisonnement que dans make() : occB post-coup == (occM | occE) pre-capture
             U64 occB;
             if constexpr (capture) occB = board.occB ^ f;
             else                   occB = board.occB ^ (f | t);

@@ -20,7 +20,7 @@ namespace tt {
     }
 
     template <int depth>
-    __forceinline static void write(Zobrist zobrist, U64 nodes) {
+    ForceInline void write(Zobrist zobrist, U64 nodes) {
         Entry& e = TT[depth][zobrist.low & MASK];
         e.key = zobrist.high ^ nodes;
         e.nodes = nodes;
