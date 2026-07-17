@@ -557,69 +557,69 @@ void Cui::compare() {
 U64 Cui::generateMoves(int depth, const BoardState& board, MoveArray& movesArray) {
 	if (board.side == white) {
 		switch (board.casPerms) {
-		case 0b0000: return generateMoves<white, true, true>(depth, board, movesArray);
-		case 0b0001: return generateMoves<white, false, true>(depth, board, movesArray);
-		case 0b0010: return generateMoves<white, false, true>(depth, board, movesArray);
-		case 0b0011: return generateMoves<white, false, true>(depth, board, movesArray);
-		case 0b0100: return generateMoves<white, true, false>(depth, board, movesArray);
-		case 0b0101: return generateMoves<white, false, false>(depth, board, movesArray);
-		case 0b0110: return generateMoves<white, false, false>(depth, board, movesArray);
-		case 0b0111: return generateMoves<white, false, false>(depth, board, movesArray);
-		case 0b1000: return generateMoves<white, true, false>(depth, board, movesArray);
-		case 0b1001: return generateMoves<white, false, false>(depth, board, movesArray);
-		case 0b1010: return generateMoves<white, false, false>(depth, board, movesArray);
-		case 0b1011: return generateMoves<white, false, false>(depth, board, movesArray);
-		case 0b1100: return generateMoves<white, true, false>(depth, board, movesArray);
-		case 0b1101: return generateMoves<white, false, false>(depth, board, movesArray);
-		case 0b1110: return generateMoves<white, false, false>(depth, board, movesArray);
-		default: return generateMoves<white, false, false>(depth, board, movesArray);
+		case 0b0000: return generateMoves<white, KING_MOVED[both]>(depth, board, movesArray);
+		case 0b0001: return generateMoves<white, KING_MOVED[black]>(depth, board, movesArray);
+		case 0b0010: return generateMoves<white, KING_MOVED[black]>(depth, board, movesArray);
+		case 0b0011: return generateMoves<white, KING_MOVED[black]>(depth, board, movesArray);
+		case 0b0100: return generateMoves<white, KING_MOVED[white]>(depth, board, movesArray);
+		case 0b0101: return generateMoves<white, 0>(depth, board, movesArray);
+		case 0b0110: return generateMoves<white, 0>(depth, board, movesArray);
+		case 0b0111: return generateMoves<white, 0>(depth, board, movesArray);
+		case 0b1000: return generateMoves<white, KING_MOVED[white]>(depth, board, movesArray);
+		case 0b1001: return generateMoves<white, 0>(depth, board, movesArray);
+		case 0b1010: return generateMoves<white, 0>(depth, board, movesArray);
+		case 0b1011: return generateMoves<white, 0>(depth, board, movesArray);
+		case 0b1100: return generateMoves<white, KING_MOVED[white]>(depth, board, movesArray);
+		case 0b1101: return generateMoves<white, 0>(depth, board, movesArray);
+		case 0b1110: return generateMoves<white, 0>(depth, board, movesArray);
+		default: return generateMoves<white, 0>(depth, board, movesArray);
 		}
 
 	}
 	else {
 		switch (board.casPerms) {
-		case 0b0000: return generateMoves<black, true, true>(depth, board, movesArray);
-		case 0b0001: return generateMoves<black, true, false>(depth, board, movesArray);
-		case 0b0010: return generateMoves<black, true, false>(depth, board, movesArray);
-		case 0b0011: return generateMoves<black, true, false>(depth, board, movesArray);
-		case 0b0100: return generateMoves<black, false, true>(depth, board, movesArray);
-		case 0b0101: return generateMoves<black, false, false>(depth, board, movesArray);
-		case 0b0110: return generateMoves<black, false, false>(depth, board, movesArray);
-		case 0b0111: return generateMoves<black, false, false>(depth, board, movesArray);
-		case 0b1000: return generateMoves<black, false, true>(depth, board, movesArray);
-		case 0b1001: return generateMoves<black, false, false>(depth, board, movesArray);
-		case 0b1010: return generateMoves<black, false, false>(depth, board, movesArray);
-		case 0b1011: return generateMoves<black, false, false>(depth, board, movesArray);
-		case 0b1100: return generateMoves<black, false, true>(depth, board, movesArray);
-		case 0b1101: return generateMoves<black, false, false>(depth, board, movesArray);
-		case 0b1110: return generateMoves<black, false, false>(depth, board, movesArray);
-		default: return generateMoves<black, false, false>(depth, board, movesArray);
+		case 0b0000: return generateMoves<black, KING_MOVED[both]>(depth, board, movesArray);
+		case 0b0001: return generateMoves<black, KING_MOVED[black]>(depth, board, movesArray);
+		case 0b0010: return generateMoves<black, KING_MOVED[black]>(depth, board, movesArray);
+		case 0b0011: return generateMoves<black, KING_MOVED[black]>(depth, board, movesArray);
+		case 0b0100: return generateMoves<black, KING_MOVED[white]>(depth, board, movesArray);
+		case 0b0101: return generateMoves<black, 0>(depth, board, movesArray);
+		case 0b0110: return generateMoves<black, 0>(depth, board, movesArray);
+		case 0b0111: return generateMoves<black, 0>(depth, board, movesArray);
+		case 0b1000: return generateMoves<black, KING_MOVED[white]>(depth, board, movesArray);
+		case 0b1001: return generateMoves<black, 0>(depth, board, movesArray);
+		case 0b1010: return generateMoves<black, 0>(depth, board, movesArray);
+		case 0b1011: return generateMoves<black, 0>(depth, board, movesArray);
+		case 0b1100: return generateMoves<black, KING_MOVED[white]>(depth, board, movesArray);
+		case 0b1101: return generateMoves<black, 0>(depth, board, movesArray);
+		case 0b1110: return generateMoves<black, 0>(depth, board, movesArray);
+		default: return generateMoves<black, 0>(depth, board, movesArray);
 		}
 	}
 }
 
-template <bool side, bool kMMoved, bool kEMoved>
+template <bool side, uint8_t kMoved>
 U64 Cui::generateMoves(int depth, const BoardState& board, MoveArray& movesArray) {
 	switch (depth) {
-	case 18: return PerftGenerator<18, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 17: return PerftGenerator<17, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 16: return PerftGenerator<16, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 15: return PerftGenerator<15, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 14: return PerftGenerator<14, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 13: return PerftGenerator<13, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 12: return PerftGenerator<12, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 11: return PerftGenerator<11, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 10: return PerftGenerator<10, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 9: return PerftGenerator<9, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 8: return PerftGenerator<8, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 7: return PerftGenerator<7, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 6: return PerftGenerator<6, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 5: return PerftGenerator<5, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 4: return PerftGenerator<4, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 3: return PerftGenerator<3, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 2: return PerftGenerator<2, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	case 1: return PerftGenerator<1, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
-	default: return PerftGenerator<0, side, kMMoved, kEMoved>::generateMoves(board, movesArray);
+	case 18: return PerftGenerator<18, side, kMoved>::generateMoves(board, movesArray);
+	case 17: return PerftGenerator<17, side, kMoved>::generateMoves(board, movesArray);
+	case 16: return PerftGenerator<16, side, kMoved>::generateMoves(board, movesArray);
+	case 15: return PerftGenerator<15, side, kMoved>::generateMoves(board, movesArray);
+	case 14: return PerftGenerator<14, side, kMoved>::generateMoves(board, movesArray);
+	case 13: return PerftGenerator<13, side, kMoved>::generateMoves(board, movesArray);
+	case 12: return PerftGenerator<12, side, kMoved>::generateMoves(board, movesArray);
+	case 11: return PerftGenerator<11, side, kMoved>::generateMoves(board, movesArray);
+	case 10: return PerftGenerator<10, side, kMoved>::generateMoves(board, movesArray);
+	case 9: return PerftGenerator<9, side, kMoved>::generateMoves(board, movesArray);
+	case 8: return PerftGenerator<8, side, kMoved>::generateMoves(board, movesArray);
+	case 7: return PerftGenerator<7, side, kMoved>::generateMoves(board, movesArray);
+	case 6: return PerftGenerator<6, side, kMoved>::generateMoves(board, movesArray);
+	case 5: return PerftGenerator<5, side, kMoved>::generateMoves(board, movesArray);
+	case 4: return PerftGenerator<4, side, kMoved>::generateMoves(board, movesArray);
+	case 3: return PerftGenerator<3, side, kMoved>::generateMoves(board, movesArray);
+	case 2: return PerftGenerator<2, side, kMoved>::generateMoves(board, movesArray);
+	case 1: return PerftGenerator<1, side, kMoved>::generateMoves(board, movesArray);
+	default: return PerftGenerator<0, side, kMoved>::generateMoves(board, movesArray);
 	}
 }
 

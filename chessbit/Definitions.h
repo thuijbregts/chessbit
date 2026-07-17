@@ -18,7 +18,7 @@ namespace defs {
 #define Pos6 "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10"
 
 #define Bitloop(X) for(;X; X = _blsr_u64(X))
-#define BitReset(X) _blsr_u64(X))
+#define BitReset(X) _blsr_u64(X)
 #define SquareOf(X) _tzcnt_u64(X)
 #define Ms1b(X) (63 - __lzcnt64(X))
 #define Bitcount(X) __popcnt64(X)
@@ -248,6 +248,8 @@ namespace defs {
 	const bool* const DOUBLE_PUSH_RANK[2] = { RANK_2, RANK_7 };
 
 	constexpr bool CAPTURE_ONLY[] = { true, true, false, false, false, false };
+
+	constexpr uint8_t KING_MOVED[] = { 1, 2, 3 };
 
 	constexpr int CASTLE_K = 0;
 	constexpr int CASTLE_Q = 1;
@@ -953,6 +955,31 @@ namespace defs {
 	template <bool side>
 	ForceInline U64 getRookAttackZoneCastle(U64 occupancy) {
 		return ROOK_ATTACK_ZONE_CASTLE[side][_pext_u64(occupancy, ROOK_ATTACK_ZONE_CASTLE_MASK[side])];
+	}
+
+	template <bool side>
+	ForceInline U64 pawnsAtkLeft(U64 pM) {
+		pM &= ~FIRST_COL;
+		if constexpr (side == white) return pM >> 9;
+		return pM << 7;
+	}
+
+	template <bool side>
+	ForceInline U64 pawnsAtkRight(U64 pM) {
+		pM &= ~LAST_COL;
+		if constexpr (side == white) return pM >> 7;
+		return pM << 9;
+	}
+
+	template <bool side>
+	ForceInline U64 pawnsAtkForward(U64 pM) {
+		if constexpr (side == white) return pM >> 8;
+		return pM << 8;
+	}
+
+	template <bool side>
+	ForceInline U64 pawnsAtkBoth(U64 pM) {
+		return pawnsAtkLeft<side>(pM) | pawnsAtkRight<side>(pM);
 	}
 }
 

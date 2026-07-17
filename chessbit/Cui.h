@@ -45,7 +45,7 @@ private:
 	void compare();
 
 	U64 generateMoves(int depth, const BoardState& board, MoveArray& movesArray);
-	template <bool side, bool kMMoved, bool kEMoved>
+	template <bool side, uint8_t kMoved>
 	U64 generateMoves(int depth, const BoardState& board, MoveArray& movesArray);
 
 	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);
