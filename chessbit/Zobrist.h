@@ -437,12 +437,12 @@ namespace zobrist {
 		U64 high = prevZobrist.high;
 		U64 low = prevZobrist.low;
 
-		if constexpr (Piece::Pawn == piece) {	high ^= PAWNS[side][from] | PAWNS[side][to];		low ^= PAWNS1[side][from] | PAWNS1[side][to]; }
-		if constexpr (Piece::Knight == piece) {	high ^= KNIGHTS[side][from] | KNIGHTS[side][to];	low ^= KNIGHTS1[side][from] | KNIGHTS1[side][to]; }
-		if constexpr (Piece::Bishop == piece) {	high ^= BISHOPS[side][from] | BISHOPS[side][to];	low ^= BISHOPS1[side][from] | BISHOPS1[side][to]; }
-		if constexpr (Piece::Rook == piece)	{	high ^= ROOKS[side][from] | ROOKS[side][to];		low ^= ROOKS1[side][from] | ROOKS1[side][to]; }
-		if constexpr (Piece::Queen == piece) {	high ^= QUEENS[side][from] | QUEENS[side][to];		low ^= QUEENS1[side][from] | QUEENS1[side][to]; }
-		if constexpr (Piece::King == piece)	{	high ^= KINGS[side][from] | KINGS[side][to];		low ^= KINGS1[side][from] | KINGS1[side][to]; }
+		if constexpr (Piece::Pawn == piece) {	high ^= PAWNS[side][from] ^ PAWNS[side][to];		low ^= PAWNS1[side][from] ^ PAWNS1[side][to]; }
+		if constexpr (Piece::Knight == piece) {	high ^= KNIGHTS[side][from] ^ KNIGHTS[side][to];	low ^= KNIGHTS1[side][from] ^ KNIGHTS1[side][to]; }
+		if constexpr (Piece::Bishop == piece) {	high ^= BISHOPS[side][from] ^ BISHOPS[side][to];	low ^= BISHOPS1[side][from] ^ BISHOPS1[side][to]; }
+		if constexpr (Piece::Rook == piece)	{	high ^= ROOKS[side][from] ^ ROOKS[side][to];		low ^= ROOKS1[side][from] ^ ROOKS1[side][to]; }
+		if constexpr (Piece::Queen == piece) {	high ^= QUEENS[side][from] ^ QUEENS[side][to];		low ^= QUEENS1[side][from] ^ QUEENS1[side][to]; }
+		if constexpr (Piece::King == piece)	{	high ^= KINGS[side][from] ^ KINGS[side][to];		low ^= KINGS1[side][from] ^ KINGS1[side][to]; }
 
 		high ^= SIDE;
 		low ^= SIDE1;
@@ -504,8 +504,8 @@ namespace zobrist {
 		U64 high = prevZobrist.high;
 		U64 low = prevZobrist.low;
 
-		high ^= PAWNS[side][from] | PAWNS[side][to];
-		low ^= PAWNS1[side][from] | PAWNS1[side][to];
+		high ^= PAWNS[side][from] ^ PAWNS[side][to];
+		low ^= PAWNS1[side][from] ^ PAWNS1[side][to];
 		high ^= SIDE;
 		low ^= SIDE1;
 		high ^= EN_PASSANT[FILES[prevEP]];
@@ -521,8 +521,8 @@ namespace zobrist {
 		U64 high = prevZobrist.high;
 		U64 low = prevZobrist.low;
 
-		high ^= PAWNS[side][from] | PAWNS[side][to];
-		low ^= PAWNS1[side][from] | PAWNS1[side][to];
+		high ^= PAWNS[side][from] ^ PAWNS[side][to];
+		low ^= PAWNS1[side][from] ^ PAWNS1[side][to];
 		high ^= PAWNS[!side][ePS];
 		low ^= PAWNS1[!side][ePS];
 
@@ -545,10 +545,10 @@ namespace zobrist {
 		constexpr int toR = CASTLING_ROOK_TARGET_SQUARE[castlingSide];
 		constexpr bool side = CASTLING_SIDE[castlingSide];
 
-		high ^= KINGS[side][fromK] | KINGS[side][toK];
-		low ^= KINGS1[side][fromK] | KINGS1[side][toK];
-		high ^= ROOKS[side][fromR] | ROOKS[side][toR];
-		low ^= ROOKS1[side][fromR] | ROOKS1[side][toR];
+		high ^= KINGS[side][fromK] ^ KINGS[side][toK];
+		low ^= KINGS1[side][fromK] ^ KINGS1[side][toK];
+		high ^= ROOKS[side][fromR] ^ ROOKS[side][toR];
+		low ^= ROOKS1[side][fromR] ^ ROOKS1[side][toR];
 
 		high ^= SIDE;
 		low ^= SIDE1;
