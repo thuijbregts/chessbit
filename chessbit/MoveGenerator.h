@@ -84,7 +84,7 @@ namespace movegen {
             U64 pinMask = PIN_MASKS[board.kMS][sS];
             U64 pin = pinMask & board.occB;
 
-            if (Bitcount(pin) == 1) {
+            if (Bitcount(pin) == 1) [[unlikely]] {
                 U64 attacks = pinMask | SQUARE_BITS[sS];
                 validAttacksMasks[depth][SquareOf(pin)] = attacks ^ pin;
                 pins |= attacks;
