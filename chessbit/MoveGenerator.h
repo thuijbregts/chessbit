@@ -129,7 +129,10 @@ namespace movegen {
             int to = SquareOf(moves);
             const BoardState newBoard = board.make<piece, side, capture, kMoved>(from, to, board, discovers);
             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, capture, newBoard));
-            else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard, movesArray);
+            else {
+                if constexpr (piece == Piece::King) nodes += PerftGenerator<depth - 1, !side, (kMoved | KING_MOVED[side])>::generateMoves(newBoard, movesArray);
+                else                                nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard, movesArray);
+            }
         }
     }
 
@@ -185,7 +188,7 @@ namespace movegen {
         */
         attacks = board.kMA & ~board.occM & ~eAttacks;
         if constexpr (depth == 1) nodes += Bitcount(attacks);
-        else makeMoves<depth, side, (kMoved | KING_MOVED[side]), Piece::King>(nodes, attacks, board.kMS, board, movesArray, discovers);
+        else makeMoves<depth, side, kMoved, Piece::King>(nodes, attacks, board.kMS, board, movesArray, discovers);
 
         if (board.checks) [[unlikely]] {
             if (!BitReset(board.checks)) [[likely]] {

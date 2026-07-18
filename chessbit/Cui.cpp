@@ -316,22 +316,34 @@ void Cui::perftDivide(int depth) {
 
 __forceinline U64 Cui::divide(int depth) {
 	U64 nodes = 0;
-	U64 current = 0;
 
-	initMoves();
 	int size = movesArray.size();
 	if (depth == 1) {
 		return size;
 	}
-
+	vector<future<U64>> futures;
 	MoveInfo* m = movesArray.moves();
-
+	MoveArray* arr = new MoveArray[size];
 	for (int i = 0; i < size; i++) {
-		game::makeMove(m[i]);
-		current = generateMoves(depth - 1, game::board, movesArray);
-		nodes += current;
-		printf("%s %llu\n", utils::getMoveSimple(m[i]).c_str(), current);
-		game::unmakeMove();
+		generateMoves(0, m[i].board, arr[i]);
+		MoveInfo* m1 = arr[i].moves();
+		MoveArray* arr1 = new MoveArray[arr[i].size()];
+		for (int j = 0; j < arr[i].size(); j++) {
+			generateMoves(0, m1[j].board, arr1[j]);
+			MoveInfo* m2 = arr1[j].moves();
+			for (int k = 0; k < arr1[j].size(); k++) {
+				futures.push_back(async(launch::async, [this, depth, move = m2[k]]() {
+					MoveArray dummy;
+					U64 current = generateMoves(depth - 3, move.board, dummy);
+					//printf("%s %llu\n", utils::getMoveSimple(move).c_str(), current);
+					return current;
+					}));
+			}
+		}
+	}
+
+	for (auto& f : futures) {
+		nodes += f.get();
 	}
 
 	return nodes;
