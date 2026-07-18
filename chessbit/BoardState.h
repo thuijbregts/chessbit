@@ -235,7 +235,7 @@ namespace bstate {
             const U64 rqM = board.rM | board.qM;
             if (!checks && (BISHOP_XRAYS[board.kES] & (BISHOP_XRAYS[from] | BISHOP_XRAYS[ePS]) & bqM)) [[unlikely]]
                 checks |= getBishopAttacks(board.kES, occB) & bqM;
-            else if (ROOK_XRAYS[board.kES] & ROOK_XRAYS[from] & rqM) [[unlikely]]
+            if (ROOK_XRAYS[board.kES] & ROOK_XRAYS[from] & rqM) [[unlikely]]
                 checks |= getRookAttacks(board.kES, occB) & rqM;
 
             const Zobrist zobrist = zobrist::enPassant<side>(from, to, ePS, board.eP, board.zobrist);

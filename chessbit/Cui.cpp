@@ -316,6 +316,7 @@ void Cui::perftDivide(int depth) {
 
 __forceinline U64 Cui::divide(int depth) {
 	U64 totalNodes = 0;
+	U64 moveNodes;
 
 	int size = movesArray.size();
 	if (depth == 1)
@@ -323,9 +324,19 @@ __forceinline U64 Cui::divide(int depth) {
 
 	MoveInfo* m = movesArray.moves();
 
-	for (int i = 0; i < size; i++) {
+	if (depth < 4) {
+		for (int i = 0; i < size; i++) {
+			moveNodes = generateMoves(depth - 1, m[i].board, movesArray);
 
-		U64 moveNodes = 0;
+			printf("%s %llu\n", utils::getMoveSimple(m[i]).c_str(), moveNodes);
+			totalNodes += moveNodes;
+		}
+
+		return totalNodes;
+	}
+
+	for (int i = 0; i < size; i++) {
+		moveNodes = 0;
 		vector<future<U64>> futures;
 
 		MoveArray arr;
