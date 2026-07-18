@@ -691,7 +691,7 @@ namespace movegen {
                 if constexpr (depth == 1) nodes++;
                 else {
                     const BoardState newBoard = board.makeCastling<kSide>(board);
-                    if constexpr (depth == 0) movesArray.add(MoveInfo(Castle, CASTLING_KING_TARGET_SQUARE[kSide], false, newBoard));
+                    if constexpr (depth == 0) movesArray.add(MoveInfo(KING_SOURCE_SQUARE[side], CASTLING_KING_TARGET_SQUARE[kSide], false, newBoard));
                     else nodes += PerftGenerator<depth - 1, !side, (kMoved | KING_MOVED[side])>::generateMoves(newBoard);
                 }
             }
@@ -699,7 +699,7 @@ namespace movegen {
                 if constexpr (depth == 1) nodes++;
                 else {
                     const BoardState newBoard = board.makeCastling<qSide>(board);
-                    if constexpr (depth == 0) movesArray.add(MoveInfo(Castle, CASTLING_KING_TARGET_SQUARE[qSide], false, newBoard));
+                    if constexpr (depth == 0) movesArray.add(MoveInfo(KING_SOURCE_SQUARE[side], CASTLING_KING_TARGET_SQUARE[qSide], false, newBoard));
                     else nodes += PerftGenerator<depth - 1, !side, (kMoved | KING_MOVED[side])>::generateMoves(newBoard);
                 }
             }

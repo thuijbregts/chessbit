@@ -334,6 +334,10 @@ namespace defs {
 
 	constexpr int CASTLING_BOTH[2] = { wk | wq, bk | bq };
 
+	constexpr int KING_SOURCE_SQUARE[2] = {
+		e8, e1
+	};
+
 	constexpr int CASTLING_KING_TARGET_SQUARE[4] = {
 		g1, c1,
 		g8, c8
