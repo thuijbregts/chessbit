@@ -44,15 +44,14 @@ private:
 	void executeBenchmark(int depth, int amount, bool print);
 	void compare();
 
-	U64 generateMoves(int depth, const BoardState& board, MoveArray& movesArray);
+	U64 generateMoves(int depth);
+	U64 generateMoves(int depth, const BoardState& board);
 	template <bool side, uint8_t kMoved>
-	U64 generateMoves(int depth, const BoardState& board, MoveArray& movesArray);
+	U64 generateMoves(int depth, const BoardState& board);
 
 	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);
 	void pieces();
 	void help();
-
-	MoveArray movesArray;
 };
 
 struct Command {

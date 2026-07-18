@@ -7,8 +7,32 @@ namespace movarray {
 	class MoveArray {
 
 	public:
-		MoveArray() { _size = 0; }
-		~MoveArray() { }
+		static constexpr int MAX_MOVES = 256;
+
+		MoveArray()
+			: _moves(new moveinfo::MoveInfo[MAX_MOVES]), _size(0)
+		{
+		}
+
+		~MoveArray() {
+			delete[] _moves;
+		}
+
+		MoveArray(const MoveArray& other)
+			: _moves(new moveinfo::MoveInfo[MAX_MOVES]),
+			_size(other._size)
+		{
+			std::copy(other._moves, other._moves + other._size, _moves);
+		}
+
+		MoveArray& operator=(const MoveArray& other)
+		{
+			if (this != &other) {
+				_size = other._size;
+				std::copy(other._moves, other._moves + other._size, _moves);
+			}
+			return *this;
+		}
 
 		__forceinline  int size() {
 			return _size;
@@ -26,9 +50,11 @@ namespace movarray {
 		}
 
 	private:
-		moveinfo::MoveInfo _moves[218];
+		moveinfo::MoveInfo* _moves;
 		int _size;
 	};
+
+	inline MoveArray movesArray;
 }
 
 #endif
