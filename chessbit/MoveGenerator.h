@@ -163,10 +163,10 @@ namespace movegen {
 
     template <int depth, bool side, uint8_t kMoved>
     ForceInline U64 allMoves(const BoardState& board) {
-	    if constexpr (depth > 1) {
-            tt::Entry& e = TT[depth][board.zobrist.low & MASK<depth>];
-            if ((e.key ^ e.nodes) == board.zobrist.high) {
-                return e.nodes;
+        if constexpr (depth > 1) {
+            U64 cached;
+            if (tt::probe<depth>(board.zobrist, cached)) {
+                return cached;
             }
         }
 
@@ -248,7 +248,7 @@ namespace movegen {
                     else {
                         Bitloop(attacks) {
                             from = SquareOf(attacks);
-     
+
                             const BoardState newBoard = board.make<Piece::Knight, side, true, kMoved>(from, to, board, discovers);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
                             else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
@@ -267,7 +267,7 @@ namespace movegen {
                         else {
                             Bitloop(attacks) {
                                 from = SquareOf(attacks);
-          
+
                                 const BoardState newBoard =
                                     ((1ULL << from) & board.qM)
                                     ? board.make<Piece::Queen, side, true, kMoved>(from, to, board, discovers)
@@ -291,7 +291,7 @@ namespace movegen {
                         else {
                             Bitloop(attacks) {
                                 from = SquareOf(attacks);
-              
+
                                 const BoardState newBoard =
                                     ((1ULL << from) & board.qM)
                                     ? board.make<Piece::Queen, side, true, kMoved>(from, to, board, discovers)
@@ -333,19 +333,19 @@ namespace movegen {
                             Bitloop(promosLeft) {
                                 to = SquareOf(promosLeft);
                                 from = to + PAWN_RIGHT[!side];
-                      
+
                                 makePromotionMoves<depth, side, kMoved, true>(nodes, from, to, board, discovers);
                             }
                             Bitloop(promosRight) {
                                 to = SquareOf(promosRight);
                                 from = to + PAWN_LEFT[!side];
-                         
+
                                 makePromotionMoves<depth, side, kMoved, true>(nodes, from, to, board, discovers);
                             }
                             Bitloop(promosFwd) {
                                 to = SquareOf(promosFwd);
                                 from = to + PAWN_PUSH[!side];
-                              
+
                                 makePromotionMoves<depth, side, kMoved, false>(nodes, from, to, board, discovers);
                             }
                         }
@@ -359,7 +359,7 @@ namespace movegen {
                         Bitloop(pawnsLeft) {
                             to = SquareOf(pawnsLeft);
                             from = to + PAWN_RIGHT[!side];
-    
+
                             const BoardState newBoard = board.make<Piece::Pawn, side, true, kMoved>(from, to, board, discovers);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
                             else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
@@ -368,7 +368,7 @@ namespace movegen {
                         Bitloop(pawnsRight) {
                             to = SquareOf(pawnsRight);
                             from = to + PAWN_LEFT[!side];
-             
+
                             const BoardState newBoard = board.make<Piece::Pawn, side, true, kMoved>(from, to, board, discovers);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
                             else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
@@ -377,7 +377,7 @@ namespace movegen {
                         Bitloop(pawnsFwd) {
                             to = SquareOf(pawnsFwd);
                             from = to + PAWN_PUSH[!side];
-                            
+
                             const BoardState newBoard = board.make<Piece::Pawn, side, false, kMoved>(from, to, board, discovers);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
                             else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
@@ -386,7 +386,7 @@ namespace movegen {
                         Bitloop(pawnsDouble) {
                             to = SquareOf(pawnsDouble);
                             from = to + PAWN_DOUBLE_PUSH[!side];
-                            
+
                             const BoardState newBoard = board.makeDoublePush<side>(from, to, board, discovers);
                             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
                             else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
@@ -453,9 +453,9 @@ namespace movegen {
                     }
                 }
             }
-			
-			if constexpr (depth > 1) tt::write<depth>(board.zobrist, nodes);
-			
+
+            if constexpr (depth > 1) tt::write<depth>(board.zobrist, nodes);
+
             return nodes;
         }
 
@@ -516,7 +516,7 @@ namespace movegen {
                 Bitloop(promosRight) {
                     to = SquareOf(promosRight);
                     from = to + PAWN_LEFT[!side];
-   
+
                     makePromotionMoves<depth, side, kMoved, true>(nodes, from, to, board, discovers);
                 }
                 Bitloop(promosFwd) {
@@ -536,7 +536,7 @@ namespace movegen {
             Bitloop(pawnsLeft) {
                 to = SquareOf(pawnsLeft);
                 from = to + PAWN_RIGHT[!side];
-     
+
                 const BoardState newBoard = board.make<Piece::Pawn, side, true, kMoved>(from, to, board, discovers);
                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
                 else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
@@ -545,7 +545,7 @@ namespace movegen {
             Bitloop(pawnsRight) {
                 to = SquareOf(pawnsRight);
                 from = to + PAWN_LEFT[!side];
-    
+
                 const BoardState newBoard = board.make<Piece::Pawn, side, true, kMoved>(from, to, board, discovers);
                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, true, newBoard));
                 else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
@@ -554,7 +554,7 @@ namespace movegen {
             Bitloop(pawnsFwd) {
                 to = SquareOf(pawnsFwd);
                 from = to + PAWN_PUSH[!side];
-        
+
                 const BoardState newBoard = board.make<Piece::Pawn, side, false, kMoved>(from, to, board, discovers);
                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
                 else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
@@ -563,7 +563,7 @@ namespace movegen {
             Bitloop(pawnsDouble) {
                 to = SquareOf(pawnsDouble);
                 from = to + PAWN_DOUBLE_PUSH[!side];
-        
+
                 const BoardState newBoard = board.makeDoublePush<side>(from, to, board, discovers);
                 if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
                 else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
@@ -681,8 +681,8 @@ namespace movegen {
                 }
             }
         }
-		
-		if constexpr (depth > 1) tt::write<depth>(board.zobrist, nodes);
+
+        if constexpr (depth > 1) tt::write<depth>(board.zobrist, nodes);
 
         return nodes;
     }
