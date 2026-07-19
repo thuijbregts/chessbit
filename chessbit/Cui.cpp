@@ -337,39 +337,70 @@ __forceinline U64 Cui::divide(int depth) {
 		return totalNodes;
 	}
 
-	MoveArray arr = movesArray;
-	MoveInfo* m = arr.moves();
-	for (int i = 0; i < arr.size(); i++) {
-		moveNodes = 0;
-		vector<future<U64>> futures;
+	struct Task { int root; BoardState board; };
 
+	MoveArray roots = movesArray;
+	MoveInfo* rm = roots.moves();
+	const int rootCount = roots.size();
+
+	std::vector<Task> tasks;
+	tasks.reserve(8192);
+
+	std::vector<std::atomic<int>> remaining(rootCount);
+	std::vector<std::atomic<U64>> rootNodes(rootCount);
+
+	const int plies = 2;
+
+	auto expand = [&](auto&& self, int root, const BoardState& b, int plies) -> void {
+		if (plies == 0) {
+			tasks.push_back({ root, b });
+			remaining[root].fetch_add(1, std::memory_order_relaxed);
+			return;
+		}
 		movesArray.reset();
-		generateMoves(0, m[i].board);
+		generateMoves(0, b);
+		MoveArray a = movesArray;
+		MoveInfo* m = a.moves();
+		for (int j = 0; j < a.size(); j++)
+			self(self, root, m[j].board, plies - 1);
+		};
 
-		MoveArray arr1 = movesArray;
-		MoveInfo* m1 = arr1.moves();
-		for (int j = 0; j < arr1.size(); j++) {
-			movesArray.reset();
-			generateMoves(0, m1[j].board);
+	for (int i = 0; i < rootCount; i++)
+		expand(expand, i, rm[i].board, plies);
 
-			MoveArray arr2 = movesArray;
-			MoveInfo* m2 = arr2.moves();
-			for (int k = 0; k < arr2.size(); k++) {
-				futures.push_back(
-					async(launch::async,[this, depth, move = m2[k]]() {
-							return generateMoves(depth - 3, move.board);
-						})
-				);
+	for (int i = 0; i < rootCount; i++)
+		if (remaining[i].load(std::memory_order_relaxed) == 0)
+			printf("%s 0\n", utils::getMoveSimple(rm[i]).c_str());
+
+	std::atomic<size_t> next{ 0 };
+
+	auto worker = [&] {
+		size_t t;
+		while ((t = next.fetch_add(1, std::memory_order_relaxed)) < tasks.size()) {
+			const Task& task = tasks[t];
+			U64 nodes = generateMoves(depth - (plies + 1), task.board);
+			rootNodes[task.root].fetch_add(nodes, std::memory_order_relaxed);
+			if (remaining[task.root].fetch_sub(1, std::memory_order_acq_rel) == 1) {
+				U64 mv = rootNodes[task.root].load(std::memory_order_relaxed);
+				printf("%s %llu\n", utils::getMoveSimple(rm[task.root]).c_str(), mv);
 			}
 		}
+	};
 
-		for (auto& f : futures)
-			moveNodes += f.get();
+	unsigned threadCount = std::thread::hardware_concurrency();
+	if (threadCount == 0)	threadCount = 4;
 
-		printf("%s %llu\n", utils::getMoveSimple(m[i]).c_str(), moveNodes);
+	std::vector<std::thread> pool;
+	pool.reserve(threadCount);
 
-		totalNodes += moveNodes;
-	}
+	for (unsigned t = 0; t < threadCount; ++t)
+		pool.emplace_back(worker);
+
+	for (auto& th : pool)
+		th.join();
+
+	for (int i = 0; i < rootCount; i++)
+		totalNodes += rootNodes[i].load(std::memory_order_relaxed);
 
 	return totalNodes;
 }

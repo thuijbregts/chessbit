@@ -164,7 +164,7 @@ namespace movegen {
     template <int depth, bool side, uint8_t kMoved>
     ForceInline U64 allMoves(const BoardState& board) {
 	    if constexpr (depth > 1) {
-            tt::Entry& e = TT[depth][board.zobrist.low & MASK];
+            tt::Entry& e = TT[depth][board.zobrist.low & MASK<depth>];
             if ((e.key ^ e.nodes) == board.zobrist.high) {
                 return e.nodes;
             }
