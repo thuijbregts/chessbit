@@ -51,6 +51,14 @@ namespace defs {
 		a1, b1, c1, d1, e1, f1, g1, h1, noSquare
 	};
 
+	struct NullMaps {
+		U64 eMap; //squares that change move count
+		U64 ePC; //en passant candidates
+		U64 eKR; //rook attacks from enemy king
+		U64 eKB; //bishop attacks from enemy king
+		U64 nKA; //knight king attacks causing a check
+	};
+
 	struct Zobrist { 
 		U64 high;
 		U64 low;
@@ -109,6 +117,8 @@ namespace defs {
 
 	constexpr U64 FIRST_COL = 0x101010101010101;
 	constexpr U64 LAST_COL = 0x8080808080808080;
+
+	constexpr U64 NO_EDGES = 0x007E7E7E7E7E7E00;
 
 	constexpr U64 RANK_BIT[64] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -255,7 +265,7 @@ namespace defs {
 		4, 4, 4, 4, 4, 4, 4, 4, 0
 	};
 
-	constexpr U64 PASSANT_PIN_RESULT[65] = {
+	constexpr U64 NULL_MASK[65] = {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,

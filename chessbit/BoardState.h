@@ -3,9 +3,11 @@
 #include <cstdint>
 #include "Definitions.h"
 #include "Zobrist.h"
+#include "TranspositionTable.h"
 
 using namespace defs;
 using namespace zobrist;
+using namespace tt;
 
 namespace bstate {
     struct BoardState {
@@ -58,8 +60,26 @@ namespace bstate {
 
         }
 
-        template <Piece piece, bool side, bool capture, uint8_t kMoved>
+        template <int depth, Piece piece, bool side, bool capture, uint8_t kMoved, bool tt>
         ForceInline BoardState make(int from, int to, const BoardState& board, U64 discovers) noexcept {
+            constexpr bool kMMoved = kMoved & KING_MOVED[side];
+            constexpr bool kEMoved = kMoved & KING_MOVED[!side];
+
+            int casPerms = board.casPerms;
+            if constexpr (!kMMoved) {
+                if      constexpr (Piece::Rook == piece)    casPerms &= NO_CASTLE_ROOK[from];
+                else if constexpr (Piece::King == piece)    casPerms &= NO_CASTLE[side];
+            }
+            if constexpr (capture && !kEMoved) {
+                casPerms &= NO_CASTLE_ROOK[to];
+            }
+
+            Zobrist zobrist;
+            if constexpr (tt) {
+                zobrist = zobrist::basic<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.pE, board.nE, board.bE, board.rE, board.qE, board.zobrist);
+                if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
+            }
+
             const U64 t = (1ULL << to);
             const U64 move = (1ULL << from) | t;
 
@@ -69,11 +89,6 @@ namespace bstate {
             U64 rM = board.rM;
             U64 qM = board.qM;
             U64 kM = board.kM;
-
-            int casPerms = board.casPerms;
-
-            constexpr bool kMMoved = kMoved & KING_MOVED[side];
-            constexpr bool kEMoved = kMoved & KING_MOVED[!side];
 
             const U64 occM = board.occM ^ move;
             U64 occE = board.occE;
@@ -97,17 +112,13 @@ namespace bstate {
             }
             if constexpr (Piece::Rook == piece) {
                 rM ^= move;
-                if constexpr (!kMMoved) casPerms &= NO_CASTLE_ROOK[from];
                 if ((ROOK_XRAYS[board.kES] & t) && !(PIN_MASKS[board.kES][to] & occB)) [[unlikely]] checks |= t;
             }
             if constexpr (Piece::Queen == piece) {
                 qM ^= move;
                 if ((QUEEN_XRAYS[board.kES] & t) && !(PIN_MASKS[board.kES][to] & occB)) [[unlikely]] checks |= t;
             }
-            if constexpr (Piece::King == piece) {
-                kM ^= move;
-                if constexpr (!kMMoved) casPerms &= NO_CASTLE[side];
-            }
+            if constexpr (Piece::King == piece) kM ^= move;
 
             if constexpr (Piece::Queen != piece) {
                 if (discovers) [[unlikely]] {
@@ -118,23 +129,29 @@ namespace bstate {
 
             if constexpr (capture) {
                 occE ^= t;
-                if constexpr (!kEMoved) casPerms &= NO_CASTLE_ROOK[to];
-
-                const Zobrist zobrist = zobrist::basic<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.pE, board.nE, board.bE, board.rE, board.qE, board.zobrist);
 
                 if constexpr (Piece::King == piece)         return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side, zobrist);
                 else                                        return BoardState(board.pE & occE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, zobrist);
             }
             else {
-                const Zobrist zobrist = zobrist::basic<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.pE, board.nE, board.bE, board.rE, board.qE, board.zobrist);
-
                 if constexpr (Piece::King == piece)         return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, !side, zobrist);
                 else                                        return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, zobrist);
             }
         }
 
-        template <Piece piece, bool side, bool capture, uint8_t kMoved>
+        template <int depth, Piece piece, bool side, bool capture, uint8_t kMoved, bool tt>
         ForceInline BoardState makePromotion(int from, int to, const BoardState& board, U64 discovers) noexcept {
+            constexpr bool kEMoved = kMoved & KING_MOVED[!side];
+
+            int casPerms = board.casPerms;
+            if constexpr (capture && !kEMoved)  casPerms &= NO_CASTLE_ROOK[to];
+
+            Zobrist zobrist;
+            if constexpr (tt) {
+                zobrist = zobrist::promotion<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.nE, board.bE, board.rE, board.qE, board.zobrist);
+                if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
+            }
+
             const U64 f = (1ULL << from);
             const U64 t = (1ULL << to);
 
@@ -146,8 +163,6 @@ namespace bstate {
 
             const U64 occM = board.occM ^ (f | t);
             U64 occE = board.occE;
-
-            constexpr bool kEMoved = kMoved & KING_MOVED[!side];
 
             U64 occB;
             if constexpr (capture) occB = board.occB ^ f;
@@ -176,22 +191,24 @@ namespace bstate {
 
             if constexpr (capture) {
                 occE ^= t;
-                int8_t casPerms = board.casPerms;
-                if constexpr (!kEMoved) casPerms &= NO_CASTLE_ROOK[to];
-
-                const Zobrist zobrist = zobrist::promotion<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.nE, board.bE, board.rE, board.qE, board.zobrist);
 
                 return BoardState(board.pE, board.nE & occE, board.bE & occE, board.rE & occE, board.qE & occE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, !side, zobrist);
             }
             else {
-                const Zobrist zobrist = zobrist::promotion<piece, side, capture>(from, to, board.casPerms, board.casPerms, board.eP, board.nE, board.bE, board.rE, board.qE, board.zobrist);
-
                 return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, zobrist);
             }
         }
 
-        template <bool side>
+        template <int depth, bool side, bool tt>
         ForceInline BoardState makeDoublePush(int from, int to, const BoardState& board, U64 discovers) noexcept {
+            const int8_t eP = from + PAWN_PUSH[side];
+
+            Zobrist zobrist;
+            if constexpr (tt) {
+                zobrist = zobrist::doublePush<side>(from, to, eP, board.eP, board.zobrist);
+                if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
+            }
+
             const U64 t = (1ULL << to);
             const U64 move = (1ULL << from) | t;
 
@@ -208,21 +225,24 @@ namespace bstate {
             }
             else                        checks = (PAWN_CAPTURES[!side][board.kES] & pM);
 
-            const int8_t eP = from + PAWN_PUSH[side];
-
-            const Zobrist zobrist = zobrist::doublePush<side>(from, to, eP, board.eP, board.zobrist);
-
             return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, eP, !side, zobrist);
         }
 
-        template <bool side>
+        template <int depth, bool side, bool tt>
         ForceInline BoardState makeEnPassant(int from, int to, const BoardState& board) noexcept {
+            const int ePS = (to + PAWN_PUSH[!side]);
+
+            Zobrist zobrist;
+            if constexpr (tt) {
+                zobrist = zobrist::enPassant<side>(from, to, ePS, board.eP, board.zobrist);
+                if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
+            }
+
             const U64 move = (1ULL << from) | (1ULL << to);
 
             const U64 pM = board.pM ^ move;
             const U64 occM = board.occM ^ move;
 
-            const int ePS = (to + PAWN_PUSH[!side]);
             const U64 ePB = (1ULL << ePS);
             const U64 pE = board.pE ^ ePB;
             const U64 occE = board.occE ^ ePB;
@@ -237,8 +257,6 @@ namespace bstate {
                 checks |= getBishopAttacks(board.kES, occB) & bqM;
             if (ROOK_XRAYS[board.kES] & ROOK_XRAYS[from] & rqM) [[unlikely]]
                 checks |= getRookAttacks(board.kES, occB) & rqM;
-
-            const Zobrist zobrist = zobrist::enPassant<side>(from, to, ePS, board.eP, board.zobrist);
 
             return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, zobrist);
         }
@@ -267,24 +285,32 @@ namespace bstate {
             if constexpr (castlingSide == 3) return 0x9 | 0x14;
         }
 
-        template <int castlingSide>
+        template <int depth, int castlingSide, bool tt>
         ForceInline BoardState makeCastling(const BoardState& board) noexcept {
+            constexpr bool side = CASTLING_SIDE[castlingSide];
+            const int casPerms = board.casPerms & NO_CASTLE[side];
+
+            Zobrist zobrist;
+            if constexpr (tt) {
+                zobrist = zobrist::castle<castlingSide>(casPerms, board.casPerms, board.eP, board.zobrist);
+                if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
+            }
+
             const U64 kM = board.kM ^ kingSwitch<castlingSide>();
             const U64 rM = board.rM ^ rookSwitch<castlingSide>();
 
             const U64 occM = board.occM ^ bothSwitch<castlingSide>();
             const U64 occB = board.occB ^ bothSwitch<castlingSide>();
 
-            constexpr bool side = CASTLING_SIDE[castlingSide];
-            const int casPerms = board.casPerms & NO_CASTLE[side];
-
             const U64 checks = getRookAttacks(board.kES, occB) & rM;
 
             constexpr int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
 
-            const Zobrist zobrist = zobrist::castle<castlingSide>(casPerms, board.casPerms, board.eP, board.zobrist);
-
             return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, KING_ATTACKS[to], board.occE, occM, occB, checks, casPerms, noSquare, !side, zobrist);
+        }
+
+        ForceInline BoardState makeNull(const BoardState& board) noexcept {
+            return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, board.occM, board.occB, 0, board.casPerms, noSquare, !board.side, board.zobrist);
         }
     };
 

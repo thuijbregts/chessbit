@@ -21,9 +21,6 @@
     <ClCompile Include="Game.cpp">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
-    <ClCompile Include="MoveArray.cpp">
-      <Filter>Fichiers sources</Filter>
-    </ClCompile>
     <ClCompile Include="Cui.cpp">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
@@ -32,6 +29,9 @@
     </ClCompile>
     <ClCompile Include="Test.hpp">
       <Filter>Fichiers d%27en-tête</Filter>
+    </ClCompile>
+    <ClCompile Include="Zobrist.cpp">
+      <Filter>Fichiers sources</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -62,7 +62,10 @@
     <ClInclude Include="BoardState.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="Stats.h">
+    <ClInclude Include="TranspositionTable.h">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </ClInclude>
+    <ClInclude Include="Zobrist.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
   </ItemGroup>

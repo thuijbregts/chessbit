@@ -34,24 +34,32 @@ private:
 	void printBoard();
 	void setBoard(vector<string>& cmd, int size);
 	void getFen();
-	void perft(string& option, string& depth);
+	void perft(vector<string>& cmd);
 	void perftFast(int depth);
-	void perftDivide(int depth);
-	__forceinline U64 divide(int depth);
+	void perftDivide(int depth, int threads);
+	__forceinline U64 divide(int depth, int threads);
 	void test();
 	void perftsuite();
 	void benchmark(string& depth, string& amount);
 	void executeBenchmark(int depth, int amount, bool print);
 	void compare();
+	void toggleTT(vector<string>& cmd);
 
+	U64 runPerft(int depth);
+	U64 runPerft(int depth, const BoardState& board);
+
+	template <bool tt>
 	U64 generateMoves(int depth);
+	template <bool tt>
 	U64 generateMoves(int depth, const BoardState& board);
-	template <bool side, uint8_t kMoved>
+	template <bool side, uint8_t kMoved, bool tt>
 	U64 generateMoves(int depth, const BoardState& board);
 
 	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);
 	void pieces();
 	void help();
+
+	bool ttEnabled = true;
 };
 
 struct Command {
@@ -83,9 +91,11 @@ namespace cui {
 	const string PERFT_SUITE = "perftsuite";
 	const string BENCHMARK = "benchmark";
 	const string COMPARE = "cmp";
+	const string TT = "tt";
 
 	const string PERFT_D = "-d";
 	const string PERFT_F = "-f";
+	const string PERFT_T = "-t";
 
 	const Command COMMANDS[]{
 		{ EXIT, {} },
@@ -103,7 +113,8 @@ namespace cui {
 		{ TEST,{} },
 		{ PERFT_SUITE,{} },
 		{ BENCHMARK,{} },
-		{ COMPARE,{} }
+		{ COMPARE,{} },
+		{ TT,{} }
 	};
 
 	const PerftTest TESTS[]{
