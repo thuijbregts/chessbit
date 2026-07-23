@@ -261,30 +261,6 @@ namespace bstate {
             return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, zobrist);
         }
 
-        template <int castlingSide>
-        ForceInline U64 rookSwitch() noexcept {
-            if constexpr (castlingSide == 0) return 0xa000000000000000;
-            if constexpr (castlingSide == 1) return 0x900000000000000;
-            if constexpr (castlingSide == 2) return 0xa0;
-            if constexpr (castlingSide == 3) return 0x9;
-        }
-
-        template <int castlingSide>
-        ForceInline U64 kingSwitch() noexcept {
-            if constexpr (castlingSide == 0) return 0x5000000000000000;
-            if constexpr (castlingSide == 1) return 0x1400000000000000;
-            if constexpr (castlingSide == 2) return 0x50;
-            if constexpr (castlingSide == 3) return 0x14;
-        }
-
-        template <int castlingSide>
-        ForceInline U64 bothSwitch() noexcept {
-            if constexpr (castlingSide == 0) return 0xa000000000000000 | 0x5000000000000000;
-            if constexpr (castlingSide == 1) return 0x900000000000000 | 0x1400000000000000;
-            if constexpr (castlingSide == 2) return 0xa0 | 0x50;
-            if constexpr (castlingSide == 3) return 0x9 | 0x14;
-        }
-
         template <int depth, int castlingSide, bool tt>
         ForceInline BoardState makeCastling(const BoardState& board) noexcept {
             constexpr bool side = CASTLING_SIDE[castlingSide];

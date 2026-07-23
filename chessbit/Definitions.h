@@ -28,7 +28,7 @@ namespace defs {
 #define ClearBit(X, S) (X &= ~(1ULL << S))//SQUARE_BITS[S]) same perf
 #define MoveBit(X, F, T) (X ^= 1ULL << F | 1ULL << T)// faster than U64 matrix
 
-//#define ForceInline inline static
+	//#define ForceInline inline static
 #define ForceInline __forceinline static constexpr
 #define Inline inline static
 
@@ -52,14 +52,23 @@ namespace defs {
 	};
 
 	struct NullMaps {
-		U64 eMap; //squares that change move count
-		U64 ePC; //en passant candidates
-		U64 eKR; //rook attacks from enemy king
-		U64 eKB; //bishop attacks from enemy king
-		U64 nKA; //knight king attacks causing a check
+		U64 eMap = 0; //squares that change move count
+		U64 pMap = 0; //pawn squares that change move count
+		U64 ePCL = 0; //en passant candidates left
+		U64 ePCR = 0; //en passant candidates right
+		U64 kKZ = 0; //king zone threatening king moves
+		U64 pKZ = 0; //pawn zone threatening king moves
+		U64 nKZ = 0; //knight zone threatening king moves
+		U64 bKZ = 0; //bishop zone threatening king moves
+		U64 rKZ = 0; //rook zone threatening king moves
+		U64 ePins = 0; //enemy pins or pieces that cause a pin if moved
+		U64 bPins = 0; //squares that will cause bishop pins or check
+		U64 rPins = 0; //squares that will cause rook pins or check
+		U64 sAtks = 0; //sliders attacking the king zone
+		U64 cstlBit = 0; //b2 or b7 square attacking castle passing square, otherwise unseen in other maps
 	};
 
-	struct Zobrist { 
+	struct Zobrist {
 		U64 high;
 		U64 low;
 
@@ -328,6 +337,10 @@ namespace defs {
 
 	constexpr int CASTLING_SIDE_Q[2] = { 1, 3 };
 
+	constexpr int CASTLING_BIT_K[2] = { 1, 4 };
+
+	constexpr int CASTLING_BIT_Q[2] = { 2, 8 };
+
 	constexpr U64 CASTLING_OCCUPIED_SQUARES[4] = {
 		6917529027641081856ULL, 1008806316530991104ULL,
 		96ULL, 14ULL
@@ -345,6 +358,45 @@ namespace defs {
 
 	constexpr U64 CASTLING_PASSING_SQUARES[4] = {
 		0x6000000000000000, 0xc00000000000000, 0x60, 0xc
+	};
+
+	constexpr U64 CASTLING_PASSING_SQUARES_NULL[2][16] = {
+		{
+			0x0ULL,                          // 0000
+			0x6000000000000000ULL,           // 0001
+			0x0C00000000000000ULL,           // 0010
+			0x6C00000000000000ULL,           // 0011
+			0x0ULL,                          // 0100
+			0x6000000000000000ULL,           // 0101
+			0x0C00000000000000ULL,           // 0110
+			0x6C00000000000000ULL,           // 0111
+			0x0ULL,                          // 1000
+			0x6000000000000000ULL,           // 1001
+			0x0C00000000000000ULL,           // 1010
+			0x6C00000000000000ULL,           // 1011
+			0x0ULL,                          // 1100
+			0x6000000000000000ULL,           // 1101
+			0x0C00000000000000ULL,           // 1110
+			0x6C00000000000000ULL            // 1111
+		},
+		{
+			0x0ULL,                          // 0000
+			0x0ULL,                          // 0001
+			0x0ULL,                          // 0010
+			0x0ULL,                          // 0011
+			0x60ULL,                         // 0100
+			0x60ULL,                         // 0101
+			0x60ULL,                         // 0110
+			0x60ULL,                         // 0111
+			0x0CULL,                         // 1000
+			0x0CULL,                         // 1001
+			0x0CULL,                         // 1010
+			0x0CULL,                         // 1011
+			0x6CULL,                         // 1100
+			0x6CULL,                         // 1101
+			0x6CULL,                         // 1110
+			0x6CULL                          // 1111
+		}
 	};
 
 	constexpr int CASTLING[4] = {
@@ -369,7 +421,7 @@ namespace defs {
 	};
 
 	constexpr U64 CASTLING_ROOK[4] = {
-		0x8000000000000000, 0x100000000000000, 
+		0x8000000000000000, 0x100000000000000,
 		0x80, 0x1
 	};
 
@@ -382,6 +434,10 @@ namespace defs {
 	};
 
 	constexpr int CASTLING_BOTH[2] = { wk | wq, bk | bq };
+
+	constexpr int KING_SOURCE_SQUARE[2] = {
+		e1, e8
+	};
 
 	constexpr int CASTLING_KING_SOURCE_SQUARE[4] = {
 		e1, e1,
@@ -436,6 +492,11 @@ namespace defs {
 	constexpr U64 CASTLING_FORBIDDEN_KNIGHT_SQUARES[4] = {
 		0x98f00000000000, 0x331e0000000000,
 		0xf09800, 0x1e3300
+	};
+
+	//for null move; square that needs to be considered because attacking castle passing square
+	constexpr U64 CASTLE_NULL_BIT[4] = {
+		0, (1ULL << b2), 0, (1ULL << b7)
 	};
 
 	constexpr int CASTLE_ROOK_FROM[64] = {
@@ -661,6 +722,17 @@ namespace defs {
 		0x0003020300000000, 0x0007050700000000, 0x000E0A0E00000000, 0x001C141C00000000, 0x0038283800000000, 0x0070507000000000, 0x00E0A0E000000000, 0x00C040C000000000,
 		0x0302030000000000, 0x0705070000000000, 0x0E0A0E0000000000, 0x1C141C0000000000, 0x3828380000000000, 0x7050700000000000, 0xE0A0E00000000000, 0xC040C00000000000,
 		0x0203000000000000, 0x0507000000000000, 0x0A0E000000000000, 0x141C000000000000, 0x2838000000000000, 0x5070000000000000, 0xA0E0000000000000, 0x40C0000000000000,
+	};
+
+	constexpr U64 KING_ZONES[64] = {
+		0x70404,0xf0808,0x1f1111,0x3e2222,0x7c4444,0xf88888,0xf01010,0xe02020,
+		0x7040404,0xf080808,0x1f111111,0x3e222222,0x7c444444,0xf8888888,0xf0101010,0xe0202020,
+		0x704040407,0xf0808080f,0x1f1111111f,0x3e2222223e,0x7c4444447c,0xf8888888f8,0xf0101010f0,0xe0202020e0,
+		0x70404040700,0xf0808080f00,0x1f1111111f00,0x3e2222223e00,0x7c4444447c00,0xf8888888f800,0xf0101010f000,0xe0202020e000,
+		0x7040404070000,0xf0808080f0000,0x1f1111111f0000,0x3e2222223e0000,0x7c4444447c0000,0xf8888888f80000,0xf0101010f00000,0xe0202020e00000,0x704040407000000,
+		0xf0808080f000000,0x1f1111111f000000,0x3e2222223e000000,0x7c4444447c000000,0xf8888888f8000000,0xf0101010f0000000,0xe0202020e0000000,0x404040700000000,
+		0x808080f00000000,0x1111111f00000000,0x2222223e00000000,0x4444447c00000000,0x888888f800000000,0x101010f000000000,0x202020e000000000,0x404070000000000,
+		0x8080f0000000000,0x11111f0000000000,0x22223e0000000000,0x44447c0000000000,0x8888f80000000000,0x1010f00000000000,0x2020e00000000000
 	};
 
 	constexpr U64 KNIGHT_ATTACKS[] = {
@@ -1014,8 +1086,43 @@ namespace defs {
 	}
 
 	template <bool side>
-	ForceInline U64 pawnsAtkBoth(U64 pM) {
-		return pawnsAtkLeft<side>(pM) | pawnsAtkRight<side>(pM);
+	ForceInline U64 pawnsAtkDouble(U64 pM) {
+		if constexpr (side == white) return pM >> 16;
+		return pM << 16;
+	}
+
+	ForceInline U64 left(U64 pM) {
+		pM &= ~FIRST_COL;
+		return pM >> 1;
+	}
+
+	ForceInline U64 right(U64 pM) {
+		pM &= ~LAST_COL;
+		return pM << 1;
+	}
+
+	template <int castlingSide>
+	ForceInline U64 rookSwitch() noexcept {
+		if constexpr (castlingSide == 0) return 0xa000000000000000;
+		if constexpr (castlingSide == 1) return 0x900000000000000;
+		if constexpr (castlingSide == 2) return 0xa0;
+		if constexpr (castlingSide == 3) return 0x9;
+	}
+
+	template <int castlingSide>
+	ForceInline U64 kingSwitch() noexcept {
+		if constexpr (castlingSide == 0) return 0x5000000000000000;
+		if constexpr (castlingSide == 1) return 0x1400000000000000;
+		if constexpr (castlingSide == 2) return 0x50;
+		if constexpr (castlingSide == 3) return 0x14;
+	}
+
+	template <int castlingSide>
+	ForceInline U64 bothSwitch() noexcept {
+		if constexpr (castlingSide == 0) return 0xa000000000000000 | 0x5000000000000000;
+		if constexpr (castlingSide == 1) return 0x900000000000000 | 0x1400000000000000;
+		if constexpr (castlingSide == 2) return 0xa0 | 0x50;
+		if constexpr (castlingSide == 3) return 0x9 | 0x14;
 	}
 }
 
