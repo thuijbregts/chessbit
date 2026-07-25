@@ -1,92 +1,111 @@
 #pragma once
 #include "Definitions.h"
-#include <utility>
-#include <type_traits>
+#include <atomic>
+#include <cstring>
+#include <cstdlib>
+
+#if defined(_WIN32)
+#include <malloc.h>
+#include <intrin.h>
+#endif
 
 using namespace defs;
 
 namespace tt {
+    constexpr int MIN_HASH_DEPTH = 2;
+    constexpr int MAX_HASH_DEPTH = 14;
 
-	constexpr int SIZE[MAX_DEPTH] = {
-		//   0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17
-			 0,  0,  0, 30, 29, 28, 27, 26, 23, 22, 21, 20, 19, 18, 17,  0,  0,  0
-	};
+    constexpr int MAX_ENTRIES = 4;
+    constexpr int BUCKET_SIZE = MAX_ENTRIES * 16;
 
-	template <int depth>
-	constexpr U64 MASK = (1ULL << SIZE[depth]) - 1;
+    template <int depth>
+    constexpr bool USE_HASH = (depth >= MIN_HASH_DEPTH && depth <= MAX_HASH_DEPTH);
 
-	constexpr int NODES_BITS(int depth) {
-		return (depth == 2) ? 16 : (depth == 3) ? 24 : 0;
-	}
+    struct alignas(BUCKET_SIZE) Bucket {
+        U64 key[MAX_ENTRIES];
+        U64 data[MAX_ENTRIES];
+    };
 
-	template <int depth>
-	constexpr bool COMPACT = NODES_BITS(depth) != 0;
+    inline Bucket* TABLE = nullptr;
+    inline U64     MASK = 0;
+    inline U64     BYTES = 0;
 
-	template <int depth>
-	constexpr U64 NODES_MASK = (1ULL << NODES_BITS(depth)) - 1;
+    __forceinline static U64 index(Zobrist z, int depth) {
+        return (z.low + static_cast<U64>(depth)) & MASK;
+    }
 
-	struct alignas(16) Entry { U64 key; U64 nodes; };
+    template <int depth>
+    ForceInline bool probe(Zobrist z, U64& nodes) {
+        const Bucket& b = TABLE[index(z, depth)];
+        for (int i = 0; i < MAX_ENTRIES; ++i) {
+            const U64 d = b.data[i];
+            if (b.key[i] == (z.high ^ d) && (d & 63ULL) == static_cast<U64>(depth)) {
+                nodes = d >> 6;
+                return true;
+            }
+        }
+        return false;
+    }
 
-	template <int depth>
-	using EntryType = std::conditional_t<COMPACT<depth>, U64, Entry>;
+    template <int depth>
+    ForceInline void write(Zobrist z, U64 nodes) {
+        Bucket& b = TABLE[index(z, depth)];
+        const U64 data = (nodes << 6) | static_cast<U64>(depth);
+        int v = 0;
+        for (int i = 0; i < MAX_ENTRIES; ++i) {
+            if (b.key[i] == (z.high ^ b.data[i]) && (b.data[i] & 63ULL) == static_cast<U64>(depth)) {
+                return;
+            }
+            if (b.data[i] < b.data[v]) v = i;
+        }
+        b.key[v] = z.high ^ data;
+        b.data[v] = data;
+    }
 
-	inline void* TT[MAX_DEPTH];
+    template <int depth>
+    ForceInline void prefetch(Zobrist z) {
+        if constexpr (USE_HASH<depth>) {
+            _mm_prefetch(reinterpret_cast<const char*>(&TABLE[index(z, depth)]), _MM_HINT_T0);
+        }
+    }
 
-	template <int depth>
-	ForceInline EntryType<depth>* table() {
-		return static_cast<EntryType<depth>*>(TT[depth]);
-	}
+    inline void free() {
+        if (TABLE) {
+#if defined(_WIN32)
+            _aligned_free(TABLE);
+#else
+            std::free(TABLE);
+#endif
+            TABLE = nullptr;
+            MASK = 0;
+            BYTES = 0;
+        }
+    }
 
-	template <int depth>
-	ForceInline bool probe(Zobrist zobrist, U64& nodes) {
-		if constexpr (COMPACT<depth>) {
-			const U64 e = table<depth>()[zobrist.low & MASK<depth>];
-			if ((e ^ zobrist.high) <= NODES_MASK<depth>) {
-				nodes = e & NODES_MASK<depth>;
-				return true;
-			}
-		}
-		else {
-			const Entry& e = table<depth>()[zobrist.low & MASK<depth>];
-			if ((e.key ^ e.nodes) == zobrist.high) {
-				nodes = e.nodes;
-				return true;
-			}
-		}
-		return false;
-	}
+    inline void clear() {
+        if (TABLE) std::memset(TABLE, 0, BYTES);
+    }
 
-	template <int depth>
-	ForceInline void write(Zobrist zobrist, U64 nodes) {
-		if constexpr (COMPACT<depth>) {
-			table<depth>()[zobrist.low & MASK<depth>] = (zobrist.high & ~NODES_MASK<depth>) | nodes;
-		}
-		else {
-			Entry& e = table<depth>()[zobrist.low & MASK<depth>];
-			e.key = zobrist.high ^ nodes;
-			e.nodes = nodes;
-		}
-	}
+    inline void init(size_t megabytes = 4096) {
+        free();
 
-	template <int depth>
-	ForceInline void prefetch(Zobrist zobrist) {
-		if constexpr (SIZE[depth] != 0) {
-			_mm_prefetch(reinterpret_cast<const char*>(&table<depth>()[zobrist.low & MASK<depth>]), _MM_HINT_T2);
-		}
-	}
+        size_t n = (megabytes << 20) / sizeof(Bucket);
+        if (n < 1) n = 1;
 
-	template <int depth>
-	inline void initTable() {
-		if constexpr (SIZE[depth] != 0)
-			TT[depth] = new EntryType<depth>[1ULL << SIZE[depth]];
-	}
+#if defined(_MSC_VER)
+        n = 1ULL << (63 - _lzcnt_u64(n));
+#else
+        n = 1ULL << (63 - __builtin_clzll(n));
+#endif
 
-	template <int... depths>
-	inline void initTables(std::integer_sequence<int, depths...>) {
-		(initTable<depths>(), ...);
-	}
+        BYTES = n * sizeof(Bucket);
+        MASK = n - 1;
 
-	static inline void init() {
-		initTables(std::make_integer_sequence<int, MAX_DEPTH>{});
-	}
+#if defined(_WIN32)
+        TABLE = static_cast<Bucket*>(_aligned_malloc(BYTES, 64));
+#else
+        if (posix_memalign(reinterpret_cast<void**>(&TABLE), 64, BYTES) != 0) TABLE = nullptr;
+#endif
+        clear();
+    }
 }

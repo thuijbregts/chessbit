@@ -60,7 +60,7 @@ namespace bstate {
 
         }
 
-        template <int depth, Piece piece, bool side, bool capture, uint8_t kMoved, bool tt>
+        template <int depth, Piece piece, bool side, bool capture, uint8_t kMoved>
         ForceInline BoardState make(int from, int to, const BoardState& board, U64 discovers) noexcept {
             constexpr bool kMMoved = kMoved & KING_MOVED[side];
             constexpr bool kEMoved = kMoved & KING_MOVED[!side];
@@ -75,7 +75,7 @@ namespace bstate {
             }
 
             Zobrist zobrist;
-            if constexpr (tt) {
+            if (ttEnabled) {
                 zobrist = zobrist::basic<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.pE, board.nE, board.bE, board.rE, board.qE, board.zobrist);
                 if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
             }
@@ -139,7 +139,7 @@ namespace bstate {
             }
         }
 
-        template <int depth, Piece piece, bool side, bool capture, uint8_t kMoved, bool tt>
+        template <int depth, Piece piece, bool side, bool capture, uint8_t kMoved>
         ForceInline BoardState makePromotion(int from, int to, const BoardState& board, U64 discovers) noexcept {
             constexpr bool kEMoved = kMoved & KING_MOVED[!side];
 
@@ -147,7 +147,7 @@ namespace bstate {
             if constexpr (capture && !kEMoved)  casPerms &= NO_CASTLE_ROOK[to];
 
             Zobrist zobrist;
-            if constexpr (tt) {
+            if (ttEnabled) {
                 zobrist = zobrist::promotion<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.nE, board.bE, board.rE, board.qE, board.zobrist);
                 if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
             }
@@ -199,12 +199,13 @@ namespace bstate {
             }
         }
 
-        template <int depth, bool side, bool tt>
+        template <int depth, bool side>
         ForceInline BoardState makeDoublePush(int from, int to, const BoardState& board, U64 discovers) noexcept {
-            const int8_t eP = from + PAWN_PUSH[side];
+            int8_t eP = from + PAWN_PUSH[side];
+            if (!(PAWN_CAPTURES[side][eP] & board.pE)) eP = noSquare;
 
             Zobrist zobrist;
-            if constexpr (tt) {
+            if (ttEnabled) {
                 zobrist = zobrist::doublePush<side>(from, to, eP, board.eP, board.zobrist);
                 if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
             }
@@ -228,12 +229,12 @@ namespace bstate {
             return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, eP, !side, zobrist);
         }
 
-        template <int depth, bool side, bool tt>
+        template <int depth, bool side>
         ForceInline BoardState makeEnPassant(int from, int to, const BoardState& board) noexcept {
             const int ePS = (to + PAWN_PUSH[!side]);
 
             Zobrist zobrist;
-            if constexpr (tt) {
+            if (ttEnabled) {
                 zobrist = zobrist::enPassant<side>(from, to, ePS, board.eP, board.zobrist);
                 if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
             }
@@ -261,13 +262,13 @@ namespace bstate {
             return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, zobrist);
         }
 
-        template <int depth, int castlingSide, bool tt>
+        template <int depth, int castlingSide>
         ForceInline BoardState makeCastling(const BoardState& board) noexcept {
             constexpr bool side = CASTLING_SIDE[castlingSide];
             const int casPerms = board.casPerms & NO_CASTLE[side];
 
             Zobrist zobrist;
-            if constexpr (tt) {
+            if (ttEnabled) {
                 zobrist = zobrist::castle<castlingSide>(casPerms, board.casPerms, board.eP, board.zobrist);
                 if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
             }

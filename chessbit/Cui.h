@@ -48,18 +48,14 @@ private:
 	U64 runPerft(int depth);
 	U64 runPerft(int depth, const BoardState& board);
 
-	template <bool tt>
 	U64 generateMoves(int depth);
-	template <bool tt>
 	U64 generateMoves(int depth, const BoardState& board);
-	template <bool side, uint8_t kMoved, bool tt>
+	template <bool side, uint8_t kMoved>
 	U64 generateMoves(int depth, const BoardState& board);
 
 	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);
 	void pieces();
 	void help();
-
-	bool ttEnabled = true;
 };
 
 struct Command {

@@ -152,7 +152,8 @@
       <Mtune>No</Mtune>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <InterproceduralOptimization>MultiFile</InterproceduralOptimization>
-      <AdditionalOptions>/bigobj -mbmi2 -mbmi -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH /QxAVX2 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/bigobj -mbmi2 -mbmi -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH /QxAVX2 -fprofile-use="C:\Users\porsh\Documents\Visual Studio 2022\Projects\chessbit - templates\x64\Release\default.profdata" 
+ %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AssemblerOutput>NoListing</AssemblerOutput>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
