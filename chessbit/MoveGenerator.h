@@ -101,10 +101,10 @@ namespace movegen {
                     U64 blockers = threats & board.occE;
                     if (!blockers) {
                         attacks |= (1ULL << from);
-                        maps->sAtks |= threats | (1ULL << from);
+                        maps->eMap |= threats | (1ULL << from);
                     }
                     else if (!BitReset(blockers)) {
-                        maps->sAtks |= blockers;
+                        maps->eMap |= blockers;
                     }
                 }
             }
@@ -174,13 +174,13 @@ namespace movegen {
             U64 pinMask = PIN_MASKS[board.kMS][sS];
             U64 pin = pinMask & board.occB;
 
-            if (!BitReset(pin) && (pin & board.occM)) [[unlikely]] {
+            if (!BitReset(pin)) [[unlikely]] {
                 pins |= pinMask | SQUARE_BITS[sS];
             }
             else {
                 if constexpr (nll) {
                     if (Bitcount(pin) == 2 && Bitcount(pin & board.occE) == 1) [[unlikely]] {
-                        maps->ePins |= pin & board.occE;
+                        maps->eMap |= pin & board.occE;
                     }
                 }
             }
@@ -211,7 +211,7 @@ namespace movegen {
             U64 pinMask = PIN_MASKS[board.kES][sS];
             U64 pin = pinMask & board.occB;
 
-            if (!BitReset(pin) && (pin & board.occM)) [[unlikely]] {
+            if (!BitReset(pin)) [[unlikely]] {
                 disc |= SQUARE_BITS[sS];
             }
         }
@@ -233,7 +233,7 @@ namespace movegen {
         const BoardState nullBoard = board.makeNull(board);
         eval.count = allMoves<1, !side, kMoved, true>(nullBoard, &m);
 
-        m.eMap |= board.occE | m.ePins | m.pMap | m.sAtks;
+        m.eMap |= board.occE;
  
         const U64 bBlockers = getBishopAttacks(board.kES, board.occB) & board.occE;
         const U64 rBlockers = getRookAttacks(board.kES, board.occB) & board.occE;
@@ -598,7 +598,7 @@ namespace movegen {
         const U64 rPins = findRookPins<depth, nll>(board, maps);
         const U64 allPins = bPins | rPins;
 
-        if constexpr (nll) maps->ePins |= allPins;
+        if constexpr (nll) maps->eMap |= allPins;
 
         NullEval null;
         if constexpr (depth == 2) null = buildNullEval<side, kMoved>(board);
@@ -656,7 +656,7 @@ namespace movegen {
             }
         }
         else {
-            maps->pMap = (pawnsLeftAll | pawnsRightAll | pawnsFwdAll | pawnsDblAll);
+            maps->eMap |= (pawnsLeftAll | pawnsRightAll | pawnsFwdAll | pawnsDblAll);
             maps->ePCL = pawnsAtkRight<!side>(pawnsLeftAll) & EN_PASSANT_RANK[side];
             maps->ePCR = pawnsAtkLeft<!side>(pawnsRightAll) & EN_PASSANT_RANK[side];
         }

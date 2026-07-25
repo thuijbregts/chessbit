@@ -301,10 +301,6 @@ void Cui::perft(vector<string>& cmd) {
 void Cui::perftFast(int depth) {
 	string fen = game::getFen();
 
-#ifdef TT_STATS
-	tt::statsReset();
-#endif
-
 	high_resolution_clock::time_point start, end;
 
 	start = high_resolution_clock::now();
@@ -312,10 +308,6 @@ void Cui::perftFast(int depth) {
 	end = high_resolution_clock::now();
 
 	long long total = duration_cast<microseconds>(end - start).count();
-
-#ifdef TT_STATS
-	tt::statsPrint(nodes);
-#endif
 
 	cout << "Depth:\t\t" << depth << endl;
 	cout << "Nodes:\t\t" << nodes << endl;
@@ -332,19 +324,11 @@ void Cui::perftDivide(int depth, int threads) {
 
 	high_resolution_clock::time_point start, end;
 
-#ifdef TT_STATS
-	tt::statsReset();
-#endif
-
 	start = high_resolution_clock::now();
 	U64 nodes = divide(depth, threads);
 	end = high_resolution_clock::now();
 
 	long long total = duration_cast<microseconds>(end - start).count();
-
-#ifdef TT_STATS
-	tt::statsPrint(nodes);
-#endif
 
 	cout << "Depth:\t\t" << depth << endl;
 	cout << "Nodes:\t\t" << nodes << endl;

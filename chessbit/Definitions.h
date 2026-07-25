@@ -55,7 +55,6 @@ namespace defs {
 
 	struct NullMaps {
 		U64 eMap = 0; //squares that change move count
-		U64 pMap = 0; //pawn squares that change move count
 		U64 ePCL = 0; //en passant candidates left
 		U64 ePCR = 0; //en passant candidates right
 		U64 kKZ = 0; //king zone threatening king moves
@@ -63,10 +62,8 @@ namespace defs {
 		U64 nKZ = 0; //knight zone threatening king moves
 		U64 bKZ = 0; //bishop zone threatening king moves
 		U64 rKZ = 0; //rook zone threatening king moves
-		U64 ePins = 0; //enemy pins or pieces that cause a pin if moved
 		U64 bPins = 0; //squares that will cause bishop pins or check
 		U64 rPins = 0; //squares that will cause rook pins or check
-		U64 sAtks = 0; //sliders attacking the king zone
 		U64 cstlBit = 0; //b2 or b7 square attacking castle passing square, otherwise unseen in other maps
 	};
 
