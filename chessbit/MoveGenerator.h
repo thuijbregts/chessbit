@@ -42,7 +42,7 @@ namespace movegen {
         }
     };
 
-    template <bool side, bool kMMoved, bool nll>
+    template <bool side, bool kMMoved>
     ForceInline U64 enemyAttacks(const BoardState& board, NullMaps* maps) {
         U64 attacks = 0ULL;
         attacks |= pawnsAtkLeft<!side>(board.pE) | pawnsAtkRight<!side>(board.pE);
@@ -54,7 +54,7 @@ namespace movegen {
         int from;
         U64 bitboard, tmp, nZone, bZone, rZone;
 
-        if constexpr (nll) {
+        if (maps) {
             U64 cstlSq = 0ULL;
 
             if constexpr (!kMMoved) {
@@ -140,12 +140,12 @@ namespace movegen {
         return attacks;
     }
 
-    template <int castlingSide, bool nll>
+    template <int castlingSide>
     ForceInline bool castle(const BoardState& board, U64 attacks, NullMaps* maps = nullptr) {
         if (!(board.casPerms & CASTLING[castlingSide]) || (CASTLING_OCCUPIED_SQUARES[castlingSide] & board.occB)) {
             return false;
         }
-        if constexpr (nll) {
+        if (maps) {
             maps->cstlBit |= CASTLE_NULL_BIT[castlingSide];
         }
         return !(attacks & CASTLING_PASSING_SQUARES[castlingSide]);
@@ -163,7 +163,7 @@ namespace movegen {
         return getRookAttacks(board.kMS, occB) & (board.rE | board.qE);
     }
 
-    template <int depth, bool nll>
+    template <int depth>
     ForceInline U64 findPins(U64 sE, const BoardState& board, NullMaps* maps = nullptr) {
         U64 pins = 0ULL;
 
@@ -178,7 +178,7 @@ namespace movegen {
                 pins |= pinMask | SQUARE_BITS[sS];
             }
             else {
-                if constexpr (nll) {
+                if (maps) {
                     if (Bitcount(pin) == 2 && Bitcount(pin & board.occE) == 1) [[unlikely]] {
                         maps->eMap |= pin & board.occE;
                     }
@@ -189,14 +189,14 @@ namespace movegen {
         return pins;
     }
 
-    template <int depth, bool nll>
+    template <int depth>
     ForceInline U64 findBishopPins(const BoardState& board, NullMaps* maps = nullptr) {
-        return findPins<depth, nll>((board.bE | board.qE) & BISHOP_XRAYS[board.kMS] & ~board.checks, board, maps);
+        return findPins<depth>((board.bE | board.qE) & BISHOP_XRAYS[board.kMS] & ~board.checks, board, maps);
     }
 
-    template <int depth, bool nll>
+    template <int depth>
     ForceInline U64 findRookPins(const BoardState& board, NullMaps* maps = nullptr) {
-        return findPins<depth, nll>((board.rE | board.qE) & ROOK_XRAYS[board.kMS] & ~board.checks, board, maps);
+        return findPins<depth>((board.rE | board.qE) & ROOK_XRAYS[board.kMS] & ~board.checks, board, maps);
     }
 
     template <int depth>
@@ -222,7 +222,7 @@ namespace movegen {
     template <int depth, bool side, uint8_t kMoved>
     struct PerftGenerator;
 
-    template <int depth, bool side, uint8_t kMoved, bool nll>
+    template <int depth, bool side, uint8_t kMoved>
     ForceInline U64 allMoves(const BoardState& board, NullMaps* maps = nullptr);
 
     template <bool side, uint8_t kMoved>
@@ -231,7 +231,7 @@ namespace movegen {
         NullMaps& m = eval.maps;
 
         const BoardState nullBoard = board.makeNull(board);
-        eval.count = allMoves<1, !side, kMoved, true>(nullBoard, &m);
+        eval.count = allMoves<1, !side, kMoved>(nullBoard, &m);
 
         m.eMap |= board.occE;
  
@@ -288,7 +288,7 @@ namespace movegen {
         else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoardQ);
     }
 
-    template <int depth, bool side, uint8_t kMoved, bool nll>
+    template <int depth, bool side, uint8_t kMoved>
     ForceInline U64 allMoves(const BoardState& board, NullMaps* maps) {
         if constexpr (USE_HASH<depth>) {
             if (ttEnabled) {
@@ -305,7 +305,7 @@ namespace movegen {
         constexpr bool kMMoved = kMoved & KING_MOVED[side];
 
         U64 nodes = 0ULL;
-        U64 eAttacks = enemyAttacks<side, kMMoved, nll>(board, maps);
+        U64 eAttacks = enemyAttacks<side, kMMoved>(board, maps);
 
         U64 discovers = 0ULL;
         if constexpr (depth != 1) discovers = findDiscoverers<depth>(board);
@@ -324,12 +324,12 @@ namespace movegen {
             if (!BitReset(board.checks)) [[likely]] {
                 int checkSquare = SquareOf(board.checks);
 
-                const U64 bPins = findBishopPins<depth, false>(board);
-                const U64 rPins = findRookPins<depth, false>(board);
+                const U64 bPins = findBishopPins<depth>(board);
+                const U64 rPins = findRookPins<depth>(board);
                 const U64 allPins = bPins | rPins;
                 if (board.checks & (board.pE | board.nE)) {
                     /*
-                       PAWN MOVES
+                        PAWN MOVES
                     */
                     to = checkSquare;
 
@@ -369,7 +369,7 @@ namespace movegen {
                     }
 
                     /*
-                       KNIGHT MOVES
+                        KNIGHT MOVES
                     */
                     bitboard = board.nM & ~allPins;
                     attacks = getKnightAttacks(checkSquare) & bitboard;
@@ -387,7 +387,7 @@ namespace movegen {
                     }
 
                     /*
-                       BISHOP MOVES
+                        BISHOP MOVES
                     */
                     bitboard = (board.bM | board.qM) & ~allPins & BISHOP_XRAYS[checkSquare];
                     if (bitboard) [[unlikely]] {
@@ -411,7 +411,7 @@ namespace movegen {
                     }
 
                     /*
-                       ROOK MOVES
+                        ROOK MOVES
                     */
                     bitboard = (board.rM | board.qM) & ~allPins & ROOK_XRAYS[checkSquare];
                     if (bitboard) [[unlikely]] {
@@ -437,7 +437,7 @@ namespace movegen {
                 else {
                     const U64 validSquares = (board.checks | PIN_MASKS[board.kMS][checkSquare]);
                     /*
-                       PAWN MOVES
+                        PAWN MOVES
                     */
                     const U64 pawns = board.pM & ~allPins;
 
@@ -534,7 +534,7 @@ namespace movegen {
                         }
                     }
                     /*
-                       KNIGHT MOVES
+                        KNIGHT MOVES
                     */
                     bitboard = board.nM & ~allPins;
                     Bitloop(bitboard)
@@ -547,7 +547,7 @@ namespace movegen {
                     }
 
                     /*
-                       BISHOP MOVES
+                        BISHOP MOVES
                     */
                     bitboard = board.bM & ~allPins;
                     Bitloop(bitboard)
@@ -560,7 +560,7 @@ namespace movegen {
                     }
 
                     /*
-                       ROOK MOVES
+                        ROOK MOVES
                     */
                     bitboard = board.rM & ~allPins;
                     Bitloop(bitboard)
@@ -573,7 +573,7 @@ namespace movegen {
                     }
 
                     /*
-                       QUEEN MOVES
+                        QUEEN MOVES
                     */
                     bitboard = board.qM & ~allPins;
                     Bitloop(bitboard)
@@ -594,11 +594,9 @@ namespace movegen {
             return nodes;
         }
 
-        const U64 bPins = findBishopPins<depth, nll>(board, maps);
-        const U64 rPins = findRookPins<depth, nll>(board, maps);
+        const U64 bPins = findBishopPins<depth>(board, maps);
+        const U64 rPins = findRookPins<depth>(board, maps);
         const U64 allPins = bPins | rPins;
-
-        if constexpr (nll) maps->eMap |= allPins;
 
         NullEval null;
         if constexpr (depth == 2) null = buildNullEval<side, kMoved>(board);
@@ -613,7 +611,7 @@ namespace movegen {
 
         if constexpr (depth == 1) {
             nodes += Bitcount(attacks);
-            if constexpr (nll) {
+            if (maps) {
                 maps->eMap |= attacks;
                 maps->pKZ = pawnsAtkLeft<side>(pseudoAttacks | board.kM) | pawnsAtkRight<side>(pseudoAttacks | board.kM);
                 maps->kKZ = KING_ZONES[board.kMS];
@@ -636,7 +634,7 @@ namespace movegen {
         const U64 pawnsDblAll = pawnsAtkForward<side>(pawnsFwd & FIRST_PUSH_RANK[side]);
         U64 pawnsDbl = pawnsDblAll & ~board.occB;
 
-        if constexpr (!nll) {
+        if (!maps) {
             if (board.eP != noSquare) [[unlikely]] {
                 const U64 ePBit = (1ULL << board.eP);
                 U64 ePP = pawnsAtkRight<!side>(pawnsLeftAll & ePBit) | pawnsAtkLeft<!side>(pawnsRightAll & ePBit);
@@ -656,6 +654,8 @@ namespace movegen {
             }
         }
         else {
+            maps->eMap |= allPins;
+
             maps->eMap |= (pawnsLeftAll | pawnsRightAll | pawnsFwdAll | pawnsDblAll);
             maps->ePCL = pawnsAtkRight<!side>(pawnsLeftAll) & EN_PASSANT_RANK[side];
             maps->ePCR = pawnsAtkLeft<!side>(pawnsRightAll) & EN_PASSANT_RANK[side];
@@ -788,7 +788,7 @@ namespace movegen {
 
             if constexpr (depth == 1) {
                 nodes += Bitcount(attacks);
-                if constexpr (nll) maps->eMap |= attacks;
+                if (maps) maps->eMap |= attacks;
             }
             else makeMoves<depth, side, kMoved, Piece::Bishop>(nodes, attacks, from, board, discovers);
         }
@@ -805,7 +805,7 @@ namespace movegen {
 
             if constexpr (depth == 1) {
                 nodes += Bitcount(attacks);
-                if constexpr (nll) maps->eMap |= attacks;
+                if (maps) maps->eMap |= attacks;
             }
             else {
                 if (isQueen)    makeMoves<depth, side, kMoved, Piece::Queen>(nodes, attacks, from, board, 0ULL);
@@ -827,7 +827,7 @@ namespace movegen {
 
             if constexpr (depth == 1) {
                 nodes += Bitcount(attacks);
-                if constexpr (nll) maps->eMap |= attacks;
+                if (maps) maps->eMap |= attacks;
             }
             else makeMoves<depth, side, kMoved, Piece::Rook>(nodes, attacks, from, board, discovers);
         }
@@ -844,7 +844,7 @@ namespace movegen {
 
             if constexpr (depth == 1) {
                 nodes += Bitcount(attacks);
-                if constexpr (nll) maps->eMap |= attacks;
+                if (maps) maps->eMap |= attacks;
             }
             else {
                 if (isQueen)    makeMoves<depth, side, kMoved, Piece::Queen>(nodes, attacks, from, board, 0ULL);
@@ -866,7 +866,7 @@ namespace movegen {
 
             if constexpr (depth == 1) {
                 nodes += Bitcount(attacks);
-                if constexpr (nll) maps->eMap |= attacks;
+                if (maps) maps->eMap |= attacks;
             }
             else makeMoves<depth, side, kMoved, Piece::Queen>(nodes, attacks, from, board, 0ULL);
         }
@@ -877,7 +877,7 @@ namespace movegen {
         if constexpr (!kMMoved) {
             constexpr int kSide = CASTLING_SIDE_K[side];
             constexpr int qSide = CASTLING_SIDE_Q[side];
-            if (castle<kSide, nll>(board, eAttacks, maps)) {
+            if (castle<kSide>(board, eAttacks, maps)) {
 
                 if constexpr (depth == 2) {
                     constexpr U64 rBit = rookSwitch<kSide>();
@@ -901,7 +901,7 @@ namespace movegen {
                     }
                 }
             }
-            if (castle<qSide, nll>(board, eAttacks, maps)) {
+            if (castle<qSide>(board, eAttacks, maps)) {
                 if constexpr (depth == 2) {
                     constexpr U64 rBit = rookSwitch<qSide>();
                     constexpr U64 kBit = kingSwitch<qSide>();
@@ -938,21 +938,21 @@ namespace movegen {
     template <int depth, bool side, uint8_t kMoved>
     struct PerftGenerator {
         static __declspec(noinline) U64 generateMoves(const BoardState& board) {
-            return allMoves<depth, side, kMoved, false>(board);
+            return allMoves<depth, side, kMoved>(board);
         }
     };
 
     template <bool side, uint8_t kMoved>
     struct PerftGenerator<1, side, kMoved> {
         ForceInline U64 generateMoves(const BoardState& board) {
-            return allMoves<1, side, kMoved, false>(board);
+            return allMoves<1, side, kMoved>(board);
         }
     };
 
     template <bool side, uint8_t kMoved>
     struct PerftGenerator<0, side, kMoved> {
         ForceInline U64 generateMoves(const BoardState& board) {
-            return allMoves<0, side, kMoved, false>(board);
+            return allMoves<0, side, kMoved>(board);
         }
     };
 
