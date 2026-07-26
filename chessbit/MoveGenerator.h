@@ -56,6 +56,7 @@ namespace movegen {
 
         if (maps) {
             U64 cstlSq = 0ULL;
+            bool addZone;
 
             if constexpr (!kMMoved) {
                 constexpr U64 kSC = CASTLING_OCCUPIED_SQUARES[CASTLING_SIDE_K[side]];
@@ -91,25 +92,28 @@ namespace movegen {
                 from = SquareOf(bitboard);
                 const U64 fb = (1ULL << from);
 
+                addZone = true;
+
                 bZone = getBishopAttacks(from, occBishop);
                 rZone = getRookAttacks(from, occRook);
-
-                maps->bKZ |= bZone;
-                maps->rKZ |= rZone;
 
                 tmp = (bZone & bqE) | (rZone & rqE);
                 Bitloop(tmp) {
                     int sq = SquareOf(tmp);
-
                     U64 threats = PIN_MASKS[sq][from];
                     U64 blockers = threats & board.occE;
                     if (!blockers) {
                         attacks |= fb;
-                        maps->eMap |= threats | fb;
+                        maps->eMap |= threats | fb | (1ULL << sq);
+                        addZone = false;
                     }
                     else if (!BitReset(blockers)) {
                         maps->eMap |= blockers;
                     }
+                }
+                if (addZone) {
+                    maps->bKZ |= bZone;
+                    maps->rKZ |= rZone;
                 }
             }
         }
