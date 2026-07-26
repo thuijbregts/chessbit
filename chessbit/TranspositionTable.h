@@ -1,6 +1,7 @@
 #pragma once
 #include "Definitions.h"
 #include <atomic>
+#include <cstdio>
 #include <cstring>
 #include <cstdlib>
 
@@ -17,6 +18,23 @@ namespace tt {
 
     constexpr int MAX_ENTRIES = 4;
     constexpr int BUCKET_SIZE = MAX_ENTRIES * 16;
+
+    constexpr U64 DEPTH_BITS = 4;
+    constexpr U64 DEPTH_MASK = (1ULL << DEPTH_BITS) - 1;
+    constexpr U64 FREQ_SHIFT = DEPTH_BITS;
+    constexpr U64 FREQ_BITS = 2;
+    constexpr U64 FREQ_MASK = ((1ULL << FREQ_BITS) - 1) << FREQ_SHIFT;
+    constexpr U64 FREQ_ONE = 1ULL << FREQ_SHIFT;
+    constexpr U64 FREQ_MAX = FREQ_MASK;                        
+    constexpr U64 META_BITS = 6;                                 
+    constexpr U64 COUNT_SHIFT = META_BITS;
+
+    __forceinline static U64 scoreOf(U64 data) {
+        const U64 count = data >> COUNT_SHIFT;
+        const U64 freq = (data & FREQ_MASK) >> FREQ_SHIFT;
+
+        return count + count * freq;
+    }
 
     template <int depth>
     constexpr bool USE_HASH = (depth >= MIN_HASH_DEPTH && depth <= MAX_HASH_DEPTH);
@@ -36,11 +54,11 @@ namespace tt {
 
     template <int depth>
     ForceInline bool probe(Zobrist z, U64& nodes) {
-        const Bucket& b = TABLE[index(z, depth)];
+            const Bucket& b = TABLE[index(z, depth)];
         for (int i = 0; i < MAX_ENTRIES; ++i) {
             const U64 d = b.data[i];
-            if (b.key[i] == (z.high ^ d) && (d & 63ULL) == static_cast<U64>(depth)) {
-                nodes = d >> 6;
+            if (b.key[i] == (z.high ^ d) && (d & DEPTH_MASK) == static_cast<U64>(depth)) {
+                nodes = d >> COUNT_SHIFT;
                 return true;
             }
         }
@@ -50,14 +68,27 @@ namespace tt {
     template <int depth>
     ForceInline void write(Zobrist z, U64 nodes) {
         Bucket& b = TABLE[index(z, depth)];
-        const U64 data = (nodes << 6) | static_cast<U64>(depth);
+
         int v = 0;
+        U64 minScore = ~0ULL;
         for (int i = 0; i < MAX_ENTRIES; ++i) {
-            if (b.key[i] == (z.high ^ b.data[i]) && (b.data[i] & 63ULL) == static_cast<U64>(depth)) {
+            const U64 di = b.data[i];
+
+            if (b.key[i] == (z.high ^ di) && (di & DEPTH_MASK) == static_cast<U64>(depth)) {
+                if ((di & FREQ_MASK) != FREQ_MAX) {
+                    const U64 nd = di + FREQ_ONE;
+                    b.key[i] = z.high ^ nd;
+                    b.data[i] = nd;
+                }
                 return;
             }
-            if (b.data[i] < b.data[v]) v = i;
+
+            const U64 sc = scoreOf(di);
+            if (sc < minScore) { minScore = sc; v = i; }
         }
+
+        const U64 data = (nodes << COUNT_SHIFT) | static_cast<U64>(depth);
+
         b.key[v] = z.high ^ data;
         b.data[v] = data;
     }

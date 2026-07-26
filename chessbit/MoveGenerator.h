@@ -78,14 +78,18 @@ namespace movegen {
                 attacks |= getKnightAttacks(SquareOf(bitboard));
             }
 
-            U64 occBishop = occB & ~(board.occE & ~(board.bE | board.qE));
-            U64 occRook = occB & ~(board.occE & ~(board.rE | board.qE));
+            const U64 bqE = (board.bE | board.qE);
+            const U64 rqE = (board.rE | board.qE);
+
+            const U64 occBishop = occB & ~(board.occE & ~bqE);
+            const U64 occRook = occB & ~(board.occE & ~rqE);
 
             U64 threatened = (board.kMA & ~board.occM) | cstlSq;
 
-            bitboard = threatened;
+            bitboard = threatened & ~attacks;
             Bitloop(bitboard) {
                 from = SquareOf(bitboard);
+                const U64 fb = (1ULL << from);
 
                 bZone = getBishopAttacks(from, occBishop);
                 rZone = getRookAttacks(from, occRook);
@@ -93,15 +97,15 @@ namespace movegen {
                 maps->bKZ |= bZone;
                 maps->rKZ |= rZone;
 
-                tmp = (bZone & (board.bE | board.qE)) | (rZone & (board.rE | board.qE));
+                tmp = (bZone & bqE) | (rZone & rqE);
                 Bitloop(tmp) {
                     int sq = SquareOf(tmp);
 
                     U64 threats = PIN_MASKS[sq][from];
                     U64 blockers = threats & board.occE;
                     if (!blockers) {
-                        attacks |= (1ULL << from);
-                        maps->eMap |= threats | (1ULL << from);
+                        attacks |= fb;
+                        maps->eMap |= threats | fb;
                     }
                     else if (!BitReset(blockers)) {
                         maps->eMap |= blockers;
@@ -226,8 +230,7 @@ namespace movegen {
     ForceInline U64 allMoves(const BoardState& board, NullMaps* maps = nullptr);
 
     template <bool side, uint8_t kMoved>
-    ForceInline NullEval buildNullEval(const BoardState& board) {
-        NullEval eval;
+    ForceInline NullEval buildNullEval(const BoardState& board, NullEval& eval) {
         NullMaps& m = eval.maps;
 
         const BoardState nullBoard = board.makeNull(board);
@@ -599,7 +602,7 @@ namespace movegen {
         const U64 allPins = bPins | rPins;
 
         NullEval null;
-        if constexpr (depth == 2) null = buildNullEval<side, kMoved>(board);
+        if constexpr (depth == 2) buildNullEval<side, kMoved>(board, null);
 
         /*
             KING MOVES
