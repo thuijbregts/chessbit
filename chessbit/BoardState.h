@@ -66,7 +66,7 @@ namespace bstate {
 
         }
 
-        template <int depth, Piece piece, bool side, bool capture, uint8_t kMoved>
+        template <Piece piece, bool side, bool capture, uint8_t kMoved>
         ForceInline BoardState make(int from, int to, const BoardState& board, U64 discovers) noexcept {
             constexpr bool kMMoved = kMoved & KING_MOVED[side];
             constexpr bool kEMoved = kMoved & KING_MOVED[!side];
@@ -83,7 +83,6 @@ namespace bstate {
             Zobrist zobrist;
             if (ttEnabled) {
                 zobrist = zobrist::basic<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.pE, board.nE, board.bE, board.rE, board.qE, board.zobrist);
-                if constexpr (depth >= 3) tt::prefetch<depth - 1>(zobrist);
             }
 
             const U64 t = (1ULL << to);
@@ -145,7 +144,7 @@ namespace bstate {
             }
         }
 
-        template <int depth, Piece piece, bool side, bool capture, uint8_t kMoved>
+        template <Piece piece, bool side, bool capture, uint8_t kMoved>
         ForceInline BoardState makePromotion(int from, int to, const BoardState& board, U64 discovers) noexcept {
             constexpr bool kEMoved = kMoved & KING_MOVED[!side];
 
@@ -155,7 +154,6 @@ namespace bstate {
             Zobrist zobrist;
             if (ttEnabled) {
                 zobrist = zobrist::promotion<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.nE, board.bE, board.rE, board.qE, board.zobrist);
-                if constexpr (depth >= 3) tt::prefetch<depth - 1>(zobrist);
             }
 
             const U64 f = (1ULL << from);
@@ -205,7 +203,7 @@ namespace bstate {
             }
         }
 
-        template <int depth, bool side>
+        template <bool side>
         ForceInline BoardState makeDoublePush(int from, int to, const BoardState& board, U64 discovers) noexcept {
             int8_t eP = from + PAWN_PUSH[side];
             if (!(PAWN_CAPTURES[side][eP] & board.pE)) eP = noSquare;
@@ -213,7 +211,6 @@ namespace bstate {
             Zobrist zobrist;
             if (ttEnabled) {
                 zobrist = zobrist::doublePush<side>(from, to, eP, board.eP, board.zobrist);
-                if constexpr (depth >= 3) tt::prefetch<depth - 1>(zobrist);
             }
 
             const U64 t = (1ULL << to);
@@ -235,14 +232,13 @@ namespace bstate {
             return BoardState(board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, eP, !side, zobrist);
         }
 
-        template <int depth, bool side>
+        template <bool side>
         ForceInline BoardState makeEnPassant(int from, int to, const BoardState& board) noexcept {
             const int ePS = (to + PAWN_PUSH[!side]);
 
             Zobrist zobrist;
             if (ttEnabled) {
                 zobrist = zobrist::enPassant<side>(from, to, ePS, board.eP, board.zobrist);
-                if constexpr (depth >= 3) tt::prefetch<depth - 1>(zobrist);
             }
 
             const U64 move = (1ULL << from) | (1ULL << to);
@@ -268,7 +264,7 @@ namespace bstate {
             return BoardState(pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, !side, zobrist);
         }
 
-        template <int depth, int castlingSide>
+        template <int castlingSide>
         ForceInline BoardState makeCastling(const BoardState& board) noexcept {
             constexpr bool side = CASTLING_SIDE[castlingSide];
             const int casPerms = board.casPerms & NO_CASTLE[side];
@@ -276,7 +272,6 @@ namespace bstate {
             Zobrist zobrist;
             if (ttEnabled) {
                 zobrist = zobrist::castle<castlingSide>(casPerms, board.casPerms, board.eP, board.zobrist);
-                if constexpr (depth >= 3) tt::prefetch<depth - 1>(zobrist);
             }
 
             const U64 kM = board.kM ^ kingSwitch<castlingSide>();
