@@ -1,14 +1,13 @@
 #pragma once
 #include "Definitions.h"
+#include "Utils.h"
 #include <atomic>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
-
-#if defined(_WIN32)
-#include <malloc.h>
-#include <intrin.h>
-#endif
+#include <cstddef>
+#include <new>
+#include <bit>
 
 using namespace defs;
 
@@ -29,13 +28,6 @@ namespace tt {
     constexpr U64 META_BITS = 6;                                 
     constexpr U64 COUNT_SHIFT = META_BITS;
 
-    __forceinline static U64 scoreOf(U64 data) {
-        const U64 count = data >> COUNT_SHIFT;
-        const U64 freq = (data & FREQ_MASK) >> FREQ_SHIFT;
-
-        return count + count * freq;
-    }
-
     template <int depth>
     constexpr bool USE_HASH = (depth >= MIN_HASH_DEPTH && depth <= MAX_HASH_DEPTH);
 
@@ -54,7 +46,8 @@ namespace tt {
 
     template <int depth>
     ForceInline bool probe(Zobrist z, U64& nodes) {
-            const Bucket& b = TABLE[index(z, depth)];
+        const Bucket& b = TABLE[index(z, depth)];
+
         for (int i = 0; i < MAX_ENTRIES; ++i) {
             const U64 d = b.data[i];
             if (b.key[i] == (z.high ^ d) && (d & DEPTH_MASK) == static_cast<U64>(depth)) {
@@ -63,6 +56,13 @@ namespace tt {
             }
         }
         return false;
+    }
+
+    ForceInline U64 score(U64 data) {
+        const U64 count = data >> COUNT_SHIFT;
+        const U64 freq = (data & FREQ_MASK) >> FREQ_SHIFT;
+
+        return count + count * freq;
     }
 
     template <int depth>
@@ -83,7 +83,7 @@ namespace tt {
                 return;
             }
 
-            const U64 sc = scoreOf(di);
+            const U64 sc = score(di);
             if (sc < minScore) { minScore = sc; v = i; }
         }
 
@@ -102,41 +102,50 @@ namespace tt {
 
     inline void free() {
         if (TABLE) {
-#if defined(_WIN32)
-            _aligned_free(TABLE);
-#else
-            std::free(TABLE);
-#endif
+            ::operator delete(TABLE, std::align_val_t(64));
             TABLE = nullptr;
             MASK = 0;
             BYTES = 0;
         }
     }
 
-    inline void clear() {
-        if (TABLE) std::memset(TABLE, 0, BYTES);
-    }
+    inline void init(size_t mb = 0) {
+        printf("\n");
+        printf("Initializing transposition table\n");
 
-    inline void init(size_t megabytes = 4096) {
-        free();
+        U64 bytes = utils::availableMemory();
+        printf("Available memory: %llu MB\n", bytes >> 20);
 
-        size_t n = (megabytes << 20) / sizeof(Bucket);
-        if (n < 1) n = 1;
+        bool custom = false;
 
-#if defined(_MSC_VER)
-        n = 1ULL << (63 - _lzcnt_u64(n));
-#else
-        n = 1ULL << (63 - __builtin_clzll(n));
-#endif
+        U64 b;
+        if (mb > 0) {
+            b = U64(mb) << 20;
+
+            if (b > bytes)  printf("Requested size (%llu MB) is more than available memory\n", mb);
+            else            custom = true;
+        }
+
+        if (custom) {
+            bytes = b;
+            printf("Using requested TT size: %llu MB\n", mb);
+        }
+        else {
+            bytes *= 0.9;
+            printf("Using 90%% of available memory\n");
+        }
+
+        size_t n = bytes / sizeof(Bucket);
+        n = std::bit_floor(n);
 
         BYTES = n * sizeof(Bucket);
         MASK = n - 1;
 
-#if defined(_WIN32)
-        TABLE = static_cast<Bucket*>(_aligned_malloc(BYTES, 64));
-#else
-        if (posix_memalign(reinterpret_cast<void**>(&TABLE), 64, BYTES) != 0) TABLE = nullptr;
-#endif
-        clear();
+        printf("Final size: %llu MB\n", BYTES >> 20);
+
+        TABLE = static_cast<Bucket*>(::operator new(BYTES, std::align_val_t(64)));
+        std::memset(TABLE, 0, BYTES);
+
+        printf("Initialization complete\n\n");
     }
 }

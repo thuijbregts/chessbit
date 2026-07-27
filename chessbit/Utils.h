@@ -1,21 +1,23 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "Definitions.h"
 #include <vector>
 #include <string>
 #include <regex>
-#include "Game.h"
 
-using namespace std;
-using namespace game;
+namespace moveinfo {
+	struct MoveInfo;
+}
 
 namespace utils {
 	const std::regex MOVE_REGEX{ "([a-h]{1}[1-8]{1}){2}[RNBQ]?" };
 
-	vector<string> split(const string& str, const char delim);
-	string getMoveSimple(const MoveInfo& move);
-	bool validMove(string& move);
-	bool isPositiveDigits(string& str);
+	U64 availableMemory();
+	std::vector<std::string> split(const std::string& str, const char delim);
+	std::string getMoveSimple(const moveinfo::MoveInfo& move);
+	bool validMove(std::string& move);
+	bool isPositiveDigits(std::string& str);
 }
 
 #endif

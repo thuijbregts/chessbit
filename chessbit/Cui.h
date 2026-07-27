@@ -45,9 +45,6 @@ private:
 	void compare();
 	void toggleTT(vector<string>& cmd);
 
-	U64 runPerft(int depth);
-	U64 runPerft(int depth, const BoardState& board);
-
 	U64 generateMoves(int depth);
 	U64 generateMoves(int depth, const BoardState& board);
 	template <bool side, uint8_t kMoved>
@@ -92,6 +89,7 @@ namespace cui {
 	const string PERFT_D = "-d";
 	const string PERFT_F = "-f";
 	const string PERFT_T = "-t";
+	const string PERFT_H = "-h";
 
 	const Command COMMANDS[]{
 		{ EXIT, {} },

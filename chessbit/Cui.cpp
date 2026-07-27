@@ -1,8 +1,6 @@
 #include "Test.hpp"
 #include "Cui.h"
 #include "MoveGenerator.h"
-#include "TranspositionTable.h"
-#include "Utils.h"
 #include <iostream>
 #include <fstream>
 #include <algorithm>
@@ -260,7 +258,8 @@ void Cui::toggleTT(vector<string>& cmd) {
 void Cui::perft(vector<string>& cmd) {
 	bool divideMode = false;
 	int depth = -1;
-	int threads = 0;   // 0 => logique actuelle
+	int threads = 0;
+	int ttSize = 0;
 
 	for (size_t i = 1; i < cmd.size(); i++) {
 		string& tok = cmd[i];
@@ -272,7 +271,16 @@ void Cui::perft(vector<string>& cmd) {
 				threads = stoi(cmd[++i]);
 			}
 			else {
-				cout << "incorrect thread value" << endl;
+				cout << "Incorrect thread value" << endl;
+				return;
+			}
+		}
+		else if (tok == cui::PERFT_H) {
+			if (i + 1 < cmd.size() && utils::isPositiveDigits(cmd[i + 1]) && stoi(cmd[i + 1]) > 0) {
+				ttSize = stoi(cmd[++i]);
+			}
+			else {
+				cout << "Incorrect TT size value" << endl;
 				return;
 			}
 		}
@@ -280,7 +288,7 @@ void Cui::perft(vector<string>& cmd) {
 			depth = stoi(tok);
 		}
 		else {
-			cout << "incorrect perft option" << endl;
+			cout << "Incorrect perft option" << endl;
 			return;
 		}
 	}
@@ -290,12 +298,16 @@ void Cui::perft(vector<string>& cmd) {
 		return;
 	}
 
+	if (ttEnabled) tt::init(ttSize);
+
 	if (divideMode) {
 		perftDivide(depth, threads);
 	}
 	else {
 		perftFast(depth);
 	}
+
+	if (ttEnabled) tt::free();
 }
 
 void Cui::perftFast(int depth) {
@@ -304,7 +316,7 @@ void Cui::perftFast(int depth) {
 	high_resolution_clock::time_point start, end;
 
 	start = high_resolution_clock::now();
-	U64 nodes = runPerft(depth);
+	U64 nodes = generateMoves(depth);
 	end = high_resolution_clock::now();
 
 	long long total = duration_cast<microseconds>(end - start).count();
@@ -416,22 +428,22 @@ __forceinline U64 Cui::divide(int depth, int threads) {
 		}
 		};
 
-	unsigned threadCount;
+	int threadCount;
 	if (threads > 0) {
-		threadCount = (unsigned)threads;
+		threadCount = threads;
 	}
 	else {
 		threadCount = std::thread::hardware_concurrency();
 		if (threadCount == 0)	threadCount = 4;
 	}
 	if (tasks.size() > 0 && threadCount > tasks.size())
-		threadCount = (unsigned)tasks.size();
+		threadCount = tasks.size();
 	if (threadCount < 1) threadCount = 1;
 
 	std::vector<std::thread> pool;
 	pool.reserve(threadCount);
 
-	for (unsigned t = 0; t < threadCount; ++t)
+	for (int t = 0; t < threadCount; ++t)
 		pool.emplace_back(worker);
 
 	for (auto& th : pool)
@@ -444,6 +456,9 @@ __forceinline U64 Cui::divide(int depth, int threads) {
 }
 
 void Cui::test() {
+	bool tt = ttEnabled;
+	ttEnabled = false;
+
 	string fen = game::getFen();
 
 	high_resolution_clock::time_point start, end;
@@ -456,7 +471,7 @@ void Cui::test() {
 		cout << "Depth:\t\t\t" << test.depth << endl;
 		setFen(test.fen);
 		start = high_resolution_clock::now();
-		nodes = runPerft(test.depth);
+		nodes = generateMoves(test.depth);
 		end = high_resolution_clock::now();
 
 		long long total = duration_cast<microseconds>(end - start).count();
@@ -479,9 +494,14 @@ void Cui::test() {
 	cout << "Final results:\t\t" << success << "/" << tests << endl;
 
 	game::setFen(fen.c_str());
+
+	ttEnabled = tt;
 }
 
 void Cui::perftsuite() {
+	bool tt = ttEnabled;
+	ttEnabled = false;
+
 	string fenS = game::getFen();
 
 	int success = 0;
@@ -497,7 +517,7 @@ void Cui::perftsuite() {
 
 			auto perftvals = test::GetElements(v[i], ' ');
 			U64 expected = static_cast<U64>(std::strtol(perftvals[1].c_str(), NULL, 10));
-			U64 result = runPerft(i);
+			U64 result = generateMoves(i);
 			std::string status = expected == result ? "OK" : "ERROR";
 			if (expected == result) {
 				cout << "   " << i << ": " << result << " " << status << endl;
@@ -511,9 +531,14 @@ void Cui::perftsuite() {
 	cout << "Final results:\t\t" << success << "/" << tests << endl;
 
 	game::setFen(fenS.c_str());
+
+	ttEnabled = tt;
 }
 
 void Cui::benchmark(string& depth, string& amount) {
+	bool tt = ttEnabled;
+	ttEnabled = false;
+
 	int d = 6;
 	int a = 25;
 	bool print = true;
@@ -555,6 +580,8 @@ void Cui::benchmark(string& depth, string& amount) {
 	}
 
 	executeBenchmark(d, a, print);
+
+	ttEnabled = tt;
 }
 
 void Cui::executeBenchmark(int depth, int amount, bool print) {
@@ -565,7 +592,7 @@ void Cui::executeBenchmark(int depth, int amount, bool print) {
 
 	for (int i = 0; i < amount; i++) {
 		start = high_resolution_clock::now();
-		auto volatile result = runPerft(depth);
+		auto volatile result = generateMoves(depth);
 		end = high_resolution_clock::now();
 
 		total = duration_cast<microseconds>(end - start).count();
@@ -584,6 +611,9 @@ void Cui::executeBenchmark(int depth, int amount, bool print) {
 }
 
 void Cui::compare() {
+	bool tt = ttEnabled;
+	ttEnabled = false;
+
 	string fen = game::getFen();
 
 	high_resolution_clock::time_point start, end;
@@ -595,7 +625,7 @@ void Cui::compare() {
 	for (int i = 1; i <= 7; i++)
 	{
 		start = high_resolution_clock::now();
-		result = runPerft(i);
+		result = generateMoves(i);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
 		std::cout << "Perft Start " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
@@ -607,7 +637,7 @@ void Cui::compare() {
 	for (int i = 1; i <= 6; i++)
 	{
 		start = high_resolution_clock::now();
-		result = runPerft(i);
+		result = generateMoves(i);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
 		std::cout << "Perft Kiwi " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
@@ -619,7 +649,7 @@ void Cui::compare() {
 	for (int i = 1; i <= 6; i++)
 	{
 		start = high_resolution_clock::now();
-		result = runPerft(i);
+		result = generateMoves(i);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
 		std::cout << "Perft Midgame " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
@@ -631,7 +661,7 @@ void Cui::compare() {
 	for (int i = 1; i <= 7; i++)
 	{
 		start = high_resolution_clock::now();
-		result = runPerft(i);
+		result = generateMoves(i);
 		end = high_resolution_clock::now();
 		total = duration_cast<microseconds>(end - start).count();
 		std::cout << "Perft Endgame " << i << ": " << result << " " << total / 1000 << "ms " << result * 1.0 / total << " MNodes/s\n";
@@ -646,14 +676,8 @@ void Cui::compare() {
 		<< " " << total / 1000 << "ms " << nodes * 1.0 / total << " MNodes/s\n";
 
 	game::setFen(fen.c_str());
-}
 
-U64 Cui::runPerft(int depth) {
-	return generateMoves(depth);
-}
-
-U64 Cui::runPerft(int depth, const BoardState& board) {
-	return generateMoves(depth, board);
+	ttEnabled = tt;
 }
 
 U64 Cui::generateMoves(int depth) {
@@ -661,45 +685,23 @@ U64 Cui::generateMoves(int depth) {
 }
 
 U64 Cui::generateMoves(int depth, const BoardState& board) {
-	if (board.side == white) {
-		switch (board.casPerms) {
-		case 0b0000: return generateMoves<white, KING_MOVED[both]>(depth, board);
-		case 0b0001: return generateMoves<white, KING_MOVED[black]>(depth, board);
-		case 0b0010: return generateMoves<white, KING_MOVED[black]>(depth, board);
-		case 0b0011: return generateMoves<white, KING_MOVED[black]>(depth, board);
-		case 0b0100: return generateMoves<white, KING_MOVED[white]>(depth, board);
-		case 0b0101: return generateMoves<white, 0>(depth, board);
-		case 0b0110: return generateMoves<white, 0>(depth, board);
-		case 0b0111: return generateMoves<white, 0>(depth, board);
-		case 0b1000: return generateMoves<white, KING_MOVED[white]>(depth, board);
-		case 0b1001: return generateMoves<white, 0>(depth, board);
-		case 0b1010: return generateMoves<white, 0>(depth, board);
-		case 0b1011: return generateMoves<white, 0>(depth, board);
-		case 0b1100: return generateMoves<white, KING_MOVED[white]>(depth, board);
-		case 0b1101: return generateMoves<white, 0>(depth, board);
-		case 0b1110: return generateMoves<white, 0>(depth, board);
-		default: return generateMoves<white, 0>(depth, board);
-		}
+	const uint8_t kMoved = (!(board.casPerms & (wk | wq)) ? KING_MOVED[white] : 0)
+		| (!(board.casPerms & (bk | bq)) ? KING_MOVED[black] : 0);
 
+	if (board.side == white) {
+		switch (kMoved) {
+		case KING_MOVED[white]: return generateMoves<white, KING_MOVED[white]>(depth, board);
+		case KING_MOVED[black]: return generateMoves<white, KING_MOVED[black]>(depth, board);
+		case KING_MOVED[both]:  return generateMoves<white, KING_MOVED[both]>(depth, board);
+		default:                return generateMoves<white, 0>(depth, board);
+		}
 	}
 	else {
-		switch (board.casPerms) {
-		case 0b0000: return generateMoves<black, KING_MOVED[both]>(depth, board);
-		case 0b0001: return generateMoves<black, KING_MOVED[black]>(depth, board);
-		case 0b0010: return generateMoves<black, KING_MOVED[black]>(depth, board);
-		case 0b0011: return generateMoves<black, KING_MOVED[black]>(depth, board);
-		case 0b0100: return generateMoves<black, KING_MOVED[white]>(depth, board);
-		case 0b0101: return generateMoves<black, 0>(depth, board);
-		case 0b0110: return generateMoves<black, 0>(depth, board);
-		case 0b0111: return generateMoves<black, 0>(depth, board);
-		case 0b1000: return generateMoves<black, KING_MOVED[white]>(depth, board);
-		case 0b1001: return generateMoves<black, 0>(depth, board);
-		case 0b1010: return generateMoves<black, 0>(depth, board);
-		case 0b1011: return generateMoves<black, 0>(depth, board);
-		case 0b1100: return generateMoves<black, KING_MOVED[white]>(depth, board);
-		case 0b1101: return generateMoves<black, 0>(depth, board);
-		case 0b1110: return generateMoves<black, 0>(depth, board);
-		default: return generateMoves<black, 0>(depth, board);
+		switch (kMoved) {
+		case KING_MOVED[white]: return generateMoves<black, KING_MOVED[white]>(depth, board);
+		case KING_MOVED[black]: return generateMoves<black, KING_MOVED[black]>(depth, board);
+		case KING_MOVED[both]:  return generateMoves<black, KING_MOVED[both]>(depth, board);
+		default:                return generateMoves<black, 0>(depth, board);
 		}
 	}
 }
@@ -763,6 +765,7 @@ void Cui::help() {
 	cout << "perft\t\tGenerates all moves down to a given depth" << endl;
 	cout << "\t-d\tShows total of moves for each current legal move (multi-thread)" << endl;
 	cout << "\t-t\tNumber of threads for -d (default: max available threads)" << endl;
+	cout << "\t-h\tSize of the transposition table in MB (default: max available memory)" << endl;
 	cout << "tt\t\tToggles the transposition table on/off (tt [on|off])" << endl;
 	cout << "cmp\t\tIterates over popular positions and provides an average" << endl;
 	cout << "test\t\tTests popular positions to validate perft results" << endl;

@@ -494,8 +494,8 @@ namespace defs {
 	};
 
 	//for null move; square that needs to be considered because attacking castle passing square
-	constexpr U64 CASTLE_NULL_BIT[4] = {
-		0, (1ULL << b2), 0, (1ULL << b7)
+	constexpr U64 CASTLE_NULL_BIT[2] = {
+		(1ULL << b2), (1ULL << b7)
 	};
 
 	constexpr int CASTLE_ROOK_FROM[64] = {

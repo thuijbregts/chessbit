@@ -9,6 +9,10 @@ using namespace defs;
 using namespace zobrist;
 using namespace tt;
 
+namespace moveinfo {
+    struct MoveInfo;
+}
+
 namespace bstate {
     struct BoardState {
         U64 pM;
@@ -41,6 +45,8 @@ namespace bstate {
         int8_t casPerms;
         int8_t eP;
         bool   side;
+
+        constexpr BoardState() = default;
 
         constexpr BoardState(
             U64 pM, U64 nM, U64 bM, U64 rM, U64 qM, U64 kM,
@@ -77,7 +83,7 @@ namespace bstate {
             Zobrist zobrist;
             if (ttEnabled) {
                 zobrist = zobrist::basic<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.pE, board.nE, board.bE, board.rE, board.qE, board.zobrist);
-                if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
+                if constexpr (depth >= 3) tt::prefetch<depth - 1>(zobrist);
             }
 
             const U64 t = (1ULL << to);
@@ -149,7 +155,7 @@ namespace bstate {
             Zobrist zobrist;
             if (ttEnabled) {
                 zobrist = zobrist::promotion<piece, side, capture>(from, to, casPerms, board.casPerms, board.eP, board.nE, board.bE, board.rE, board.qE, board.zobrist);
-                if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
+                if constexpr (depth >= 3) tt::prefetch<depth - 1>(zobrist);
             }
 
             const U64 f = (1ULL << from);
@@ -207,7 +213,7 @@ namespace bstate {
             Zobrist zobrist;
             if (ttEnabled) {
                 zobrist = zobrist::doublePush<side>(from, to, eP, board.eP, board.zobrist);
-                if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
+                if constexpr (depth >= 3) tt::prefetch<depth - 1>(zobrist);
             }
 
             const U64 t = (1ULL << to);
@@ -236,7 +242,7 @@ namespace bstate {
             Zobrist zobrist;
             if (ttEnabled) {
                 zobrist = zobrist::enPassant<side>(from, to, ePS, board.eP, board.zobrist);
-                if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
+                if constexpr (depth >= 3) tt::prefetch<depth - 1>(zobrist);
             }
 
             const U64 move = (1ULL << from) | (1ULL << to);
@@ -270,7 +276,7 @@ namespace bstate {
             Zobrist zobrist;
             if (ttEnabled) {
                 zobrist = zobrist::castle<castlingSide>(casPerms, board.casPerms, board.eP, board.zobrist);
-                if constexpr (depth > 2) tt::prefetch<depth - 1>(zobrist);
+                if constexpr (depth >= 3) tt::prefetch<depth - 1>(zobrist);
             }
 
             const U64 kM = board.kM ^ kingSwitch<castlingSide>();
