@@ -389,19 +389,21 @@ __forceinline U64 Cui::divide(int depth, int threads) {
 
 	const int plies = 2;
 
-	auto expand = [&](auto&& self, int root, const BoardState& b, int plies) -> void {
-		if (plies == 0) {
+	auto expand = [&](auto&& self, int root, const BoardState& b, int pliesLeft) -> void {
+		if (pliesLeft == 0) {
 			tasks.push_back({ root, b });
 			remaining[root].fetch_add(1, std::memory_order_relaxed);
 			return;
 		}
 		movesArray.reset();
 		generateMoves(0, b);
-		MoveArray a = movesArray;
-		MoveInfo* m = a.moves();
-		for (int j = 0; j < a.size(); j++)
-			self(self, root, m[j].board, plies - 1);
-		};
+		const int c = movesArray.size();
+		MoveInfo* m = movesArray.moves();
+
+		BoardState kids[256];
+		for (int j = 0; j < c; ++j) kids[j] = m[j].board;
+		for (int j = 0; j < c; ++j) self(self, root, kids[j], pliesLeft - 1);
+	};
 
 	for (int i = 0; i < rootCount; i++)
 		expand(expand, i, rm[i].board, plies);
