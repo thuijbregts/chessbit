@@ -30,7 +30,7 @@ namespace movegen {
         int kSize = 0;
 
         template <int depth, bool k>
-        __forceinline void add(const BoardState& b) {
+        __forceinline void add(const BoardState& b) noexcept {
             if (ttEnabled) tt::prefetch<depth - 1>(b.zobrist);
 
             if constexpr (k) king[kSize++] = b;
@@ -50,7 +50,7 @@ namespace movegen {
         U64 rook = 0ULL;
         U64 queen = 0ULL;
 
-        __forceinline void take(U64& attacks, int from, U64 map) {
+        __forceinline void take(U64& attacks, int from, U64 map) noexcept {
             if ((1ULL << from) & map) return;
 
             const U64 q = attacks & ~map;
@@ -60,7 +60,7 @@ namespace movegen {
     };
 
     template <bool side, bool kMMoved>
-    ForceInline U64 enemyAttacks(const BoardState& board, NullMaps* maps) {
+    ForceInline U64 enemyAttacks(const BoardState& board, NullMaps* maps) noexcept {
         U64 attacks = 0ULL;
         attacks |= pawnsAtkLeft<!side>(board.pE) | pawnsAtkRight<!side>(board.pE);
         attacks |= board.kEA;
@@ -166,7 +166,7 @@ namespace movegen {
     }
 
     template <int castlingSide>
-    ForceInline bool castle(const BoardState& board, U64 attacks, NullMaps* maps = nullptr) {
+    ForceInline bool castle(const BoardState& board, U64 attacks, NullMaps* maps = nullptr) noexcept {
         if (!(board.casPerms & CASTLING[castlingSide]) || (CASTLING_OCCUPIED_SQUARES[castlingSide] & board.occB)) {
             return false;
         }
@@ -180,7 +180,7 @@ namespace movegen {
     }
 
     template <bool side>
-    ForceInline bool passantPinned(const BoardState& board, int from) {
+    ForceInline bool passantPinned(const BoardState& board, int from) noexcept {
         if (!(EN_PASSANT_RANK[side] & board.kM)) return false;
 
         U64 occB = board.occB;
@@ -218,17 +218,17 @@ namespace movegen {
     }
 
     template <int depth>
-    ForceInline U64 findBishopPins(const BoardState& board, NullMaps* maps = nullptr) {
+    ForceInline U64 findBishopPins(const BoardState& board, NullMaps* maps = nullptr) noexcept {
         return findPins<depth>((board.bE | board.qE) & BISHOP_XRAYS[board.kMS] & ~board.checks, board, maps);
     }
 
     template <int depth>
-    ForceInline U64 findRookPins(const BoardState& board, NullMaps* maps = nullptr) {
+    ForceInline U64 findRookPins(const BoardState& board, NullMaps* maps = nullptr) noexcept {
         return findPins<depth>((board.rE | board.qE) & ROOK_XRAYS[board.kMS] & ~board.checks, board, maps);
     }
 
     template <int depth>
-    ForceInline U64 findDiscoverers(const BoardState& board) {
+    ForceInline U64 findDiscoverers(const BoardState& board) noexcept {
         U64 disc = 0ULL;
 
         U64 sM = ((board.bM | board.qM) & BISHOP_XRAYS[board.kES]) | ((board.rM | board.qM) & ROOK_XRAYS[board.kES]);
@@ -251,10 +251,10 @@ namespace movegen {
     struct PerftGenerator;
 
     template <int depth, bool side, uint8_t kMoved>
-    ForceInline U64 allMoves(const BoardState& board, NullMaps* maps = nullptr);
+    ForceInline U64 allMoves(const BoardState& board, NullMaps* maps = nullptr) noexcept;
 
     template <bool side, uint8_t kMoved>
-    ForceInline NullEval buildNullEval(const BoardState& board, NullEval& eval) {
+    ForceInline void buildNullEval(const BoardState& board, NullEval& eval) noexcept {
         NullMaps& m = eval.maps;
 
         const BoardState nullBoard = board.makeNull(board);
@@ -273,12 +273,10 @@ namespace movegen {
         eval.bishop = m.eMap | m.bKZ | m.bPins;
         eval.rook = m.eMap | m.rKZ | m.rPins;
         eval.queen = eval.bishop | eval.rook;
-
-        return eval;
     }
 
     template <int depth, bool side, uint8_t kMoved, Piece piece, bool capture>
-    ForceInline void enumMoves(U64& nodes, U64 moves, int from, const BoardState& board, U64 discovers, Batch* batch) {
+    ForceInline void enumMoves(U64& nodes, U64 moves, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         Bitloop(moves) {
             int to = SquareOf(moves);
             const BoardState newBoard = board.make<piece, side, capture, kMoved>(from, to, board, discovers);
@@ -295,13 +293,13 @@ namespace movegen {
     }
 
     template <int depth, bool side, uint8_t kMoved, Piece piece>
-    ForceInline void makeMoves(U64& nodes, U64 attacks, int from, const BoardState& board, U64 discovers, Batch* batch) {
+    ForceInline void makeMoves(U64& nodes, U64 attacks, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         enumMoves<depth, side, kMoved, piece, false>(nodes, attacks & ~board.occE, from, board, discovers, batch);
         enumMoves<depth, side, kMoved, piece, true>(nodes, attacks & board.occE, from, board, discovers, batch);
     }
 
     template <int depth, bool side, uint8_t kMoved, bool capture, Piece piece>
-    ForceInline void makeMove(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) {
+    ForceInline void makeMove(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         const BoardState newBoard = board.make<piece, side, capture, kMoved>(from, to, board, discovers);
 
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, capture, newBoard));
@@ -310,7 +308,7 @@ namespace movegen {
     }
 
     template <int depth, bool side, uint8_t kMoved>
-    ForceInline void makeEnPassant(U64& nodes, int from, const BoardState& board, U64 discovers, Batch* batch) {
+    ForceInline void makeEnPassant(U64& nodes, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         const BoardState newBoard = board.makeEnPassant<side>(from, board.eP, board);
 
         if constexpr (depth == 0) movesArray.add(MoveInfo(EnPassant, from, board.eP, true, newBoard));
@@ -319,7 +317,7 @@ namespace movegen {
     }
 
     template <int depth, bool side, uint8_t kMoved>
-    ForceInline void makeDoublePush(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) {
+    ForceInline void makeDoublePush(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         const BoardState newBoard = board.makeDoublePush<side>(from, to, board, discovers);
 
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
@@ -328,7 +326,7 @@ namespace movegen {
     }
 
     template <int depth, bool side, uint8_t kMoved, bool capture>
-    ForceInline void makePromotionMoves(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) {
+    ForceInline void makePromotionMoves(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         const BoardState newBoardN = board.makePromotion<Piece::Knight, side, capture, kMoved>(from, to, board, discovers);
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, n, capture, newBoardN));
         else if constexpr (depth >= 3) batch->add<depth, false>(newBoardN);
@@ -351,13 +349,13 @@ namespace movegen {
     }
 
     template <int depth, bool side, uint8_t kMoved>
-    ForceInline void iterateBatch(U64& nodes, Batch* batch) {
+    ForceInline void iterateBatch(U64& nodes, Batch* batch) noexcept {
         for (int i = 0; i < batch->nSize; ++i) nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(batch->normal[i]);
         for (int i = 0; i < batch->kSize; ++i) nodes += PerftGenerator<depth - 1, !side, (kMoved | KING_MOVED[side])>::generateMoves(batch->king[i]);
     }
 
     template <int depth, bool side, uint8_t kMoved, int castlingSide>
-    ForceInline void makeCastling(U64& nodes, const BoardState& board, Batch* batch, NullEval& null, NullMaps* maps) {
+    ForceInline void makeCastling(U64& nodes, const BoardState& board, Batch* batch, NullEval& null, NullMaps* maps) noexcept {
         if constexpr (depth == 2) {
             constexpr U64 rBit = rookSwitch<castlingSide>();
             constexpr U64 kBit = kingSwitch<castlingSide>();
@@ -384,7 +382,7 @@ namespace movegen {
     }
 
     template <int depth, bool side, uint8_t kMoved>
-    ForceInline U64 allMoves(const BoardState& board, NullMaps* maps) {
+    ForceInline U64 allMoves(const BoardState& board, NullMaps* maps) noexcept {
         if constexpr (USE_HASH<depth>) {
             if (ttEnabled) {
                 U64 cached;

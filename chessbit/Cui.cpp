@@ -428,19 +428,13 @@ __forceinline U64 Cui::divide(int depth, int threads) {
 				printf("%s %llu\n", utils::getMoveSimple(rm[task.root]).c_str(), mv);
 			}
 		}
-		};
+	};
 
-	int threadCount;
-	if (threads > 0) {
-		threadCount = threads;
-	}
-	else {
-		threadCount = std::thread::hardware_concurrency();
-		if (threadCount == 0)	threadCount = 4;
-	}
+	int maxThreads = std::thread::hardware_concurrency();
+	int threadCount = (threads > 0 && threads < maxThreads) ? threads : maxThreads;
+
 	if (tasks.size() > 0 && threadCount > tasks.size())
 		threadCount = tasks.size();
-	if (threadCount < 1) threadCount = 1;
 
 	std::vector<std::thread> pool;
 	pool.reserve(threadCount);
