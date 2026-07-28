@@ -40,12 +40,12 @@ namespace tt {
     inline U64     MASK = 0;
     inline U64     BYTES = 0;
 
-    __forceinline static U64 index(Zobrist z, int depth) {
+    __forceinline static U64 index(Zobrist z, int depth) noexcept {
         return (z.low + static_cast<U64>(depth)) & MASK;
     }
 
     template <int depth>
-    ForceInline bool probe(Zobrist z, U64& nodes) {
+    ForceInline bool probe(Zobrist z, U64& nodes) noexcept {
         const Bucket& b = TABLE[index(z, depth)];
 
         for (int i = 0; i < MAX_ENTRIES; ++i) {
@@ -58,7 +58,7 @@ namespace tt {
         return false;
     }
 
-    ForceInline U64 score(U64 data) {
+    ForceInline U64 score(U64 data) noexcept {
         const U64 count = data >> COUNT_SHIFT;
         const U64 freq = (data & FREQ_MASK) >> FREQ_SHIFT;
 
@@ -66,7 +66,7 @@ namespace tt {
     }
 
     template <int depth>
-    ForceInline void write(Zobrist z, U64 nodes) {
+    ForceInline void write(Zobrist z, U64 nodes) noexcept {
         Bucket& b = TABLE[index(z, depth)];
 
         int v = 0;
@@ -94,7 +94,7 @@ namespace tt {
     }
 
     template <int depth>
-    ForceInline void prefetch(Zobrist z) {
+    ForceInline void prefetch(Zobrist z) noexcept {
         if constexpr (USE_HASH<depth>) {
             _mm_prefetch(reinterpret_cast<const char*>(&TABLE[index(z, depth)]), _MM_HINT_T0);
         }
