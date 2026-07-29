@@ -46,8 +46,9 @@ private:
 	void toggleTT(vector<string>& cmd);
 
 	U64 generateMoves(int depth);
+	template <bool useTT>
 	U64 generateMoves(int depth, const BoardState& board);
-	template <bool side, uint8_t kMoved>
+	template <bool side, uint8_t kMoved, bool useTT>
 	U64 generateMoves(int depth, const BoardState& board);
 
 	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);

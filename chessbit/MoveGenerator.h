@@ -31,7 +31,8 @@ namespace movegen {
 
         template <int depth, bool k>
         __forceinline void add(const BoardState& b) noexcept {
-            if (ttEnabled) tt::prefetch<depth - 1>(b.zobrist);
+            tt::prefetch<depth - 1>(b.zobrist);
+
             if constexpr (k)    king[kSize++] = b;
             else                normal[nSize++] = b;
         }
@@ -246,10 +247,10 @@ namespace movegen {
         return disc;
     }
 
-    template <int depth, bool side, uint8_t kMoved>
+    template <int depth, bool side, uint8_t kMoved, bool useTT>
     struct PerftGenerator;
 
-    template <int depth, bool side, uint8_t kMoved, bool nullMove = false>
+    template <int depth, bool side, uint8_t kMoved, bool useTT, bool nullMove = false>
     ForceInline U64 allMoves(const BoardState& board, NullMaps* maps = nullptr) noexcept;
 
     template <bool side, uint8_t kMoved>
@@ -257,7 +258,7 @@ namespace movegen {
         NullMaps& m = eval.maps;
 
         const BoardState nullBoard = board.makeNull(board);
-        eval.count = allMoves<1, !side, kMoved, true>(nullBoard, &m);
+        eval.count = allMoves<1, !side, kMoved, false, true>(nullBoard, &m);
 
         m.eMap |= board.occE;
 
@@ -274,80 +275,80 @@ namespace movegen {
         eval.queen = eval.bishop | eval.rook;
     }
 
-    template <int depth, bool side, uint8_t kMoved, Piece piece, bool capture>
+    template <int depth, bool side, uint8_t kMoved, Piece piece, bool capture, bool useTT>
     ForceInline void enumMoves(U64& nodes, U64 moves, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         Bitloop(moves) {
             int to = SquareOf(moves);
             const BoardState newBoard = board.make<piece, side, capture, kMoved>(from, to, board, discovers);
             if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, capture, newBoard));
-            else if constexpr (depth >= 3) {
+            else if constexpr (depth >= 3 && useTT) {
                 if constexpr (piece == Piece::King) batch->add<depth, true>(newBoard);
                 else                                batch->add<depth, false>(newBoard);
             }
             else {
-                if constexpr (piece == Piece::King) nodes += PerftGenerator<depth - 1, !side, (kMoved | KING_MOVED[side])>::generateMoves(newBoard);
-                else                                nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
+                if constexpr (piece == Piece::King) nodes += PerftGenerator<depth - 1, !side, (kMoved | KING_MOVED[side]), useTT>::generateMoves(newBoard);
+                else                                nodes += PerftGenerator<depth - 1, !side, kMoved, useTT>::generateMoves(newBoard);
             }
         }
     }
 
-    template <int depth, bool side, uint8_t kMoved, Piece piece>
+    template <int depth, bool side, uint8_t kMoved, Piece piece, bool useTT>
     ForceInline void makeMoves(U64& nodes, U64 attacks, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
-        enumMoves<depth, side, kMoved, piece, false>(nodes, attacks & ~board.occE, from, board, discovers, batch);
-        enumMoves<depth, side, kMoved, piece, true>(nodes, attacks & board.occE, from, board, discovers, batch);
+        enumMoves<depth, side, kMoved, piece, false, useTT>(nodes, attacks & ~board.occE, from, board, discovers, batch);
+        enumMoves<depth, side, kMoved, piece, true, useTT>(nodes, attacks & board.occE, from, board, discovers, batch);
     }
 
-    template <int depth, bool side, uint8_t kMoved, bool capture, Piece piece>
+    template <int depth, bool side, uint8_t kMoved, bool capture, Piece piece, bool useTT>
     ForceInline void makeMove(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         const BoardState newBoard = board.make<piece, side, capture, kMoved>(from, to, board, discovers);
 
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, capture, newBoard));
-        else if constexpr (depth >= 3) batch->add<depth, false>(newBoard);
-        else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
+        else if constexpr (depth >= 3 && useTT) batch->add<depth, false>(newBoard);
+        else nodes += PerftGenerator<depth - 1, !side, kMoved, useTT>::generateMoves(newBoard);
     }
 
-    template <int depth, bool side, uint8_t kMoved>
+    template <int depth, bool side, uint8_t kMoved, bool useTT>
     ForceInline void makeEnPassant(U64& nodes, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         const BoardState newBoard = board.makeEnPassant<side>(from, board.eP, board);
 
         if constexpr (depth == 0) movesArray.add(MoveInfo(EnPassant, from, board.eP, true, newBoard));
-        else if constexpr (depth >= 3) batch->add<depth, false>(newBoard);
-        else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
+        else if constexpr (depth >= 3 && useTT) batch->add<depth, false>(newBoard);
+        else nodes += PerftGenerator<depth - 1, !side, kMoved, useTT>::generateMoves(newBoard);
     }
 
-    template <int depth, bool side, uint8_t kMoved>
+    template <int depth, bool side, uint8_t kMoved, bool useTT>
     ForceInline void makeDoublePush(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         const BoardState newBoard = board.makeDoublePush<side>(from, to, board, discovers);
 
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, false, newBoard));
-        else if constexpr (depth >= 3) batch->add<depth, false>(newBoard);
-        else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoard);
+        else if constexpr (depth >= 3 && useTT) batch->add<depth, false>(newBoard);
+        else nodes += PerftGenerator<depth - 1, !side, kMoved, useTT>::generateMoves(newBoard);
     }
 
-    template <int depth, bool side, uint8_t kMoved, bool capture>
+    template <int depth, bool side, uint8_t kMoved, bool capture, bool useTT>
     ForceInline void makePromotionMoves(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         const BoardState newBoardN = board.makePromotion<Piece::Knight, side, capture, kMoved>(from, to, board, discovers);
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, n, capture, newBoardN));
-        else if constexpr (depth >= 3) batch->add<depth, false>(newBoardN);
-        else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoardN);
+        else if constexpr (depth >= 3 && useTT) batch->add<depth, false>(newBoardN);
+        else nodes += PerftGenerator<depth - 1, !side, kMoved, useTT>::generateMoves(newBoardN);
 
         const BoardState newBoardB = board.makePromotion<Piece::Bishop, side, capture, kMoved>(from, to, board, discovers);
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, b, capture, newBoardB));
-        else if constexpr (depth >= 3) batch->add<depth, false>(newBoardB);
-        else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoardB);
+        else if constexpr (depth >= 3 && useTT) batch->add<depth, false>(newBoardB);
+        else nodes += PerftGenerator<depth - 1, !side, kMoved, useTT>::generateMoves(newBoardB);
 
         const BoardState newBoardR = board.makePromotion<Piece::Rook, side, capture, kMoved>(from, to, board, discovers);
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, r, capture, newBoardR));
-        else if constexpr (depth >= 3) batch->add<depth, false>(newBoardR);
-        else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoardR);
+        else if constexpr (depth >= 3 && useTT) batch->add<depth, false>(newBoardR);
+        else nodes += PerftGenerator<depth - 1, !side, kMoved, useTT>::generateMoves(newBoardR);
 
         const BoardState newBoardQ = board.makePromotion<Piece::Queen, side, capture, kMoved>(from, to, board, discovers);
         if constexpr (depth == 0) movesArray.add(MoveInfo(from, to, q, capture, newBoardQ));
-        else if constexpr (depth >= 3) batch->add<depth, false>(newBoardQ);
-        else nodes += PerftGenerator<depth - 1, !side, kMoved>::generateMoves(newBoardQ);
+        else if constexpr (depth >= 3 && useTT) batch->add<depth, false>(newBoardQ);
+        else nodes += PerftGenerator<depth - 1, !side, kMoved, useTT>::generateMoves(newBoardQ);
     }
 
-    template <int depth, bool side, uint8_t kMoved, int castlingSide>
+    template <int depth, bool side, uint8_t kMoved, int castlingSide, bool useTT>
     ForceInline void makeCastling(U64& nodes, const BoardState& board, Batch* batch, NullEval& null, NullMaps* maps) noexcept {
         if constexpr (depth == 2) {
             constexpr U64 rBit = rookSwitch<castlingSide>();
@@ -359,7 +360,7 @@ namespace movegen {
             }
             else {
                 const BoardState newBoard = board.makeCastling<castlingSide>(board);
-                nodes += PerftGenerator<depth - 1, !side, (kMoved | KING_MOVED[side])>::generateMoves(newBoard);
+                nodes += PerftGenerator<depth - 1, !side, (kMoved | KING_MOVED[side]), useTT>::generateMoves(newBoard);
             }
         }
         else if constexpr (depth == 1) nodes++;
@@ -367,8 +368,8 @@ namespace movegen {
             const BoardState newBoard = board.makeCastling<castlingSide>(board);
 
             if constexpr (depth == 0) movesArray.add(MoveInfo(KING_SOURCE_SQUARE[side], CASTLING_KING_TARGET_SQUARE[castlingSide], false, newBoard));
-            else if constexpr (depth >= 3) batch->add<depth, true>(newBoard);
-            else nodes += PerftGenerator<depth - 1, !side, (kMoved | KING_MOVED[side])>::generateMoves(newBoard);
+            else if constexpr (depth >= 3 && useTT) batch->add<depth, true>(newBoard);
+            else nodes += PerftGenerator<depth - 1, !side, (kMoved | KING_MOVED[side]), useTT>::generateMoves(newBoard);
         }
     }
 
@@ -377,41 +378,33 @@ namespace movegen {
         constexpr uint8_t kMovedK = kMoved | KING_MOVED[side];
         constexpr int nDepth = depth - 1;
 
-        if (ttEnabled) {
-            U64 val;
-            for (int i = 0; i < batch->nSize; ++i) {
-                const Zobrist& z = batch->normal[i].zobrist;
-                Bucket& b = tt::bucket<nDepth>(z);
+        U64 val;
+        for (int i = 0; i < batch->nSize; ++i) {
+            const Zobrist& z = batch->normal[i].zobrist;
+            Bucket& b = tt::bucket<nDepth>(z);
 
-                if (tt::probe<nDepth>(b, z, val)) nodes += val;
-                else {
-                    val = PerftGenerator<nDepth, !side, kMoved>::generateMoves(batch->normal[i]);
-                    tt::write<nDepth>(b, z, val);
-                    nodes += val;
-                }
+            if (tt::probe<nDepth>(b, z, val)) nodes += val;
+            else {
+                val = PerftGenerator<nDepth, !side, kMoved, true>::generateMoves(batch->normal[i]);
+                tt::write<nDepth>(b, z, val);
+                nodes += val;
             }
-
-            for (int i = 0; i < batch->kSize; ++i) {
-                const Zobrist& z = batch->king[i].zobrist;
-                Bucket& b = tt::bucket<nDepth>(z);
-
-                if (tt::probe<nDepth>(b, z, val)) nodes += val;
-                else {
-                    val = PerftGenerator<nDepth, !side, kMovedK>::generateMoves(batch->king[i]);
-                    tt::write<nDepth>(b, z, val);
-                    nodes += val;
-                }
-            }
-            return;
         }
 
-        for (int i = 0; i < batch->nSize; ++i)
-            nodes += PerftGenerator<nDepth, !side, kMoved>::generateMoves(batch->normal[i]);
-        for (int i = 0; i < batch->kSize; ++i)
-            nodes += PerftGenerator<nDepth, !side, kMovedK>::generateMoves(batch->king[i]);
+        for (int i = 0; i < batch->kSize; ++i) {
+            const Zobrist& z = batch->king[i].zobrist;
+            Bucket& b = tt::bucket<nDepth>(z);
+
+            if (tt::probe<nDepth>(b, z, val)) nodes += val;
+            else {
+                val = PerftGenerator<nDepth, !side, kMovedK, true>::generateMoves(batch->king[i]);
+                tt::write<nDepth>(b, z, val);
+                nodes += val;
+            }
+        }
     }
 
-    template <int depth, bool side, uint8_t kMoved, bool nullMove>
+    template <int depth, bool side, uint8_t kMoved, bool useTT, bool nullMove>
     ForceInline U64 allMoves(const BoardState& board, NullMaps* maps) noexcept {
         int from, to;
         U64 bitboard, attacks;
@@ -426,7 +419,7 @@ namespace movegen {
 
         Batch batchStorage;
         Batch* batch = nullptr;
-        if constexpr (depth >= 3) batch = &batchStorage;
+        if constexpr (depth >= 3 && useTT) batch = &batchStorage;
 
         if (board.checks) [[unlikely]] {
             /*
@@ -437,7 +430,7 @@ namespace movegen {
             U64 pseudoAttacks = board.kMA & ~board.occM;
             attacks = pseudoAttacks & ~eAttacks;
             if constexpr (depth == 1) nodes += Bitcount(attacks);
-            else makeMoves<depth, side, kMoved, Piece::King>(nodes, attacks, board.kMS, board, discovers, batch);
+            else makeMoves<depth, side, kMoved, Piece::King, useTT>(nodes, attacks, board.kMS, board, discovers, batch);
 
             if (!BitReset(board.checks)) [[likely]] {
                 int checkSquare = SquareOf(board.checks);
@@ -461,15 +454,15 @@ namespace movegen {
                     else {
                         Bitloop(enPassant)
                         {
-                            makeEnPassant<depth, side, kMoved>(nodes, SquareOf(enPassant), board, discovers, batch);
+                            makeEnPassant<depth, side, kMoved, useTT>(nodes, SquareOf(enPassant), board, discovers, batch);
                         }
 
                         Bitloop(promos) {
-                            makePromotionMoves<depth, side, kMoved, true>(nodes, SquareOf(promos), to, board, discovers, batch);
+                            makePromotionMoves<depth, side, kMoved, true, useTT>(nodes, SquareOf(promos), to, board, discovers, batch);
                         }
 
                         Bitloop(caps) {
-                            makeMove<depth, side, kMoved, true, Piece::Pawn>(nodes, SquareOf(caps), to, board, discovers, batch);
+                            makeMove<depth, side, kMoved, true, Piece::Pawn, useTT>(nodes, SquareOf(caps), to, board, discovers, batch);
                         }
                     }
 
@@ -481,7 +474,7 @@ namespace movegen {
                     if constexpr (depth == 1) nodes += Bitcount(attacks);
                     else {
                         Bitloop(attacks) {
-                            makeMove<depth, side, kMoved, true, Piece::Knight>(nodes, SquareOf(attacks), to, board, discovers, batch);
+                            makeMove<depth, side, kMoved, true, Piece::Knight, useTT>(nodes, SquareOf(attacks), to, board, discovers, batch);
                         }
                     }
 
@@ -497,8 +490,8 @@ namespace movegen {
                                 from = SquareOf(attacks);
 
                                 ((1ULL << from) & board.qM)
-                                    ? makeMove<depth, side, kMoved, true, Piece::Queen>(nodes, from, to, board, discovers, batch)
-                                    : makeMove<depth, side, kMoved, true, Piece::Bishop>(nodes, from, to, board, discovers, batch);
+                                    ? makeMove<depth, side, kMoved, true, Piece::Queen, useTT>(nodes, from, to, board, discovers, batch)
+                                    : makeMove<depth, side, kMoved, true, Piece::Bishop, useTT>(nodes, from, to, board, discovers, batch);
                             }
                         }
                     }
@@ -515,8 +508,8 @@ namespace movegen {
                                 from = SquareOf(attacks);
 
                                 ((1ULL << from) & board.qM)
-                                    ? makeMove<depth, side, kMoved, true, Piece::Queen>(nodes, from, to, board, discovers, batch)
-                                    : makeMove<depth, side, kMoved, true, Piece::Rook>(nodes, from, to, board, discovers, batch);
+                                    ? makeMove<depth, side, kMoved, true, Piece::Queen, useTT>(nodes, from, to, board, discovers, batch)
+                                    : makeMove<depth, side, kMoved, true, Piece::Rook, useTT>(nodes, from, to, board, discovers, batch);
                             }
                         }
                     }
@@ -549,19 +542,19 @@ namespace movegen {
                             Bitloop(promosLeft) {
                                 to = SquareOf(promosLeft);
                                 from = to + PAWN_RIGHT[!side];
-                                makePromotionMoves<depth, side, kMoved, true>(nodes, from, to, board, discovers, batch);
+                                makePromotionMoves<depth, side, kMoved, true, useTT>(nodes, from, to, board, discovers, batch);
                             }
 
                             Bitloop(promosRight) {
                                 to = SquareOf(promosRight);
                                 from = to + PAWN_LEFT[!side];
-                                makePromotionMoves<depth, side, kMoved, true>(nodes, from, to, board, discovers, batch);
+                                makePromotionMoves<depth, side, kMoved, true, useTT>(nodes, from, to, board, discovers, batch);
                             }
 
                             Bitloop(promosFwd) {
                                 to = SquareOf(promosFwd);
                                 from = to + PAWN_PUSH[!side];
-                                makePromotionMoves<depth, side, kMoved, false>(nodes, from, to, board, discovers, batch);
+                                makePromotionMoves<depth, side, kMoved, false, useTT>(nodes, from, to, board, discovers, batch);
                             }
                         }
                     }
@@ -574,25 +567,25 @@ namespace movegen {
                         Bitloop(pawnsLeft) {
                             to = SquareOf(pawnsLeft);
                             from = to + PAWN_RIGHT[!side];
-                            makeMove<depth, side, kMoved, true, Piece::Pawn>(nodes, from, to, board, discovers, batch);
+                            makeMove<depth, side, kMoved, true, Piece::Pawn, useTT>(nodes, from, to, board, discovers, batch);
                         }
 
                         Bitloop(pawnsRight) {
                             to = SquareOf(pawnsRight);
                             from = to + PAWN_LEFT[!side];
-                            makeMove<depth, side, kMoved, true, Piece::Pawn>(nodes, from, to, board, discovers, batch);
+                            makeMove<depth, side, kMoved, true, Piece::Pawn, useTT>(nodes, from, to, board, discovers, batch);
                         }
 
                         Bitloop(pawnsFwd) {
                             to = SquareOf(pawnsFwd);
                             from = to + PAWN_PUSH[!side];
-                            makeMove<depth, side, kMoved, false, Piece::Pawn>(nodes, from, to, board, discovers, batch);
+                            makeMove<depth, side, kMoved, false, Piece::Pawn, useTT>(nodes, from, to, board, discovers, batch);
                         }
 
                         Bitloop(pawnsDbl) {
                             to = SquareOf(pawnsDbl);
                             from = to + PAWN_DOUBLE_PUSH[!side];
-                            makeDoublePush<depth, side, kMoved>(nodes, from, to, board, discovers, batch);
+                            makeDoublePush<depth, side, kMoved, useTT>(nodes, from, to, board, discovers, batch);
                         }
                     }
                     /*
@@ -605,7 +598,7 @@ namespace movegen {
 
                         attacks = getKnightAttacks(from) & validSquares;
                         if constexpr (depth == 1) nodes += Bitcount(attacks);
-                        else makeMoves<depth, side, kMoved, Piece::Knight>(nodes, attacks, from, board, discovers, batch);
+                        else makeMoves<depth, side, kMoved, Piece::Knight, useTT>(nodes, attacks, from, board, discovers, batch);
                     }
 
                     /*
@@ -618,7 +611,7 @@ namespace movegen {
 
                         attacks = getBishopAttacks(from, board.occB) & validSquares;
                         if constexpr (depth == 1) nodes += Bitcount(attacks);
-                        else makeMoves<depth, side, kMoved, Piece::Bishop>(nodes, attacks, from, board, discovers, batch);
+                        else makeMoves<depth, side, kMoved, Piece::Bishop, useTT>(nodes, attacks, from, board, discovers, batch);
                     }
 
                     /*
@@ -631,7 +624,7 @@ namespace movegen {
 
                         attacks = getRookAttacks(from, board.occB) & validSquares;
                         if constexpr (depth == 1) nodes += Bitcount(attacks);
-                        else makeMoves<depth, side, kMoved, Piece::Rook>(nodes, attacks, from, board, discovers, batch);
+                        else makeMoves<depth, side, kMoved, Piece::Rook, useTT>(nodes, attacks, from, board, discovers, batch);
                     }
 
                     /*
@@ -644,12 +637,12 @@ namespace movegen {
 
                         attacks = getQueenAttacks(from, board.occB) & validSquares;
                         if constexpr (depth == 1) nodes += Bitcount(attacks);
-                        else makeMoves<depth, side, kMoved, Piece::Queen>(nodes, attacks, from, board, 0ULL, batch);
+                        else makeMoves<depth, side, kMoved, Piece::Queen, useTT>(nodes, attacks, from, board, 0ULL, batch);
                     }
                 }
             }
 
-            if constexpr (depth >= 3) iterateBatch<depth, side, kMoved>(nodes, batch);
+            if constexpr (depth >= 3 && useTT) iterateBatch<depth, side, kMoved>(nodes, batch);
 
             return nodes;
         }
@@ -677,7 +670,7 @@ namespace movegen {
                 maps->kKZ = KING_ZONES[board.kMS];
             }
         }
-        else makeMoves<depth, side, kMoved, Piece::King>(nodes, attacks, board.kMS, board, discovers, batch);
+        else makeMoves<depth, side, kMoved, Piece::King, useTT>(nodes, attacks, board.kMS, board, discovers, batch);
 
         /*
             PAWN MOVES
@@ -703,7 +696,7 @@ namespace movegen {
                     if constexpr (depth == 1) nodes += Bitcount(ePP);
                     else {
                         Bitloop(ePP) {
-                            makeEnPassant<depth, side, kMoved>(nodes, SquareOf(ePP), board, discovers, batch);
+                            makeEnPassant<depth, side, kMoved, useTT>(nodes, SquareOf(ePP), board, discovers, batch);
                         }
                     }
                 }
@@ -731,17 +724,17 @@ namespace movegen {
                 Bitloop(promosLeft) {
                     to = SquareOf(promosLeft);
                     from = to + PAWN_RIGHT[!side];
-                    makePromotionMoves<depth, side, kMoved, true>(nodes, from, to, board, discovers, batch);
+                    makePromotionMoves<depth, side, kMoved, true, useTT>(nodes, from, to, board, discovers, batch);
                 }
                 Bitloop(promosRight) {
                     to = SquareOf(promosRight);
                     from = to + PAWN_LEFT[!side];
-                    makePromotionMoves<depth, side, kMoved, true>(nodes, from, to, board, discovers, batch);
+                    makePromotionMoves<depth, side, kMoved, true, useTT>(nodes, from, to, board, discovers, batch);
                 }
                 Bitloop(promosFwd) {
                     to = SquareOf(promosFwd);
                     from = to + PAWN_PUSH[!side];
-                    makePromotionMoves<depth, side, kMoved, false>(nodes, from, to, board, discovers, batch);
+                    makePromotionMoves<depth, side, kMoved, false, useTT>(nodes, from, to, board, discovers, batch);
                 }
             }
         }
@@ -770,25 +763,25 @@ namespace movegen {
             Bitloop(pawnsLeft) {
                 to = SquareOf(pawnsLeft);
                 from = to + PAWN_RIGHT[!side];
-                makeMove<depth, side, kMoved, true, Piece::Pawn>(nodes, from, to, board, discovers, batch);
+                makeMove<depth, side, kMoved, true, Piece::Pawn, useTT>(nodes, from, to, board, discovers, batch);
             }
 
             Bitloop(pawnsRight) {
                 to = SquareOf(pawnsRight);
                 from = to + PAWN_LEFT[!side];
-                makeMove<depth, side, kMoved, true, Piece::Pawn>(nodes, from, to, board, discovers, batch);
+                makeMove<depth, side, kMoved, true, Piece::Pawn, useTT>(nodes, from, to, board, discovers, batch);
             }
 
             Bitloop(pawnsFwd) {
                 to = SquareOf(pawnsFwd);
                 from = to + PAWN_PUSH[!side];
-                makeMove<depth, side, kMoved, false, Piece::Pawn>(nodes, from, to, board, discovers, batch);
+                makeMove<depth, side, kMoved, false, Piece::Pawn, useTT>(nodes, from, to, board, discovers, batch);
             }
 
             Bitloop(pawnsDbl) {
                 to = SquareOf(pawnsDbl);
                 from = to + PAWN_DOUBLE_PUSH[!side];
-                makeDoublePush<depth, side, kMoved>(nodes, from, to, board, discovers, batch);
+                makeDoublePush<depth, side, kMoved, useTT>(nodes, from, to, board, discovers, batch);
             }
         }
 
@@ -805,7 +798,7 @@ namespace movegen {
             if constexpr (depth == 2) null.take(attacks, from, null.knight);
 
             if constexpr (depth == 1) nodes += Bitcount(attacks);
-            else makeMoves<depth, side, kMoved, Piece::Knight>(nodes, attacks, from, board, discovers, batch);
+            else makeMoves<depth, side, kMoved, Piece::Knight, useTT>(nodes, attacks, from, board, discovers, batch);
         }
 
         /*
@@ -824,7 +817,7 @@ namespace movegen {
                 nodes += Bitcount(attacks);
                 if constexpr (nullMove) maps->eMap |= attacks & NO_EDGES;
             }
-            else makeMoves<depth, side, kMoved, Piece::Bishop>(nodes, attacks, from, board, discovers, batch);
+            else makeMoves<depth, side, kMoved, Piece::Bishop, useTT>(nodes, attacks, from, board, discovers, batch);
         }
 
         bitboard = (board.bM | board.qM) & bPins;
@@ -841,7 +834,7 @@ namespace movegen {
                     nodes += Bitcount(attacks);
                     if constexpr (nullMove) maps->eMap |= attacks & NO_EDGES_ROOK[from];
                 }
-                else makeMoves<depth, side, kMoved, Piece::Queen>(nodes, attacks, from, board, 0ULL, batch);
+                else makeMoves<depth, side, kMoved, Piece::Queen, useTT>(nodes, attacks, from, board, 0ULL, batch);
             }
             else {
                 if constexpr (depth == 2) null.take(attacks, from, null.bishop);
@@ -850,7 +843,7 @@ namespace movegen {
                     nodes += Bitcount(attacks);
                     if constexpr (nullMove) maps->eMap |= attacks & NO_EDGES;
                 }
-                else makeMoves<depth, side, kMoved, Piece::Bishop>(nodes, attacks, from, board, discovers, batch);
+                else makeMoves<depth, side, kMoved, Piece::Bishop, useTT>(nodes, attacks, from, board, discovers, batch);
             }
         }
 
@@ -870,7 +863,7 @@ namespace movegen {
                 nodes += Bitcount(attacks);
                 if constexpr (nullMove) maps->eMap |= attacks & NO_EDGES_ROOK[from];
             }
-            else makeMoves<depth, side, kMoved, Piece::Rook>(nodes, attacks, from, board, discovers, batch);
+            else makeMoves<depth, side, kMoved, Piece::Rook, useTT>(nodes, attacks, from, board, discovers, batch);
         }
 
         bitboard = (board.rM | board.qM) & rPins;
@@ -888,8 +881,8 @@ namespace movegen {
                 if constexpr (nullMove) maps->eMap |= attacks & NO_EDGES_ROOK[from];
             }
             else {
-                if (isQueen)    makeMoves<depth, side, kMoved, Piece::Queen>(nodes, attacks, from, board, 0ULL, batch);
-                else            makeMoves<depth, side, kMoved, Piece::Rook>(nodes, attacks, from, board, discovers, batch);
+                if (isQueen)    makeMoves<depth, side, kMoved, Piece::Queen, useTT>(nodes, attacks, from, board, 0ULL, batch);
+                else            makeMoves<depth, side, kMoved, Piece::Rook, useTT>(nodes, attacks, from, board, discovers, batch);
             }
         }
 
@@ -909,7 +902,7 @@ namespace movegen {
                 nodes += Bitcount(attacks);
                 if constexpr (nullMove) maps->eMap |= attacks & NO_EDGES_ROOK[from];
             }
-            else makeMoves<depth, side, kMoved, Piece::Queen>(nodes, attacks, from, board, 0ULL, batch);
+            else makeMoves<depth, side, kMoved, Piece::Queen, useTT>(nodes, attacks, from, board, 0ULL, batch);
         }
 
         /*
@@ -920,38 +913,38 @@ namespace movegen {
             constexpr int qSide = CASTLING_SIDE_Q[side];
 
             if (castle<kSide, nullMove>(board, eAttacks, maps)) {
-                makeCastling<depth, side, kMoved, kSide>(nodes, board, batch, null, maps);
+                makeCastling<depth, side, kMoved, kSide, useTT>(nodes, board, batch, null, maps);
             }
             if (castle<qSide, nullMove>(board, eAttacks, maps)) {
-                makeCastling<depth, side, kMoved, qSide>(nodes, board, batch, null, maps);
+                makeCastling<depth, side, kMoved, qSide, useTT>(nodes, board, batch, null, maps);
             }
         }
 
         if constexpr (depth == 2) nodes += null.quiet * null.count;
 
-        if constexpr (depth >= 3) iterateBatch<depth, side, kMoved>(nodes, batch);
+        if constexpr (depth >= 3 && useTT) iterateBatch<depth, side, kMoved>(nodes, batch);
 
         return nodes;
     }
 
-    template <int depth, bool side, uint8_t kMoved>
+    template <int depth, bool side, uint8_t kMoved, bool useTT>
     struct PerftGenerator {
         static __declspec(noinline) U64 generateMoves(const BoardState& board) {
-            return allMoves<depth, side, kMoved>(board);
+            return allMoves<depth, side, kMoved, useTT>(board);
         }
     };
 
-    template <bool side, uint8_t kMoved>
-    struct PerftGenerator<1, side, kMoved> {
+    template <bool side, uint8_t kMoved, bool useTT>
+    struct PerftGenerator<1, side, kMoved, useTT> {
         ForceInline U64 generateMoves(const BoardState& board) {
-            return allMoves<1, side, kMoved>(board);
+            return allMoves<1, side, kMoved, useTT>(board);
         }
     };
 
-    template <bool side, uint8_t kMoved>
-    struct PerftGenerator<0, side, kMoved> {
+    template <bool side, uint8_t kMoved, bool useTT>
+    struct PerftGenerator<0, side, kMoved, useTT> {
         ForceInline U64 generateMoves(const BoardState& board) {
-            return allMoves<0, side, kMoved>(board);
+            return allMoves<0, side, kMoved, useTT>(board);
         }
     };
 
