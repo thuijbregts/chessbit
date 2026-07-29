@@ -24,9 +24,8 @@ namespace tt {
     constexpr U64 FREQ_BITS = 2;
     constexpr U64 FREQ_MASK = ((1ULL << FREQ_BITS) - 1) << FREQ_SHIFT;
     constexpr U64 FREQ_ONE = 1ULL << FREQ_SHIFT;
-    constexpr U64 FREQ_MAX = FREQ_MASK;                        
-    constexpr U64 META_BITS = 6;                                 
-    constexpr U64 COUNT_SHIFT = META_BITS;
+    constexpr U64 FREQ_MAX = FREQ_MASK; 
+    constexpr U64 COUNT_SHIFT = DEPTH_BITS + FREQ_BITS;
 
     template <int depth>
     constexpr bool USE_HASH = (depth >= MIN_HASH_DEPTH && depth <= MAX_HASH_DEPTH);
