@@ -28,8 +28,8 @@ namespace defs {
 #define ClearBit(X, S) (X &= ~(1ULL << S))//SQUARE_BITS[S]) same perf
 #define MoveBit(X, F, T) (X ^= 1ULL << F | 1ULL << T)// faster than U64 matrix
 
-//#define ForceInline inline static constexpr
-#define ForceInline __forceinline static constexpr
+#define ForceInline inline static constexpr
+//#define ForceInline __forceinline static constexpr
 #define Inline inline static
 
 	inline bool ttEnabled = true;
@@ -55,6 +55,11 @@ namespace defs {
 
 	struct NullMaps {
 		U64 eMap = 0; //squares that change move count
+		U64 pAtks = 0;
+		U64 pFwdFrom1 = 0;
+		U64 pFwdFrom2 = 0;
+		U64 pFwdTo1 = 0;
+		U64 pFwdTo2 = 0;
 		U64 ePCL = 0; //en passant candidates left
 		U64 ePCR = 0; //en passant candidates right
 		U64 kKZ = 0; //king zone threatening king moves

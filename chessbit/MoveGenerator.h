@@ -50,12 +50,40 @@ namespace movegen {
         U64 rook = 0ULL;
         U64 queen = 0ULL;
 
-        __forceinline void take(U64& attacks, int from, U64 map) noexcept {
-            if ((1ULL << from) & map) return;
+        __forceinline void take(U64& nodes, U64& attacks, int from, U64 map, NullMaps& null) noexcept {
+            const U64 f = (1ULL << from);
+            if (f & map) return;
 
             const U64 q = attacks & ~map;
             attacks ^= q;
-            quiet += Bitcount(q);
+            const int cnt = Bitcount(q);
+            quiet += cnt;
+
+            if (null.pAtks & f)     nodes -= cnt;
+            if (null.pFwdFrom1 & f) nodes += cnt;
+            if (null.pFwdFrom2 & f) nodes += (cnt << 1);
+
+            nodes += Bitcount(null.pAtks & q);
+            nodes -= Bitcount(null.pFwdTo1 & q);
+            nodes -= (Bitcount(null.pFwdTo2 & q) << 1);
+        }
+
+        __forceinline void takeKing(U64& nodes, U64& attacks, int from, U64 map, U64 cstlBit, NullMaps& null) noexcept {
+            const U64 f = (1ULL << from);
+            if (f & map) return;
+
+            const U64 q = attacks & ~map;
+            attacks ^= q;
+            const int cnt = Bitcount(q);
+            quiet += cnt;
+
+            if (q & cstlBit) nodes--;
+
+            if (null.pFwdFrom1 & f) nodes += cnt;
+            if (null.pFwdFrom2 & f) nodes += cnt << 1;
+
+            nodes -= Bitcount(null.pFwdTo1 & q);
+            nodes -= (Bitcount(null.pFwdTo2 & q) << 1);
         }
     };
 
@@ -165,18 +193,22 @@ namespace movegen {
         return attacks;
     }
 
-    template <int castlingSide, bool nullMove = false>
+    template <int castlingSide, bool nullMove>
     ForceInline bool castle(const BoardState& board, U64 attacks, NullMaps* maps = nullptr) noexcept {
         if (!(board.casPerms & CASTLING[castlingSide]) || (CASTLING_OCCUPIED_SQUARES[castlingSide] & board.occB)) {
             return false;
         }
         constexpr bool side = CASTLING_SIDE[castlingSide];
-        if constexpr (castlingSide == CASTLING_SIDE_Q[side]) {
-            if constexpr (nullMove) {
-                maps->cstlBit |= CASTLE_NULL_BIT[side];
+        if (attacks & CASTLING_PASSING_SQUARES[castlingSide]) {
+            if constexpr (castlingSide == CASTLING_SIDE_Q[side] && nullMove) {
+                maps->eMap |= CASTLE_NULL_BIT[side] & board.kE;
             }
+            return false;
         }
-        return !(attacks & CASTLING_PASSING_SQUARES[castlingSide]);
+        if constexpr (castlingSide == CASTLING_SIDE_Q[side] && nullMove) {
+            maps->cstlBit |= CASTLE_NULL_BIT[side];
+        }
+        return true;
     }
 
     template <bool side>
@@ -267,8 +299,8 @@ namespace movegen {
         m.bPins = getBishopAttacks(board.kES, board.occB & ~bBlockers);
         m.rPins = getRookAttacks(board.kES, board.occB & ~rBlockers);
 
-        eval.king = m.eMap | m.kKZ | m.cstlBit;
-        eval.pawn = m.eMap | m.pKZ | m.cstlBit;
+        eval.king = m.eMap | m.kKZ;
+        eval.pawn = m.eMap | m.pKZ;
         eval.knight = m.eMap | m.nKZ | getKnightAttacks(board.kES);
         eval.bishop = m.eMap | m.bKZ | m.bPins;
         eval.rook = m.eMap | m.rKZ | m.rPins;
@@ -651,6 +683,8 @@ namespace movegen {
         const U64 rPins = findRookPins<depth, nullMove>(board, maps);
         const U64 allPins = bPins | rPins;
 
+        if constexpr (nullMove) maps->eMap |= allPins;
+
         NullEval null;
         if constexpr (depth == 2) buildNullEval<side, kMoved>(board, null);
 
@@ -660,7 +694,7 @@ namespace movegen {
         U64 pseudoAttacks = board.kMA & ~board.occM;
         attacks = pseudoAttacks & ~eAttacks;
 
-        if constexpr (depth == 2) null.take(attacks, board.kMS, null.king);
+        if constexpr (depth == 2) null.takeKing(nodes, attacks, board.kMS, null.king, null.maps.cstlBit, null.maps);
 
         if constexpr (depth == 1) {
             nodes += Bitcount(attacks);
@@ -703,9 +737,13 @@ namespace movegen {
             }
         }
         else {
-            maps->eMap |= allPins;
+            const U64 pawnsDblFrom = pawnsAtkForward<side>(pawnsFwdAll & FIRST_PUSH_RANK[side]) & ~board.occB;
 
-            maps->eMap |= (pawnsLeftAll | pawnsRightAll | pawnsFwdAll | pawnsDblAll);
+            maps->pAtks |= (pawnsLeftAll | pawnsRightAll);
+            maps->pFwdFrom2 |= (pawnsFwdAll & pawnsAtkForward<!side>(pawnsDblFrom));
+            maps->pFwdFrom1 |= (pawnsFwdAll | pawnsDblAll) & ~maps->pFwdFrom2;
+            maps->pFwdTo2 |= (pawnsFwd & pawnsAtkForward<!side>(pawnsDbl));
+            maps->pFwdTo1 |= (pawnsFwd | pawnsDbl) & ~maps->pFwdTo2;
             maps->ePCL = pawnsAtkRight<!side>(pawnsLeftAll) & EN_PASSANT_RANK[side];
             maps->ePCR = pawnsAtkLeft<!side>(pawnsRightAll) & EN_PASSANT_RANK[side];
         }
@@ -742,14 +780,23 @@ namespace movegen {
         if constexpr (depth == 2) {
             const U64 map = null.pawn;
 
-            const U64 quietF = pawnsAtkForward<side>(pawnsAtkForward<!side>(pawnsFwd) & ~map) & ~map;
-            const U64 quietD = pawnsAtkDouble<side>(pawnsAtkDouble<!side>(pawnsDbl) & ~map) & ~map;
+            const U64 pF = pawnsAtkForward<!side>(pawnsFwd) & ~map;
+            const U64 pD = pawnsAtkDouble<!side>(pawnsDbl) & ~map;
+            const U64 quietF = pawnsAtkForward<side>(pF) & ~map;
+            const U64 quietD = pawnsAtkDouble<side>(pD) & ~map;
+            const U64 quietB = quietF | quietD;
 
-            null.quiet += Bitcount(quietF | quietD);
+            null.quiet += Bitcount(quietB);
 
             const U64 ePL = left(quietD) & null.maps.ePCR;
             const U64 ePR = right(quietD) & null.maps.ePCL;
             if (ePL | ePR) nodes += Bitcount(ePL) + Bitcount(ePR);
+            if (quietF & null.maps.cstlBit) nodes--;
+
+            nodes -= (Bitcount(pF & null.maps.pAtks) + Bitcount(pD & null.maps.pAtks));
+            nodes += Bitcount(pF & null.maps.pFwdFrom1);
+
+            nodes -= Bitcount(quietB & null.maps.pFwdTo1);
 
             pawnsFwd ^= quietF;
             pawnsDbl ^= quietD;
@@ -795,7 +842,7 @@ namespace movegen {
 
             attacks = getKnightAttacks(from) & ~board.occM;
 
-            if constexpr (depth == 2) null.take(attacks, from, null.knight);
+            if constexpr (depth == 2) null.take(nodes, attacks, from, null.knight, null.maps);
 
             if constexpr (depth == 1) nodes += Bitcount(attacks);
             else makeMoves<depth, side, kMoved, Piece::Knight, useTT>(nodes, attacks, from, board, discovers, batch);
@@ -811,7 +858,7 @@ namespace movegen {
 
             attacks = getBishopAttacks(from, board.occB) & ~board.occM;
 
-            if constexpr (depth == 2) null.take(attacks, from, null.bishop);
+            if constexpr (depth == 2) null.take(nodes, attacks, from, null.bishop, null.maps);
 
             if constexpr (depth == 1) {
                 nodes += Bitcount(attacks);
@@ -828,7 +875,7 @@ namespace movegen {
             attacks = bPins & PIN_RAYS[board.kMS][from];
 
             if ((1ULL << from) & board.qM) {
-                if constexpr (depth == 2) null.take(attacks, from, null.queen);
+                if constexpr (depth == 2) null.take(nodes, attacks, from, null.queen, null.maps);
 
                 if constexpr (depth == 1) {
                     nodes += Bitcount(attacks);
@@ -837,7 +884,7 @@ namespace movegen {
                 else makeMoves<depth, side, kMoved, Piece::Queen, useTT>(nodes, attacks, from, board, 0ULL, batch);
             }
             else {
-                if constexpr (depth == 2) null.take(attacks, from, null.bishop);
+                if constexpr (depth == 2) null.take(nodes, attacks, from, null.bishop, null.maps);
 
                 if constexpr (depth == 1) {
                     nodes += Bitcount(attacks);
@@ -857,7 +904,7 @@ namespace movegen {
 
             attacks = getRookAttacks(from, board.occB) & ~board.occM;
 
-            if constexpr (depth == 2) null.take(attacks, from, null.rook);
+            if constexpr (depth == 2) null.take(nodes, attacks, from, null.rook, null.maps);
 
             if constexpr (depth == 1) {
                 nodes += Bitcount(attacks);
@@ -874,7 +921,7 @@ namespace movegen {
             const bool isQueen = ((1ULL << from) & board.qM) != 0ULL;
             attacks = rPins & PIN_RAYS[board.kMS][from];
 
-            if constexpr (depth == 2) null.take(attacks, from, isQueen ? null.queen : null.rook);
+            if constexpr (depth == 2) null.take(nodes, attacks, from, isQueen ? null.queen : null.rook, null.maps);
 
             if constexpr (depth == 1) {
                 nodes += Bitcount(attacks);
@@ -896,7 +943,7 @@ namespace movegen {
 
             attacks = getQueenAttacks(from, board.occB) & ~board.occM;
 
-            if constexpr (depth == 2) null.take(attacks, from, null.queen);
+            if constexpr (depth == 2) null.take(nodes, attacks, from, null.queen, null.maps);
 
             if constexpr (depth == 1) {
                 nodes += Bitcount(attacks);
