@@ -246,7 +246,7 @@ namespace game {
 
         Zobrist zobrist = zobrist::init(pieces, side, castlingPermissions, enPassant);
 
-        board = bstate::BoardState(pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
+        board = bstate::BoardState(0, 0, pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
                                     pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
                                     kMS, kES, getKingAttacks(kMS), getKingAttacks(kES),
                                     occupancies[side], occupancies[!side], occupancies[both],

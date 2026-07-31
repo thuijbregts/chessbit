@@ -55,9 +55,11 @@ namespace defs {
 
 	struct NullMaps {
 		U64 eMap = 0; //squares that change move count
-		U64 pAtks = 0;
+		U64 pAtksL = 0;
+		U64 pAtksR = 0;
 		U64 pFwdFrom1 = 0;
 		U64 pFwdFrom2 = 0;
+		U64 pFwdFromDbl = 0;
 		U64 pFwdTo1 = 0;
 		U64 pFwdTo2 = 0;
 		U64 ePCL = 0; //en passant candidates left
@@ -350,9 +352,11 @@ namespace defs {
 		71776119061217280ULL, 65280ULL
 	};
 
-	constexpr U64 LAST_RANKS[2] = {
+	constexpr U64 LAST_RANK[2] = {
 		0xff, 0xff00000000000000
 	};
+
+	constexpr U64 LAST_RANKS = { 0xff | 0xff00000000000000 };
 
 	constexpr U64 MIDDLE_RANKS = 0xffffffff0000;
 
@@ -363,6 +367,10 @@ namespace defs {
 	constexpr int CASTLING_BIT_K[2] = { 1, 4 };
 
 	constexpr int CASTLING_BIT_Q[2] = { 2, 8 };
+
+	constexpr U64 CASTLING_PROMO_BIT[2] = {
+		(1ULL << a2), (1ULL << a7)
+	};
 
 	constexpr U64 CASTLING_OCCUPIED_SQUARES[4] = {
 		6917529027641081856ULL, 1008806316530991104ULL,
