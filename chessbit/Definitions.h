@@ -28,8 +28,8 @@ namespace defs {
 #define ClearBit(X, S) (X &= ~(1ULL << S))//SQUARE_BITS[S]) same perf
 #define MoveBit(X, F, T) (X ^= 1ULL << F | 1ULL << T)// faster than U64 matrix
 
-#define ForceInline inline static constexpr
-//#define ForceInline __forceinline static constexpr
+//#define ForceInline inline static constexpr
+#define ForceInline __forceinline static constexpr
 #define Inline inline static
 
 	inline bool ttEnabled = true;
@@ -72,6 +72,18 @@ namespace defs {
 		U64 bPins = 0; //squares that will cause bishop pins or check
 		U64 rPins = 0; //squares that will cause rook pins or check
 		U64 cstlBit = 0; //b2 or b7 square attacking castle passing square, otherwise unseen in other maps
+
+		U64 capOne;
+		U64 capTwo;
+		U64 pFwdFrom1nDbl;
+		U64 capOneLR;
+		U64 capTwoLR;
+		U64 t1LR;
+		U64 promoOn;
+
+		U64  kingCoef = 0;
+		bool kingF2 = false;
+		bool kingFDbl = false;
 	};
 
 	struct Zobrist {

@@ -337,7 +337,7 @@ void Cui::perftDivide(int depth, int threads) {
 	high_resolution_clock::time_point start, end;
 
 	start = high_resolution_clock::now();
-	U64 nodes = divide(depth, threads);
+	U64 nodes = ttEnabled ? divide<true>(depth, threads) : divide<false>(depth, threads);
 	end = high_resolution_clock::now();
 
 	long long total = duration_cast<microseconds>(end - start).count();
@@ -354,6 +354,7 @@ void Cui::perftDivide(int depth, int threads) {
 	initMoves();
 }
 
+template <bool useTT>
 __forceinline U64 Cui::divide(int depth, int threads) {
 	U64 totalNodes = 0;
 	U64 moveNodes;
@@ -366,8 +367,7 @@ __forceinline U64 Cui::divide(int depth, int threads) {
 		MoveInfo* m = movesArray.moves();
 
 		for (int i = 0; i < size; i++) {
-			moveNodes = ttEnabled ? generateMoves<true>(depth - 1, m[i].board)
-									: generateMoves<false>(depth - 1, m[i].board);
+			moveNodes = generateMoves<useTT>(depth - 1, m[i].board);
 
 			printf("%s %llu\n", utils::getMoveSimple(m[i]).c_str(), moveNodes);
 			totalNodes += moveNodes;
@@ -397,7 +397,7 @@ __forceinline U64 Cui::divide(int depth, int threads) {
 			return;
 		}
 		movesArray.reset();
-		generateMoves<false>(0, b);
+		generateMoves<useTT>(0, b);
 		const int c = movesArray.size();
 		MoveInfo* m = movesArray.moves();
 
@@ -420,8 +420,7 @@ __forceinline U64 Cui::divide(int depth, int threads) {
 		while ((t = next.fetch_add(1, std::memory_order_relaxed)) < tasks.size()) {
 			const Task& task = tasks[t];
 
-			U64 nodes = ttEnabled ? generateMoves<true>(depth - (plies + 1), task.board) 
-									: generateMoves<false>(depth - (plies + 1), task.board);
+			U64 nodes = generateMoves<useTT>(depth - (plies + 1), task.board);
 
 			rootNodes[task.root].fetch_add(nodes, std::memory_order_relaxed);
 

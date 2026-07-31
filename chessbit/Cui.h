@@ -37,6 +37,7 @@ private:
 	void perft(vector<string>& cmd);
 	void perftFast(int depth);
 	void perftDivide(int depth, int threads);
+	template <bool useTT>
 	__forceinline U64 divide(int depth, int threads);
 	void test();
 	void perftsuite();
