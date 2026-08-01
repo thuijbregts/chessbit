@@ -93,6 +93,14 @@ namespace defs {
 		bool operator==(const Zobrist& z) const noexcept {
 			return high == z.high && low == z.low;
 		}
+
+		constexpr Zobrist operator^(const Zobrist& z) const noexcept {
+			return { high ^ z.high, low ^ z.low };
+		}
+
+		constexpr Zobrist& operator^=(const Zobrist& z) noexcept {
+			high ^= z.high; low ^= z.low; return *this;
+		}
 	};
 
 	constexpr char ASCII_PIECES[2][7] = { { 'P', 'N', 'B', 'R', 'Q', 'K', '.' }, { 'p', 'n', 'b', 'r', 'q', 'k', '.' } };

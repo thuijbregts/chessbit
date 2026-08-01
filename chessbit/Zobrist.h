@@ -6,12 +6,7 @@ using namespace defs;
 
 namespace zobrist {
 
-	struct alignas(16) ZKey {
-		U64 hi;
-		U64 lo;
-	};
-
-	constexpr ZKey PAWNS[2][64] = {
+	constexpr Zobrist PAWNS[2][64] = {
 		{
 			{ 0x9D39247E33776D41, 0xD192BC5D23AF9FF7 }, { 0x2AF7398005AAA5C7, 0xE8E2FBEFD6C4207A },
 			{ 0x44DB015024623547, 0x2183362DF908B8E0 }, { 0x9C15F73E62A76AE2, 0xEAD401063996B0E2 },
@@ -82,7 +77,7 @@ namespace zobrist {
 		}
 	};
 
-	constexpr ZKey KNIGHTS[2][64] = {
+	constexpr Zobrist KNIGHTS[2][64] = {
 		{
 			{ 0x56436C9FE1A1AA8D, 0xCDD24AA5A9FE9858 }, { 0xEFAC4B70633B8F81, 0x6F7223F1C0FD22B2 },
 			{ 0xBB215798D45DF7AF, 0xEA213469230D0825 }, { 0x45F20042F24F1768, 0x2F8E87CCFC7CFC5F },
@@ -153,7 +148,7 @@ namespace zobrist {
 		}
 	};
 
-	constexpr ZKey BISHOPS[2][64] = {
+	constexpr Zobrist BISHOPS[2][64] = {
 		{
 			{ 0x7F9B6AF1EBF78BAF, 0x66417D38A3F09BA7 }, { 0x58627E1A149BBA21, 0x5F11551C27CE9166 },
 			{ 0x2CD16E2ABD791E33, 0xFDED6468C5EE1FF9 }, { 0xD363EFF5F0977996, 0x0AAA4210E34CC528 },
@@ -224,7 +219,7 @@ namespace zobrist {
 		}
 	};
 
-	constexpr ZKey ROOKS[2][64] = {
+	constexpr Zobrist ROOKS[2][64] = {
 		{
 			{ 0xDA3A361B1C5157B1, 0xBBF296A8C6DDD6CE }, { 0xDCDD7D20903D0C25, 0x590953DB352A996F },
 			{ 0x36833336D068F707, 0x96869247E939464B }, { 0xCE68341F79893389, 0x1C97C10560F4B84E },
@@ -295,7 +290,7 @@ namespace zobrist {
 		}
 	};
 
-	constexpr ZKey QUEENS[2][64] = {
+	constexpr Zobrist QUEENS[2][64] = {
 		{
 			{ 0x001F837CC7350524, 0x86C34194D6036858 }, { 0x1877B51E57A764D5, 0xFF646E0CF4DE412B },
 			{ 0xA2853B80F17F58EE, 0x38FC3219C5735E1D }, { 0x993E1DE72D36D310, 0x1C169979DDAAFDE7 },
@@ -366,7 +361,7 @@ namespace zobrist {
 		}
 	};
 
-	constexpr ZKey KINGS[2][64] = {
+	constexpr Zobrist KINGS[2][64] = {
 		{
 			{ 0x230E343DFBA08D33, 0x0931913F74BB7703 }, { 0x43ED7F5A0FAE657D, 0x9E5EDCCF7D2AE7FE },
 			{ 0x3A88A0FBBCB05C63, 0x5DC8007612453372 }, { 0x21874B8B4D2DBC4F, 0x0DAF2BE03994D874 },
@@ -437,7 +432,7 @@ namespace zobrist {
 		}
 	};
 
-	constexpr ZKey CASTLINGS[16] = {
+	constexpr Zobrist CASTLINGS[16] = {
 		{ 0xCF3145DE0ADD4289, 0x03A66CA36EE49487 },
 		{ 0xD0E4427A5514FB72, 0x0D680C74CE5ED09C },
 		{ 0x77C621CC9FB3A483, 0xABFD8E1B560AFC62 },
@@ -456,7 +451,7 @@ namespace zobrist {
 		{ 0x33116A49B37A929A, 0x9C9E1AB80162BCBF }
 	};
 
-	constexpr ZKey EN_PASSANT[9] = {
+	constexpr Zobrist EN_PASSANT[9] = {
 		{ 0x31D71DCE64B2C310, 0xBEC3D45B661EE332 },
 		{ 0xF165B587DF898190, 0x1BD60B7834B71A73 },
 		{ 0xA57E6339DD2CF3A0, 0x21BE4BF3C6A7B1FF },
@@ -468,165 +463,113 @@ namespace zobrist {
 		{ 0x0000000000000000, 0x0000000000000000 }
 	};
 
-	constexpr ZKey SIDE = { 0xF8D626AAAF278509, 0x0E25172621C2CE85 };
+	constexpr Zobrist SIDE = { 0xF8D626AAAF278509, 0x0E25172621C2CE85 };
 
 	ForceInline Zobrist init(U64(&pieces)[2][6], bool side, int casPerms, int eP) {
-		U64 high = side == white ? 0 : SIDE.hi;
-		U64 low = side == white ? 0 : SIDE.lo;
+		Zobrist z;
+		if (side == black) z ^= SIDE;
 
-		high ^= CASTLINGS[casPerms].hi;
-		low ^= CASTLINGS[casPerms].lo;
-		high ^= EN_PASSANT[FILES[eP]].hi;
-		low ^= EN_PASSANT[FILES[eP]].lo;
+		z ^= CASTLINGS[casPerms];
+		if (eP != noSquare) z ^= EN_PASSANT[FILES[eP]];
 
 		for (int i = 0; i < 2; i++) {
-			U64 pM = pieces[i][p];
-			U64 nM = pieces[i][n];
-			U64 bM = pieces[i][b];
-			U64 rM = pieces[i][r];
-			U64 qM = pieces[i][q];
-			U64 kM = pieces[i][k];
-			Bitloop(pM) { int from = SquareOf(pM); high ^= PAWNS[i][from].hi;		low ^= PAWNS[i][from].lo; }
-			Bitloop(nM) { int from = SquareOf(nM); high ^= KNIGHTS[i][from].hi;	low ^= KNIGHTS[i][from].lo; }
-			Bitloop(bM) { int from = SquareOf(bM); high ^= BISHOPS[i][from].hi;	low ^= BISHOPS[i][from].lo; }
-			Bitloop(rM) { int from = SquareOf(rM); high ^= ROOKS[i][from].hi;		low ^= ROOKS[i][from].lo; }
-			Bitloop(qM) { int from = SquareOf(qM); high ^= QUEENS[i][from].hi;		low ^= QUEENS[i][from].lo; }
-			int from = SquareOf(kM); high ^= KINGS[i][from].hi; low ^= KINGS[i][from].lo;
+			U64 pM = pieces[i][p], nM = pieces[i][n], bM = pieces[i][b];
+			U64 rM = pieces[i][r], qM = pieces[i][q], kM = pieces[i][k];
+			Bitloop(pM) z ^= PAWNS[i][SquareOf(pM)];
+			Bitloop(nM) z ^= KNIGHTS[i][SquareOf(nM)];
+			Bitloop(bM) z ^= BISHOPS[i][SquareOf(bM)];
+			Bitloop(rM) z ^= ROOKS[i][SquareOf(rM)];
+			Bitloop(qM) z ^= QUEENS[i][SquareOf(qM)];
+			z ^= KINGS[i][SquareOf(kM)];
 		}
-
-		return { high, low };
+		return z;
 	}
 
 	template <Piece piece, bool side, bool capture>
-	ForceInline Zobrist basic(int from, int to, int casPerms, int prevCP, int prevEP, U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, Zobrist prevZobrist) {
-		U64 high = prevZobrist.high;
-		U64 low = prevZobrist.low;
+	ForceInline Zobrist basic(int from, int to, int casPerms, int prevCP, int prevEP,
+		U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, Zobrist z) {
+		if constexpr (Piece::Pawn == piece)   z ^= PAWNS[side][from] ^ PAWNS[side][to];
+		if constexpr (Piece::Knight == piece) z ^= KNIGHTS[side][from] ^ KNIGHTS[side][to];
+		if constexpr (Piece::Bishop == piece) z ^= BISHOPS[side][from] ^ BISHOPS[side][to];
+		if constexpr (Piece::Rook == piece)   z ^= ROOKS[side][from] ^ ROOKS[side][to];
+		if constexpr (Piece::Queen == piece)  z ^= QUEENS[side][from] ^ QUEENS[side][to];
+		if constexpr (Piece::King == piece)   z ^= KINGS[side][from] ^ KINGS[side][to];
 
-		if constexpr (Piece::Pawn == piece) {	high ^= PAWNS[side][from].hi ^ PAWNS[side][to].hi;		low ^= PAWNS[side][from].lo ^ PAWNS[side][to].lo; }
-		if constexpr (Piece::Knight == piece) { high ^= KNIGHTS[side][from].hi ^ KNIGHTS[side][to].hi;	low ^= KNIGHTS[side][from].lo ^ KNIGHTS[side][to].lo; }
-		if constexpr (Piece::Bishop == piece) { high ^= BISHOPS[side][from].hi ^ BISHOPS[side][to].hi;	low ^= BISHOPS[side][from].lo ^ BISHOPS[side][to].lo; }
-		if constexpr (Piece::Rook == piece) {	high ^= ROOKS[side][from].hi ^ ROOKS[side][to].hi;		low ^= ROOKS[side][from].lo ^ ROOKS[side][to].lo; }
-		if constexpr (Piece::Queen == piece) {	high ^= QUEENS[side][from].hi ^ QUEENS[side][to].hi;	low ^= QUEENS[side][from].lo ^ QUEENS[side][to].lo; }
-		if constexpr (Piece::King == piece) {	high ^= KINGS[side][from].hi ^ KINGS[side][to].hi;		low ^= KINGS[side][from].lo ^ KINGS[side][to].lo; }
+		z ^= SIDE;
 
-		high ^= SIDE.hi;
-		low ^= SIDE.lo;
-		high ^= EN_PASSANT[FILES[prevEP]].hi;
-		low ^= EN_PASSANT[FILES[prevEP]].lo;
-		high ^= CASTLINGS[prevCP].hi;
-		low ^= CASTLINGS[prevCP].lo;
-		high ^= CASTLINGS[casPerms].hi;
-		low ^= CASTLINGS[casPerms].lo;
+		z ^= EN_PASSANT[FILES[prevEP]];
+		z ^= CASTLINGS[prevCP] ^ CASTLINGS[casPerms];
 
 		if constexpr (capture) {
-			U64 t = (1ULL << to);
-			if (pE & t) { high ^= PAWNS[!side][to].hi;		low ^= PAWNS[!side][to].lo; }
-			else if (nE & t) { high ^= KNIGHTS[!side][to].hi;	low ^= KNIGHTS[!side][to].lo; }
-			else if (bE & t) { high ^= BISHOPS[!side][to].hi;	low ^= BISHOPS[!side][to].lo; }
-			else if (rE & t) { high ^= ROOKS[!side][to].hi;		low ^= ROOKS[!side][to].lo; }
-			else if (qE & t) { high ^= QUEENS[!side][to].hi;	low ^= QUEENS[!side][to].lo; }
+			const U64 t = (1ULL << to);
+			if (pE & t) z ^= PAWNS[!side][to];
+			else if (nE & t) z ^= KNIGHTS[!side][to];
+			else if (bE & t) z ^= BISHOPS[!side][to];
+			else if (rE & t) z ^= ROOKS[!side][to];
+			else if (qE & t) z ^= QUEENS[!side][to];
 		}
-
-		return { high, low };
+		return z;
 	}
 
 	template <Piece piece, bool side, bool capture>
-	ForceInline Zobrist promotion(int from, int to, int casPerms, int prevCP, int prevEP, U64 nE, U64 bE, U64 rE, U64 qE, Zobrist prevZobrist) {
-		U64 high = prevZobrist.high;
-		U64 low = prevZobrist.low;
+	ForceInline Zobrist promotion(int from, int to, int casPerms, int prevCP, int prevEP,
+		U64 nE, U64 bE, U64 rE, U64 qE, Zobrist z) {
+		z ^= PAWNS[side][from];
 
-		high ^= PAWNS[side][from].hi;
-		low ^= PAWNS[side][from].lo;
+		if constexpr (Piece::Knight == piece) z ^= KNIGHTS[side][to];
+		if constexpr (Piece::Bishop == piece) z ^= BISHOPS[side][to];
+		if constexpr (Piece::Rook == piece)   z ^= ROOKS[side][to];
+		if constexpr (Piece::Queen == piece)  z ^= QUEENS[side][to];
 
-		if constexpr (Piece::Knight == piece) {		high ^= KNIGHTS[side][to].hi;	low ^= KNIGHTS[side][to].lo; }
-		if constexpr (Piece::Bishop == piece) {		high ^= BISHOPS[side][to].hi;	low ^= BISHOPS[side][to].lo; }
-		if constexpr (Piece::Rook == piece) {		high ^= ROOKS[side][to].hi;		low ^= ROOKS[side][to].lo; }
-		if constexpr (Piece::Queen == piece) {		high ^= QUEENS[side][to].hi;	low ^= QUEENS[side][to].lo; }
-
-		high ^= SIDE.hi;
-		low ^= SIDE.lo;
-		high ^= EN_PASSANT[FILES[prevEP]].hi;
-		low ^= EN_PASSANT[FILES[prevEP]].lo;
+		z ^= SIDE;
+		z ^= EN_PASSANT[FILES[prevEP]];
 
 		if constexpr (capture) {
-			U64 t = (1ULL << to);
-			if (nE & t) { high ^= KNIGHTS[!side][to].hi;	low ^= KNIGHTS[!side][to].lo; }
-			else if (bE & t) { high ^= BISHOPS[!side][to].hi;	low ^= BISHOPS[!side][to].lo; }
+			const U64 t = (1ULL << to);
+			if (nE & t) z ^= KNIGHTS[!side][to];
+			else if (bE & t) z ^= BISHOPS[!side][to];
 			else if (rE & t) {
-				high ^= CASTLINGS[prevCP].hi;
-				low ^= CASTLINGS[prevCP].lo;
-				high ^= CASTLINGS[casPerms].hi;
-				low ^= CASTLINGS[casPerms].lo;
-
-				high ^= ROOKS[!side][to].hi;
-				low ^= ROOKS[!side][to].lo;
+				z ^= CASTLINGS[prevCP] ^ CASTLINGS[casPerms];
+				z ^= ROOKS[!side][to];
 			}
-			else if (qE & t) { high ^= QUEENS[!side][to].hi;	low ^= QUEENS[!side][to].lo; }
+			else if (qE & t) z ^= QUEENS[!side][to];
 		}
-
-		return { high, low };
+		return z;
 	}
 
 	template <bool side>
-	ForceInline Zobrist doublePush(int from, int to, int eP, int prevEP, Zobrist prevZobrist) {
-		U64 high = prevZobrist.high;
-		U64 low = prevZobrist.low;
+	ForceInline Zobrist doublePush(int from, int to, int eP, int prevEP, Zobrist z) {
+		z ^= PAWNS[side][from] ^ PAWNS[side][to];
+		z ^= SIDE;
 
-		high ^= PAWNS[side][from].hi ^ PAWNS[side][to].hi;
-		low ^= PAWNS[side][from].lo ^ PAWNS[side][to].lo;
-		high ^= SIDE.hi;
-		low ^= SIDE.lo;
-		high ^= EN_PASSANT[FILES[prevEP]].hi;
-		low ^= EN_PASSANT[FILES[prevEP]].lo;
-		high ^= EN_PASSANT[FILES[eP]].hi;
-		low ^= EN_PASSANT[FILES[eP]].lo;
-
-		return { high, low };
+		z ^= EN_PASSANT[FILES[prevEP]];
+		z ^= EN_PASSANT[FILES[eP]];
+		return z;
 	}
 
 	template <bool side>
-	ForceInline Zobrist enPassant(int from, int to, int ePS, int prevEP, Zobrist prevZobrist) {
-		U64 high = prevZobrist.high;
-		U64 low = prevZobrist.low;
-
-		high ^= PAWNS[side][from].hi ^ PAWNS[side][to].hi;
-		low ^= PAWNS[side][from].lo ^ PAWNS[side][to].lo;
-		high ^= PAWNS[!side][ePS].hi;
-		low ^= PAWNS[!side][ePS].lo;
-
-		high ^= SIDE.hi;
-		low ^= SIDE.lo;
-		high ^= EN_PASSANT[FILES[prevEP]].hi;
-		low ^= EN_PASSANT[FILES[prevEP]].lo;
-
-		return { high, low };
+	ForceInline Zobrist enPassant(int from, int to, int ePS, int prevEP, Zobrist z) {
+		z ^= PAWNS[side][from] ^ PAWNS[side][to];
+		z ^= PAWNS[!side][ePS];
+		z ^= SIDE;
+		z ^= EN_PASSANT[FILES[prevEP]];
+		return z;
 	}
 
 	template <int castlingSide>
-	ForceInline Zobrist castle(int casPerms, int prevCP, int prevEP, Zobrist prevZobrist) {
-		U64 high = prevZobrist.high;
-		U64 low = prevZobrist.low;
+	ForceInline Zobrist castle(int casPerms, int prevCP, int prevEP, Zobrist z) {
+		constexpr int  fromK = CASTLING_KING_SOURCE_SQUARE[castlingSide];
+		constexpr int  toK = CASTLING_KING_TARGET_SQUARE[castlingSide];
+		constexpr int  fromR = CASTLING_ROOK_SOURCE_SQUARE[castlingSide];
+		constexpr int  toR = CASTLING_ROOK_TARGET_SQUARE[castlingSide];
+		constexpr bool side = CASTLING_SIDE[castlingSide];
 
-		constexpr int fromK =	CASTLING_KING_SOURCE_SQUARE[castlingSide];
-		constexpr int toK =		CASTLING_KING_TARGET_SQUARE[castlingSide];
-		constexpr int fromR =	CASTLING_ROOK_SOURCE_SQUARE[castlingSide];
-		constexpr int toR =		CASTLING_ROOK_TARGET_SQUARE[castlingSide];
-		constexpr bool side =	CASTLING_SIDE[castlingSide];
+		z ^= KINGS[side][fromK] ^ KINGS[side][toK];
+		z ^= ROOKS[side][fromR] ^ ROOKS[side][toR];
+		z ^= SIDE;
 
-		high ^= KINGS[side][fromK].hi ^ KINGS[side][toK].hi;
-		low ^= KINGS[side][fromK].lo ^ KINGS[side][toK].lo;
-		high ^= ROOKS[side][fromR].hi ^ ROOKS[side][toR].hi;
-		low ^= ROOKS[side][fromR].lo ^ ROOKS[side][toR].lo;
-
-		high ^= SIDE.hi;
-		low ^= SIDE.lo;
-		high ^= EN_PASSANT[FILES[prevEP]].hi;
-		low ^= EN_PASSANT[FILES[prevEP]].lo;
-		high ^= CASTLINGS[prevCP].hi;
-		low ^= CASTLINGS[prevCP].lo;
-		high ^= CASTLINGS[casPerms].hi;
-		low ^= CASTLINGS[casPerms].lo;
-
-		return { high, low };
+		z ^= EN_PASSANT[FILES[prevEP]];
+		z ^= CASTLINGS[prevCP] ^ CASTLINGS[casPerms];
+		return z;
 	}
 }
