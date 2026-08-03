@@ -63,7 +63,7 @@ namespace movegen {
             U64 coef = 0;
             if (f & null.pFwdFrom1) coef += 1;
             if (f & null.capOne)    coef -= 1;
-            if (f & null.capTwo)    coef -= 2;
+            if (f & null.capTwo)    coef -= 1;
             if (f & LAST_RANKS)     coef <<= 2;
             nodes += coef * cnt;
 
@@ -73,10 +73,10 @@ namespace movegen {
             }
             else if ((f & null.pFwdFromDbl) && (pawnsAtkForward<side>(f) & q)) nodes--;
 
-            nodes += Bitcount(q & null.capOne) + 2 * Bitcount(q & null.capTwo) - Bitcount(q & null.pFwdTo1) - 2 * Bitcount(q & null.pFwdTo2);
+            nodes += Bitcount(q & null.capOne) + Bitcount(q & null.capTwo) - Bitcount(q & null.pFwdTo1) - Bitcount(q & null.pFwdTo2);
 
             if (null.promoOn) [[unlikely]]
-                nodes += 3 * Bitcount(q & null.capOneLR) + 6 * Bitcount(q & null.capTwoLR) - 3 * Bitcount(q & null.t1LR);
+                nodes += 3 * Bitcount(q & null.capOneLR) + 3 * Bitcount(q & null.capTwoLR) - 3 * Bitcount(q & null.t1LR);
         }
 
         template <bool side>
@@ -99,7 +99,7 @@ namespace movegen {
             }
             else if (null.kingFDbl && (pawnsAtkForward<side>(f) & q)) nodes--;
 
-            nodes -= Bitcount(q & null.pFwdTo1) + 2 * Bitcount(q & null.pFwdTo2);
+            nodes -= Bitcount(q & null.pFwdTo1) + Bitcount(q & null.pFwdTo2);
             if (null.promoOn) [[unlikely]]
                 nodes -= 3 * Bitcount(q & null.t1LR);
         }
@@ -126,8 +126,8 @@ namespace movegen {
             nodes -= Bitcount(quietB & null.pFwdTo1);
 
             if (null.capTwo) [[unlikely]] {
-                nodes -= 2 * (Bitcount(pF & null.capTwo) + Bitcount(pD & null.capTwo));
-                nodes += 2 * Bitcount(quietB & null.capTwo);
+                nodes -= (Bitcount(pF & null.capTwo) + Bitcount(pD & null.capTwo));
+                nodes += Bitcount(quietB & null.capTwo);
             }
 
             pawnsFwd ^= quietF;
@@ -352,21 +352,18 @@ namespace movegen {
 
         m.eMap |= board.occE;
 
-        m.capOne = m.pAtksL ^ m.pAtksR;
+        m.capOne = m.pAtksL | m.pAtksR;
         m.capTwo = m.pAtksL & m.pAtksR;
         m.pFwdFrom1nDbl = m.pFwdFrom1 & ~m.pFwdFromDbl;
 
         m.capOneLR = m.capOne & LAST_RANKS;
         m.capTwoLR = m.capTwo & LAST_RANKS;
         m.t1LR = m.pFwdTo1 & LAST_RANKS;
-        m.promoOn = (m.capOneLR | m.capTwoLR | m.t1LR) != 0ULL;
+        m.promoOn = m.capOneLR | m.capTwoLR | m.t1LR;
 
-        const U64 kf = 1ULL << board.kMS;
-        U64 kc = (kf & m.pFwdFrom1) ? 1 : 0;
-        if (kf & LAST_RANKS) kc <<= 2;
-        m.kingCoef = kc;
-        m.kingF2 = (kf & m.pFwdFrom2) != 0;
-        m.kingFDbl = (kf & m.pFwdFromDbl) != 0;
+        m.kingCoef = NULL_KING_COEFF[SquareOf(board.kM & m.pFwdFrom1)];
+        m.kingF2 = board.kM & m.pFwdFrom2;
+        m.kingFDbl = board.kM & m.pFwdFromDbl;
 
         const U64 bBlockers = getBishopAttacks(board.kES, board.occB) & board.occE;
         const U64 rBlockers = getRookAttacks(board.kES, board.occB) & board.occE;
@@ -822,7 +819,7 @@ namespace movegen {
             maps->pFwdFrom1 = (pawnsFwdAll | pawnsDblAll) & ~maps->pFwdFrom2;
             maps->pFwdFromDbl = pawnsDblAll;
             maps->pFwdTo2 = (pawnsFwd & pawnsAtkForward<!side>(pawnsDbl));
-            maps->pFwdTo1 = (pawnsFwd | pawnsDbl) & ~maps->pFwdTo2;
+            maps->pFwdTo1 = (pawnsFwd | pawnsDbl);
             maps->ePCL = pawnsAtkRight<!side>(pawnsLeftAll) & EN_PASSANT_RANK[side];
             maps->ePCR = pawnsAtkLeft<!side>(pawnsRightAll) & EN_PASSANT_RANK[side];
         }
