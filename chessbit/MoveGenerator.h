@@ -361,12 +361,9 @@ namespace movegen {
         m.t1LR = m.pFwdTo1 & LAST_RANKS;
         m.promoOn = (m.capOneLR | m.capTwoLR | m.t1LR) != 0ULL;
 
-        const U64 kf = 1ULL << board.kMS;
-        U64 kc = (kf & m.pFwdFrom1) ? 1 : 0;
-        if (kf & LAST_RANKS) kc <<= 2;
-        m.kingCoef = kc;
-        m.kingF2 = (kf & m.pFwdFrom2) != 0;
-        m.kingFDbl = (kf & m.pFwdFromDbl) != 0;
+        m.kingCoef = NULL_KING_COEFF[SquareOf(board.kM & m.pFwdFrom1)];
+        m.kingF2 = (board.kM & m.pFwdFrom2) != 0;
+        m.kingFDbl = (board.kM & m.pFwdFromDbl) != 0;
 
         const U64 bBlockers = getBishopAttacks(board.kES, board.occB) & board.occE;
         const U64 rBlockers = getRookAttacks(board.kES, board.occB) & board.occE;
