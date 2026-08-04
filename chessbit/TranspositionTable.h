@@ -18,14 +18,9 @@ namespace tt {
     constexpr int MAX_ENTRIES = 4;
     constexpr int BUCKET_SIZE = MAX_ENTRIES * 16;
 
-    constexpr U64 DEPTH_BITS = 4;
+    constexpr U64 DEPTH_BITS = 5;
     constexpr U64 DEPTH_MASK = (1ULL << DEPTH_BITS) - 1;
-    constexpr U64 FREQ_SHIFT = DEPTH_BITS;
-    constexpr U64 FREQ_BITS = 2;
-    constexpr U64 FREQ_MASK = ((1ULL << FREQ_BITS) - 1) << FREQ_SHIFT;
-    constexpr U64 FREQ_ONE = 1ULL << FREQ_SHIFT;
-    constexpr U64 FREQ_MAX = FREQ_MASK; 
-    constexpr U64 COUNT_SHIFT = DEPTH_BITS + FREQ_BITS;
+    constexpr U64 COUNT_SHIFT = DEPTH_BITS;
 
     template <int depth>
     constexpr bool USE_HASH = (depth >= MIN_HASH_DEPTH && depth <= MAX_HASH_DEPTH);
@@ -61,13 +56,6 @@ namespace tt {
         return false;
     }
 
-    ForceInline U64 score(U64 data) noexcept {
-        const U64 count = data >> COUNT_SHIFT;
-        const U64 freq = (data & FREQ_MASK) >> FREQ_SHIFT;
-
-        return count + count * freq;
-    }
-
     template <int depth>
     ForceInline void write(Bucket& b, Zobrist z, U64 nodes) noexcept {
         int v = 0;
@@ -76,16 +64,10 @@ namespace tt {
             const U64 di = b.data[i];
 
             if (b.key[i] == (z.high ^ di) && (di & DEPTH_MASK) == static_cast<U64>(depth)) {
-                if ((di & FREQ_MASK) != FREQ_MAX) {
-                    const U64 nd = di + FREQ_ONE;
-                    b.key[i] = z.high ^ nd;
-                    b.data[i] = nd;
-                }
                 return;
             }
 
-            const U64 sc = score(di);
-            if (sc < minScore) { minScore = sc; v = i; }
+            if (di < minScore) { minScore = di; v = i; }
         }
 
         const U64 data = (nodes << COUNT_SHIFT) | static_cast<U64>(depth);

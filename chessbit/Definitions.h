@@ -55,22 +55,22 @@ namespace defs {
 
 	struct NullMaps {
 		U64 eMap = 0; //squares that change move count
-		U64 pAtksL;
-		U64 pAtksR;
-		U64 pFwdFrom1;
-		U64 pFwdFrom2;
-		U64 pFwdFromDbl;
-		U64 pFwdTo1;
-		U64 pFwdTo2;
-		U64 ePCL; //en passant candidates left
-		U64 ePCR; //en passant candidates right
-		U64 kKZ; //king zone threatening king moves
-		U64 pKZ; //pawn zone threatening king moves
-		U64 nKZ; //knight zone threatening king moves
+		U64 pAtksL = 0;
+		U64 pAtksR = 0;
+		U64 pFwdFrom1 = 0;
+		U64 pFwdFrom2 = 0;
+		U64 pFwdFromDbl = 0;
+		U64 pFwdTo1 = 0;
+		U64 pFwdTo2 = 0;
+		U64 ePCL = 0; //en passant candidates left
+		U64 ePCR = 0; //en passant candidates right
+		U64 kKZ = 0; //king zone threatening king moves
+		U64 pKZ = 0; //pawn zone threatening king moves
+		U64 nKZ = 0; //knight zone threatening king moves
 		U64 bKZ = 0; //bishop zone threatening king moves
 		U64 rKZ = 0; //rook zone threatening king moves
-		U64 bPins; //squares that will cause bishop pins or check
-		U64 rPins; //squares that will cause rook pins or check
+		U64 bPins = 0; //squares that will cause bishop pins or check
+		U64 rPins = 0; //squares that will cause rook pins or check
 		U64 cstlBit = 0; //b2 or b7 square attacking castle passing square, otherwise unseen in other maps
 
 		U64 capOne;
@@ -81,9 +81,9 @@ namespace defs {
 		U64 t1LR;
 		U64 promoOn;
 
-		U64 kingCoef = 0;
-		U64 kingF2;
-		U64 kingFDbl;
+		U64  kingCoef = 0;
+		bool kingF2 = false;
+		bool kingFDbl = false;
 	};
 
 	struct Zobrist {
@@ -548,17 +548,6 @@ namespace defs {
 	//for null move; square that needs to be considered because attacking castle passing square
 	constexpr U64 CASTLE_NULL_BIT[2] = {
 		(1ULL << b2), (1ULL << b7)
-	};
-
-	constexpr int NULL_KING_COEFF[65] = {
-		4,4,4,4,4,4,4,4,
-		1,1,1,1,1,1,1,1,
-		1,1,1,1,1,1,1,1,
-		1,1,1,1,1,1,1,1,
-		1,1,1,1,1,1,1,1,
-		1,1,1,1,1,1,1,1,
-		1,1,1,1,1,1,1,1,
-		4,4,4,4,4,4,4,4, 0
 	};
 
 	constexpr int CASTLE_ROOK_FROM[64] = {
