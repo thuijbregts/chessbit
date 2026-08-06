@@ -28,8 +28,8 @@ namespace defs {
 #define ClearBit(X, S) (X &= ~(1ULL << S))//SQUARE_BITS[S]) same perf
 #define MoveBit(X, F, T) (X ^= 1ULL << F | 1ULL << T)// faster than U64 matrix
 
-//#define ForceInline inline static constexpr
-#define ForceInline __forceinline static constexpr
+//#define ForceInline inline static
+#define ForceInline __forceinline static
 #define Inline inline static
 
 	inline bool ttEnabled = true;
@@ -55,22 +55,22 @@ namespace defs {
 
 	struct NullMaps {
 		U64 eMap = 0; //squares that change move count
-		U64 pAtksL = 0;
-		U64 pAtksR = 0;
-		U64 pFwdFrom1 = 0;
-		U64 pFwdFrom2 = 0;
-		U64 pFwdFromDbl = 0;
-		U64 pFwdTo1 = 0;
-		U64 pFwdTo2 = 0;
-		U64 ePCL = 0; //en passant candidates left
-		U64 ePCR = 0; //en passant candidates right
-		U64 kKZ = 0; //king zone threatening king moves
-		U64 pKZ = 0; //pawn zone threatening king moves
-		U64 nKZ = 0; //knight zone threatening king moves
+		U64 pAtksL;
+		U64 pAtksR;
+		U64 pFwdFrom1;
+		U64 pFwdFrom2;
+		U64 pFwdFromDbl;
+		U64 pFwdTo1;
+		U64 pFwdTo2;
+		U64 ePCL; //en passant candidates left
+		U64 ePCR; //en passant candidates right
+		U64 kKZ; //king zone threatening king moves
+		U64 pKZ; //pawn zone threatening king moves
+		U64 nKZ; //knight zone threatening king moves
 		U64 bKZ = 0; //bishop zone threatening king moves
 		U64 rKZ = 0; //rook zone threatening king moves
-		U64 bPins = 0; //squares that will cause bishop pins or check
-		U64 rPins = 0; //squares that will cause rook pins or check
+		U64 bPins; //squares that will cause bishop pins or check
+		U64 rPins; //squares that will cause rook pins or check
 		U64 cstlBit = 0; //b2 or b7 square attacking castle passing square, otherwise unseen in other maps
 
 		U64 capOne;
@@ -80,10 +80,6 @@ namespace defs {
 		U64 capTwoLR;
 		U64 t1LR;
 		U64 promoOn;
-
-		U64  kingCoef = 0;
-		bool kingF2 = false;
-		bool kingFDbl = false;
 	};
 
 	struct Zobrist {
@@ -1110,11 +1106,10 @@ namespace defs {
 	}
 
 	ForceInline U64 getBishopAttackZone(int square, U64 occupancy, U64 mask) {
-		return BISHOP_ATTACK_ZONES[square][_pext_u64(occupancy, mask)];
+		return BISHOP_ATTACK_ZONES[square * 256 + _pext_u64(occupancy, mask)];
 	}
-
 	ForceInline U64 getRookAttackZone(int square, U64 occupancy, U64 mask) {
-		return ROOK_ATTACK_ZONES[square][_pext_u64(occupancy, mask)];
+		return ROOK_ATTACK_ZONES[square * 256 + _pext_u64(occupancy, mask)];
 	}
 
 	template <bool side>
@@ -1164,7 +1159,7 @@ namespace defs {
 	}
 
 	template <int castlingSide>
-	ForceInline U64 rookSwitch() noexcept {
+	ForceInline constexpr U64 rookSwitch() noexcept {
 		if constexpr (castlingSide == 0) return 0xa000000000000000;
 		if constexpr (castlingSide == 1) return 0x900000000000000;
 		if constexpr (castlingSide == 2) return 0xa0;
@@ -1172,7 +1167,7 @@ namespace defs {
 	}
 
 	template <int castlingSide>
-	ForceInline U64 kingSwitch() noexcept {
+	ForceInline constexpr U64 kingSwitch() noexcept {
 		if constexpr (castlingSide == 0) return 0x5000000000000000;
 		if constexpr (castlingSide == 1) return 0x1400000000000000;
 		if constexpr (castlingSide == 2) return 0x50;
@@ -1180,7 +1175,7 @@ namespace defs {
 	}
 
 	template <int castlingSide>
-	ForceInline U64 bothSwitch() noexcept {
+	ForceInline constexpr U64 bothSwitch() noexcept {
 		if constexpr (castlingSide == 0) return 0xa000000000000000 | 0x5000000000000000;
 		if constexpr (castlingSide == 1) return 0x900000000000000 | 0x1400000000000000;
 		if constexpr (castlingSide == 2) return 0xa0 | 0x50;

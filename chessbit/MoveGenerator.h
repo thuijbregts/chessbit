@@ -40,15 +40,15 @@ namespace movegen {
 
     struct NullEval {
         NullMaps maps{};
-        U64 count = 0ULL;
+        U64 count;
         U64 quiet = 0ULL;
 
-        U64 king = 0ULL;
-        U64 pawn = 0ULL;
-        U64 knight = 0ULL;
-        U64 bishop = 0ULL;
-        U64 rook = 0ULL;
-        U64 queen = 0ULL;
+        U64 king;
+        U64 pawn;
+        U64 knight;
+        U64 bishop;
+        U64 rook;
+        U64 queen;
 
         template <bool side>
         __forceinline void take(U64& nodes, U64& attacks, int from, U64 map, NullMaps& null) noexcept {
@@ -80,9 +80,8 @@ namespace movegen {
         }
 
         template <bool side>
-        __forceinline void takeKing(U64& nodes, U64& attacks, int from, U64 map, NullMaps& null) noexcept {
-            const U64 f = (1ULL << from);
-            if (f & map) return;
+        __forceinline void takeKing(U64& nodes, U64& attacks, U64 kM, U64 map, NullMaps& null) noexcept {
+            if (kM & map) return;
 
             const U64 q = attacks & ~map;
             attacks ^= q;
@@ -91,13 +90,13 @@ namespace movegen {
 
             if (q & null.cstlBit) nodes--;
 
-            nodes += null.kingCoef * cnt;
+            nodes += NULL_KING_COEFF[SquareOf(kM & null.pFwdFrom1)] * cnt;
 
-            if (null.kingF2) {
+            if (kM & null.pFwdFrom2) {
                 nodes += cnt << 1;
-                if (pawnsAtkForward<!side>(f) & q) nodes--;
+                if (pawnsAtkForward<!side>(kM) & q) nodes--;
             }
-            else if (null.kingFDbl && (pawnsAtkForward<side>(f) & q)) nodes--;
+            else if ((kM & null.pFwdFromDbl) && (pawnsAtkForward<side>(kM) & q)) nodes--;
 
             nodes -= Bitcount(q & null.pFwdTo1) + 2 * Bitcount(q & null.pFwdTo2);
             if (null.promoOn) [[unlikely]]
@@ -360,10 +359,6 @@ namespace movegen {
         m.capTwoLR = m.capTwo & LAST_RANKS;
         m.t1LR = m.pFwdTo1 & LAST_RANKS;
         m.promoOn = (m.capOneLR | m.capTwoLR | m.t1LR) != 0ULL;
-
-        m.kingCoef = NULL_KING_COEFF[SquareOf(board.kM & m.pFwdFrom1)];
-        m.kingF2 = (board.kM & m.pFwdFrom2) != 0;
-        m.kingFDbl = (board.kM & m.pFwdFromDbl) != 0;
 
         const U64 bBlockers = getBishopAttacks(board.kES, board.occB) & board.occE;
         const U64 rBlockers = getRookAttacks(board.kES, board.occB) & board.occE;
@@ -768,7 +763,7 @@ namespace movegen {
         U64 pseudoAttacks = board.kMA & ~board.occM;
         attacks = pseudoAttacks & ~eAttacks;
 
-        if constexpr (depth == 2) null.takeKing<side>(nodes, attacks, board.kMS, null.king, null.maps);
+        if constexpr (depth == 2) null.takeKing<side>(nodes, attacks, board.kM, null.king, null.maps);
 
         if constexpr (depth == 1) {
             nodes += Bitcount(attacks);
