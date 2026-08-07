@@ -183,13 +183,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AttackTables.h" />
+    <ClInclude Include="Batch.h" />
     <ClInclude Include="BoardState.h" />
     <ClInclude Include="Cui.h" />
     <ClInclude Include="Definitions.h" />
+    <ClInclude Include="Engine.h" />
     <ClInclude Include="Game.h" />
-    <ClInclude Include="MoveArray.h" />
     <ClInclude Include="MoveGenerator.h" />
-    <ClInclude Include="MoveInfo.h" />
+    <ClInclude Include="Perft.h" />
     <ClInclude Include="TranspositionTable.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="Zobrist.h" />

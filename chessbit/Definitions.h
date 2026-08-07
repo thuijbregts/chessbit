@@ -28,8 +28,8 @@ namespace defs {
 #define ClearBit(X, S) (X &= ~(1ULL << S))//SQUARE_BITS[S]) same perf
 #define MoveBit(X, F, T) (X ^= 1ULL << F | 1ULL << T)// faster than U64 matrix
 
-//#define ForceInline inline static
-#define ForceInline __forceinline static
+#define ForceInline inline static
+//#define ForceInline __forceinline static
 #define Inline inline static
 
 	inline bool ttEnabled = true;
@@ -80,6 +80,10 @@ namespace defs {
 		U64 capTwoLR;
 		U64 t1LR;
 		U64 promoOn;
+
+		U64  kingCoef = 0;
+		bool kingF2 = false;
+		bool kingFDbl = false;
 	};
 
 	struct Zobrist {

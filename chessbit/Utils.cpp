@@ -1,5 +1,5 @@
 #include "Utils.h"
-#include "MoveInfo.h"
+#include "BoardState.h"
 #include <stdexcept>
 #include <iomanip>
 #include <sstream>
@@ -7,6 +7,7 @@
 #include <cstdint>
 
 using namespace defs;
+using namespace bstate;
 
 #if defined(_WIN32)
 	#include <windows.h>
@@ -66,12 +67,12 @@ std::vector<std::string> utils::split(const std::string& str, const char delim)
 	return result;
 }
 
-std::string utils::getMoveSimple(const moveinfo::MoveInfo& move) {
+std::string utils::getMoveSimple(const BoardState& move) {
 	std::string result;
 
 	result += SQUARE_NAMES[move.from];
 	result += SQUARE_NAMES[move.to];
-	if (move.promo != noPiece) {
+	if (move.promo) {
 		result += ASCII_PIECES[0][move.promo];
 	}
 	

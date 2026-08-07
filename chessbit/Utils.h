@@ -6,8 +6,8 @@
 #include <string>
 #include <regex>
 
-namespace moveinfo {
-	struct MoveInfo;
+namespace bstate {
+	struct BoardState;
 }
 
 namespace utils {
@@ -15,7 +15,7 @@ namespace utils {
 
 	U64 availableMemory();
 	std::vector<std::string> split(const std::string& str, const char delim);
-	std::string getMoveSimple(const moveinfo::MoveInfo& move);
+	std::string getMoveSimple(const bstate::BoardState& move);
 	bool validMove(std::string& move);
 	bool isPositiveDigits(std::string& str);
 }

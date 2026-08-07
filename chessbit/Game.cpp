@@ -79,15 +79,15 @@ namespace game {
             (board.casPerms & bq) ? 'q' : '-');
     }
 
-    void makeMove(MoveInfo& move) {
+    void makeMove(const BoardState& move) {
         moveCount++;
         movesPlayed[moveCount] = move;
-        board = move.board;
+        board = move;
     }
 
     void unmakeMove() {
         moveCount--;
-        board = movesPlayed[moveCount].board;
+        board = movesPlayed[moveCount];
     }
 
     void setFen(const char* fen) {
@@ -246,13 +246,13 @@ namespace game {
 
         Zobrist zobrist = zobrist::init(pieces, side, castlingPermissions, enPassant);
 
-        board = bstate::BoardState(pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
+        board = bstate::BoardState(0, 0, pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
                                     pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
                                     kMS, kES, getKingAttacks(kMS), getKingAttacks(kES),
                                     occupancies[side], occupancies[!side], occupancies[both],
-                                    checks, castlingPermissions, enPassant, side, zobrist);
+                                    checks, castlingPermissions, enPassant, side, false, false, zobrist);
 
-        movesPlayed[0] = MoveInfo(0, 0, false, board);
+        movesPlayed[0] = board;
     }
 
     string getFen() {

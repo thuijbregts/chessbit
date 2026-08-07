@@ -1,6 +1,7 @@
 #include "Test.hpp"
 #include "Cui.h"
-#include "MoveGenerator.h"
+#include "Perft.h"
+#include "Engine.h"
 #include <iostream>
 #include <fstream>
 #include <algorithm>
@@ -14,8 +15,8 @@
 using namespace std::chrono;
 using namespace movegen;
 using namespace game;
-using namespace movarray;
 using namespace tt;
+using namespace perft;
 
 Cui::Cui()
 {
@@ -45,7 +46,7 @@ void Cui::start() {
 }
 
 void Cui::initMoves() {
-	movesArray.reset();
+	batch::batch.reset();
 	generateMoves(0);
 }
 
@@ -172,8 +173,8 @@ void Cui::execute(vector<string>& cmd) {
 }
 
 bool Cui::executeMove(string& move) {
-	int size = movesArray.size();
-	MoveInfo* mv = movesArray.moves();
+	int size = batch::batch.size();
+	BoardState* mv = batch::batch.moves();
 
 	for (int i = 0; i < size; ++i) {
 		if (move == utils::getMoveSimple(mv[i])) {
@@ -185,8 +186,10 @@ bool Cui::executeMove(string& move) {
 }
 
 void Cui::play() {
-	/*game::makeMove(search::searchMove());
-	generateMoves<false>();*/
+	BoardState bestMove;
+	engine::start(8, game::board, bestMove);
+	game::makeMove(bestMove);
+	//engine::comparePruning(game::board, 6);
 }
 
 void Cui::undo() {
@@ -200,8 +203,8 @@ void Cui::undo() {
 }
 
 void Cui::showMoves() {
-	int size = movesArray.size();
-	MoveInfo* mv = movesArray.moves();
+	int size = batch::batch.size();
+	BoardState* mv = batch::batch.moves();
 	for (int i = 0; i < size; ++i) {
 		cout << utils::getMoveSimple(mv[i]) << endl;
 	}
@@ -359,95 +362,18 @@ __forceinline U64 Cui::divide(int depth, int threads) {
 	U64 totalNodes = 0;
 	U64 moveNodes;
 
-	int size = movesArray.size();
+	int size = batch::batch.size();
 	if (depth == 1)
 		return size;
 
-	if (depth < 4) {
-		MoveInfo* m = movesArray.moves();
+	BoardState* m = batch::batch.moves();
 
-		for (int i = 0; i < size; i++) {
-			moveNodes = generateMoves<useTT>(depth - 1, m[i].board);
+	for (int i = 0; i < size; i++) {
+		moveNodes = generateMoves<useTT>(depth - 1, m[i]);
 
-			printf("%s %llu\n", utils::getMoveSimple(m[i]).c_str(), moveNodes);
-			totalNodes += moveNodes;
-		}
-
-		return totalNodes;
+		printf("%s %llu\n", utils::getMoveSimple(m[i]).c_str(), moveNodes);
+		totalNodes += moveNodes;
 	}
-
-	struct Task { int root; BoardState board; };
-
-	MoveArray roots = movesArray;
-	MoveInfo* rm = roots.moves();
-	const int rootCount = roots.size();
-
-	std::vector<Task> tasks;
-	tasks.reserve(8192);
-
-	std::vector<std::atomic<int>> remaining(rootCount);
-	std::vector<std::atomic<U64>> rootNodes(rootCount);
-
-	const int plies = 2;
-
-	auto expand = [&](auto&& self, int root, const BoardState& b, int pliesLeft) -> void {
-		if (pliesLeft == 0) {
-			tasks.push_back({ root, b });
-			remaining[root].fetch_add(1, std::memory_order_relaxed);
-			return;
-		}
-		movesArray.reset();
-		generateMoves<useTT>(0, b);
-		const int c = movesArray.size();
-		MoveInfo* m = movesArray.moves();
-
-		BoardState kids[256];
-		for (int j = 0; j < c; ++j) kids[j] = m[j].board;
-		for (int j = 0; j < c; ++j) self(self, root, kids[j], pliesLeft - 1);
-	};
-
-	for (int i = 0; i < rootCount; i++)
-		expand(expand, i, rm[i].board, plies);
-
-	for (int i = 0; i < rootCount; i++)
-		if (remaining[i].load(std::memory_order_relaxed) == 0)
-			printf("%s 0\n", utils::getMoveSimple(rm[i]).c_str());
-
-	std::atomic<size_t> next{ 0 };
-
-	auto worker = [&] {
-		size_t t;
-		while ((t = next.fetch_add(1, std::memory_order_relaxed)) < tasks.size()) {
-			const Task& task = tasks[t];
-
-			U64 nodes = generateMoves<useTT>(depth - (plies + 1), task.board);
-
-			rootNodes[task.root].fetch_add(nodes, std::memory_order_relaxed);
-
-			if (remaining[task.root].fetch_sub(1, std::memory_order_acq_rel) == 1) {
-				U64 mv = rootNodes[task.root].load(std::memory_order_relaxed);
-				printf("%s %llu\n", utils::getMoveSimple(rm[task.root]).c_str(), mv);
-			}
-		}
-	};
-
-	int maxThreads = std::thread::hardware_concurrency();
-	int threadCount = (threads > 0 && threads < maxThreads) ? threads : maxThreads;
-
-	if (tasks.size() > 0 && threadCount > tasks.size())
-		threadCount = tasks.size();
-
-	std::vector<std::thread> pool;
-	pool.reserve(threadCount);
-
-	for (int t = 0; t < threadCount; ++t)
-		pool.emplace_back(worker);
-
-	for (auto& th : pool)
-		th.join();
-
-	for (int i = 0; i < rootCount; i++)
-		totalNodes += rootNodes[i].load(std::memory_order_relaxed);
 
 	return totalNodes;
 }
@@ -709,25 +635,25 @@ U64 Cui::generateMoves(int depth, const BoardState& board) {
 template <bool side, uint8_t kMoved, bool useTT>
 U64 Cui::generateMoves(int depth, const BoardState& board) {
 	switch (depth) {
-		/*case 18: return PerftGenerator<18, side, kMoved, useTT>::generateMoves(board);
-		case 17: return PerftGenerator<17, side, kMoved, useTT>::generateMoves(board);
-		case 16: return PerftGenerator<16, side, kMoved, useTT>::generateMoves(board);
-		case 15: return PerftGenerator<15, side, kMoved, useTT>::generateMoves(board);
-		case 14: return PerftGenerator<14, side, kMoved, useTT>::generateMoves(board);
-		case 13: return PerftGenerator<13, side, kMoved, useTT>::generateMoves(board);
-	case 12: return PerftGenerator<12, side, kMoved, useTT>::generateMoves(board);
-	case 11: return PerftGenerator<11, side, kMoved, useTT>::generateMoves(board);*/
-	case 10: return PerftGenerator<10, side, kMoved, useTT>::generateMoves(board);
-	case 9: return PerftGenerator<9, side, kMoved, useTT>::generateMoves(board);
-	case 8: return PerftGenerator<8, side, kMoved, useTT>::generateMoves(board);
-	case 7: return PerftGenerator<7, side, kMoved, useTT>::generateMoves(board);
-	case 6: return PerftGenerator<6, side, kMoved, useTT>::generateMoves(board);
-	case 5: return PerftGenerator<5, side, kMoved, useTT>::generateMoves(board);
-	case 4: return PerftGenerator<4, side, kMoved, useTT>::generateMoves(board);
-	case 3: return PerftGenerator<3, side, kMoved, useTT>::generateMoves(board);
-	case 2: return PerftGenerator<2, side, kMoved, useTT>::generateMoves(board);
-	case 1: return PerftGenerator<1, side, kMoved, useTT>::generateMoves(board);
-	default: return PerftGenerator<0, side, kMoved, useTT>::generateMoves(board);
+		/*case 18: return PerftGenerator<18, side, kMoved, useTT>::generate(board);
+		case 17: return PerftGenerator<17, side, kMoved, useTT>::generate(board);
+		case 16: return PerftGenerator<16, side, kMoved, useTT>::generate(board);
+		case 15: return PerftGenerator<15, side, kMoved, useTT>::generate(board);
+		case 14: return PerftGenerator<14, side, kMoved, useTT>::generate(board);
+		case 13: return PerftGenerator<13, side, kMoved, useTT>::generate(board);
+	case 12: return PerftGenerator<12, side, kMoved, useTT>::generate(board);
+	case 11: return PerftGenerator<11, side, kMoved, useTT>::generate(board);
+	case 10: return PerftGenerator<10, side, kMoved, useTT>::generate(board);
+	case 9: return PerftGenerator<9, side, kMoved, useTT>::generate(board);*/
+	case 8: return PerftGenerator<8, side, kMoved, useTT>::generate(board);
+	case 7: return PerftGenerator<7, side, kMoved, useTT>::generate(board);
+	case 6: return PerftGenerator<6, side, kMoved, useTT>::generate(board);
+	case 5: return PerftGenerator<5, side, kMoved, useTT>::generate(board);
+	case 4: return PerftGenerator<4, side, kMoved, useTT>::generate(board);
+	case 3: return PerftGenerator<3, side, kMoved, useTT>::generate(board);
+	case 2: return PerftGenerator<2, side, kMoved, useTT>::generate(board);
+	case 1: return PerftGenerator<1, side, kMoved, useTT>::generate(board);
+	default: return movegen::generate<1, false, side, kMoved, true>(board, &batch::batch);
 	}
 }
 

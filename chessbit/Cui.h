@@ -2,15 +2,12 @@
 #define CUI_H
 
 #include "Game.h"
-#include "MoveArray.h"
 #include <string>
 #include <vector>
 #include <unordered_map>
 
 using namespace std;
 using namespace game;
-using namespace moveinfo;
-using namespace movarray;
 
 class Cui {
 
