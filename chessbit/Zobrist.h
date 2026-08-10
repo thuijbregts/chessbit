@@ -487,7 +487,7 @@ namespace zobrist {
 
 	template <Piece piece, bool side, bool capture>
 	ForceInline Zobrist basic(int from, int to, int casPerms, int prevCP, int prevEP,
-		U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, Zobrist z) {
+		U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, Zobrist z, int& v) {
 		if constexpr (Piece::Pawn == piece)   z ^= PAWNS[side][from] ^ PAWNS[side][to];
 		if constexpr (Piece::Knight == piece) z ^= KNIGHTS[side][from] ^ KNIGHTS[side][to];
 		if constexpr (Piece::Bishop == piece) z ^= BISHOPS[side][from] ^ BISHOPS[side][to];
@@ -502,18 +502,18 @@ namespace zobrist {
 
 		if constexpr (capture) {
 			const U64 t = (1ULL << to);
-			if (pE & t) z ^= PAWNS[!side][to];
-			else if (nE & t) z ^= KNIGHTS[!side][to];
-			else if (bE & t) z ^= BISHOPS[!side][to];
-			else if (rE & t) z ^= ROOKS[!side][to];
-			else if (qE & t) z ^= QUEENS[!side][to];
+			if (pE & t) { z ^= PAWNS[!side][to]; v = p; }
+			else if (nE & t) { z ^= KNIGHTS[!side][to]; v = n; }
+			else if (bE & t) { z ^= BISHOPS[!side][to]; v = b; }
+			else if (rE & t) { z ^= ROOKS[!side][to]; v = r; }
+			else if (qE & t) { z ^= QUEENS[!side][to]; v = q; }
 		}
 		return z;
 	}
 
 	template <Piece piece, bool side, bool capture>
 	ForceInline Zobrist promotion(int from, int to, int casPerms, int prevCP, int prevEP,
-		U64 nE, U64 bE, U64 rE, U64 qE, Zobrist z) {
+		U64 nE, U64 bE, U64 rE, U64 qE, Zobrist z, int& v) {
 		z ^= PAWNS[side][from];
 
 		if constexpr (Piece::Knight == piece) z ^= KNIGHTS[side][to];
@@ -526,13 +526,14 @@ namespace zobrist {
 
 		if constexpr (capture) {
 			const U64 t = (1ULL << to);
-			if (nE & t) z ^= KNIGHTS[!side][to];
-			else if (bE & t) z ^= BISHOPS[!side][to];
+			if (nE & t) { z ^= KNIGHTS[!side][to]; v = n; }
+			else if (bE & t) { z ^= BISHOPS[!side][to]; v = b; }
 			else if (rE & t) {
 				z ^= CASTLINGS[prevCP] ^ CASTLINGS[casPerms];
 				z ^= ROOKS[!side][to];
+				v = r;
 			}
-			else if (qE & t) z ^= QUEENS[!side][to];
+			else if (qE & t) { z ^= QUEENS[!side][to]; v = q; }
 		}
 		return z;
 	}

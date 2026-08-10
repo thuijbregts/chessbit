@@ -20,7 +20,13 @@ namespace engine {
     constexpr int MATE = 29000;
     constexpr int MATE_IN_MAX = MATE - MAX_PLY;
 
-    template <int depth, bool side, uint8_t kMoved, bool useTT>
+    constexpr int CAPTURE_BASE = 1'000'000;
+    constexpr int KILLER_1 = 900'000;
+    constexpr int KILLER_2 = 800'000;
+    constexpr int HIST_MAX = 16'384;
+    constexpr int DELTA_MARGIN = 200;
+
+    template <int depth, bool first, bool side, uint8_t kMoved, bool useTT>
     struct Engine;
 
     struct SearchStats {
@@ -33,15 +39,68 @@ namespace engine {
         void reset() { nodes = leaves = generated = betaCutoffs = firstMoveCutoffs = 0; }
     };
 
-    inline SearchStats stats;
+    inline Batch batches[MAX_PLY];
 
-    inline int evaluate(const BoardState& board) {
-        constexpr int P = 100, N = 320, B = 330, R = 500, Q = 900;
-        return P * (Bitcount(board.pM) - Bitcount(board.pE))
-            + N * (Bitcount(board.nM) - Bitcount(board.nE))
-            + B * (Bitcount(board.bM) - Bitcount(board.bE))
-            + R * (Bitcount(board.rM) - Bitcount(board.rE))
-            + Q * (Bitcount(board.qM) - Bitcount(board.qE));
+    inline SearchStats stats;
+    inline uint16_t killers[MAX_PLY][2];
+    inline int      history[2][64][64];
+    inline int captHistory[2][6][64][6];
+
+    constexpr int TT_MOVE_SCORE = 2'000'000;
+
+    ForceInline int valueToTT(int v, int ply) {
+        if (v >= MATE_IN_MAX) return v + ply;
+        if (v <= -MATE_IN_MAX) return v - ply;
+        return v;
+    }
+    ForceInline int valueFromTT(int v, int ply) {
+        if (v >= MATE_IN_MAX) return v - ply;
+        if (v <= -MATE_IN_MAX) return v + ply;
+        return v;
+    }
+
+    ForceInline uint16_t packMove(const BoardState& m) {
+        return uint16_t(m.from) | (uint16_t(m.to) << 6);
+    }
+
+    ForceInline void clearHeuristics() {
+        std::memset(killers, 0, sizeof(killers));
+        std::memset(history, 0, sizeof(history));
+        std::memset(captHistory, 0, sizeof(captHistory));
+    }
+
+    ForceInline int evaluate(const BoardState& board) {
+        int mg = 0, eg = 0, phase = 0;
+
+        U64 bb = board.pM;
+        Bitloop(bb) { int s = SquareOf(bb); mg += VAL_MG[p] + PAWN_MG[s];   eg += VAL_EG[p] + PAWN_EG[s]; }
+        bb = board.nM;
+        Bitloop(bb) { int s = SquareOf(bb); mg += VAL_MG[n] + KNIGHT_MG[s]; eg += VAL_EG[n] + KNIGHT_EG[s]; phase += 1; }
+        bb = board.bM;
+        Bitloop(bb) { int s = SquareOf(bb); mg += VAL_MG[b] + BISHOP_MG[s]; eg += VAL_EG[b] + BISHOP_EG[s]; phase += 1; }
+        bb = board.rM;
+        Bitloop(bb) { int s = SquareOf(bb); mg += VAL_MG[r] + ROOK_MG[s];   eg += VAL_EG[r] + ROOK_EG[s];   phase += 2; }
+        bb = board.qM;
+        Bitloop(bb) { int s = SquareOf(bb); mg += VAL_MG[q] + QUEEN_MG[s];  eg += VAL_EG[q] + QUEEN_EG[s];  phase += 4; }
+        mg += KING_MG[board.kMS];
+        eg += KING_EG[board.kMS];
+
+        bb = board.pE;
+        Bitloop(bb) { int s = SquareOf(bb) ^ 56; mg -= VAL_MG[p] + PAWN_MG[s];   eg -= VAL_EG[p] + PAWN_EG[s]; }
+        bb = board.nE;
+        Bitloop(bb) { int s = SquareOf(bb) ^ 56; mg -= VAL_MG[n] + KNIGHT_MG[s]; eg -= VAL_EG[n] + KNIGHT_EG[s]; phase += 1; }
+        bb = board.bE;
+        Bitloop(bb) { int s = SquareOf(bb) ^ 56; mg -= VAL_MG[b] + BISHOP_MG[s]; eg -= VAL_EG[b] + BISHOP_EG[s]; phase += 1; }
+        bb = board.rE;
+        Bitloop(bb) { int s = SquareOf(bb) ^ 56; mg -= VAL_MG[r] + ROOK_MG[s];   eg -= VAL_EG[r] + ROOK_EG[s];   phase += 2; }
+        bb = board.qE;
+        Bitloop(bb) { int s = SquareOf(bb) ^ 56; mg -= VAL_MG[q] + QUEEN_MG[s];  eg -= VAL_EG[q] + QUEEN_EG[s];  phase += 4; }
+        mg -= KING_MG[board.kES ^ 56];
+        eg -= KING_EG[board.kES ^ 56];
+
+        int mgPhase = phase > 24 ? 24 : phase;
+        int egPhase = 24 - mgPhase;
+        return (mg * mgPhase + eg * egPhase) / 24;
     }
 
     constexpr int SEE_VALUE[7] = { 100, 320, 330, 500, 900, 20000, 0 };
@@ -125,118 +184,238 @@ namespace engine {
         return gain[0];
     }
 
-    ForceInline int scoreMove(const BoardState& board, const BoardState& m) {
-        constexpr int CAPTURE_BASE = 1'000'000;
-        if (m.promo)  return CAPTURE_BASE + SEE_VALUE[q];
-        //if (m.type == EnPassant)  return CAPTURE_BASE + SEE_VALUE[p]; 
-        if (m.cap)            return CAPTURE_BASE + see(board, m.from, m.to);
-        return 0;
+    template <bool side, bool useTT>
+    ForceInline void scoreMoves(int* sc, BoardState* moves, int size, int ply, int ttMove = 0) {
+        const uint16_t k0 = killers[ply][0], k1 = killers[ply][1];
+        for (int i = 0; i < size; ++i) {
+            const BoardState& m = moves[i];
+            if constexpr (useTT) {
+                if (packMove(m) == ttMove) { sc[i] = TT_MOVE_SCORE; continue; }
+            }
+            if (m.cap || m.promo) {
+                sc[i] = CAPTURE_BASE + (PIECE_VALUE[m.vctm] * 16 - PIECE_VALUE[m.atkr]) + (captHistory[side][m.atkr][m.to][m.vctm] / 32);
+            }
+            else {
+                const uint16_t pm = packMove(m);
+                if      (pm == k0) sc[i] = KILLER_1;
+                else if (pm == k1) sc[i] = KILLER_2;
+                else               sc[i] = history[side][m.from][m.to];
+            }
+        }
     }
 
+    ForceInline void pickMove(BoardState* moves, int* sc, int size, int i) {
+        int best = i;
+        for (int j = i + 1; j < size; ++j) {
+            if (sc[j] > sc[best]) best = j;
+        }
+        if (best != i) {
+            std::swap(moves[i], moves[best]);
+            std::swap(sc[i], sc[best]);
+        }
+    }
+
+    template <bool side, uint8_t kMoved>
     ForceInline int quiescence(const BoardState& board, int ply, int alpha, int beta) {
-        stats.leaves++;
-        return evaluate(board);
-    }
-
-    template <int depth, bool side, uint8_t kMoved, bool useTT>
-    ForceInline int alphaBeta(const BoardState& board, int ply, int alpha, int beta) {
         stats.nodes++;
 
-        Batch batch;
-        movegen::generate<depth, false, side, kMoved, useTT>(board, &batch);
+        if (ply >= MAX_PLY - 1) { stats.leaves++; return evaluate(board); }
 
-        int n = batch.size();
+        constexpr uint8_t kMovedK = kMoved | KING_MOVED[side];
 
-        stats.generated += n;
+        const bool inCheck = board.checks;
 
-        if (n == 0) {
-            if (board.checks) return -MATE + ply;
-            return 0;
-        }
-
-        BoardState* moves = batch.moves();
-
-        int sc[Batch::MAX];
-        for (int i = 0; i < n; ++i) sc[i] = scoreMove(board, moves[i]);
-
+        int standPat = -INF;
         int best = -INF;
-        for (int i = 0; i < n; ++i) {
-            int bi = i;
-            for (int j = i + 1; j < n; ++j) if (sc[j] > sc[bi]) bi = j;
-            if (bi != i) { std::swap(moves[i], moves[bi]); std::swap(sc[i], sc[bi]); }
 
-            const int score = -Engine<depth - 1, !side, kMoved, useTT>::search(moves[i], ply + 1, -beta, -alpha);
+        Batch& batch = batches[ply];
+        batch.size = 0;
 
-            if (score > best) best = score;
+        if (!inCheck) {
+            standPat = evaluate(board);
+            best = standPat;
 
-            if (score >= beta) {
-                stats.betaCutoffs++;
-                if (i == 0) stats.firstMoveCutoffs++;
-                break;
+            if (standPat >= beta) { stats.leaves++; return standPat; }
+            if (standPat > alpha) alpha = standPat;
+
+            if (standPat + SEE_VALUE[q] + DELTA_MARGIN < alpha) {
+                stats.leaves++;
+                return alpha;
             }
 
-            if (score > alpha) alpha = score; 
+            movegen::generate<0, false, side, kMoved, false, true>(board, &batch);
         }
+        else movegen::generate<0, false, side, kMoved, false, false>(board, &batch);
+        
+        stats.generated += batch.size;
+
+        if (batch.size == 0) return inCheck ? -MATE + ply : 0;
+
+        BoardState* moves = batch.moves;
+
+        int sc[Batch::MAX];
+        scoreMoves<side, false>(sc, moves, batch.size, ply);
+
+        const int futilityBase = standPat + DELTA_MARGIN;
+        int score;
+
+        for (int i = 0; i < batch.size; ++i) {
+            pickMove(moves, sc, batch.size, i);
+            BoardState& m = moves[i];
+
+            if (!inCheck) {
+                if (futilityBase + SEE_VALUE[m.vctm] <= alpha)
+                    continue;
+
+                if (see(board, m.from, m.to) < 0)
+                    continue;
+            }
+
+            if (m.king) [[unlikely]] score = -quiescence<!side, kMovedK>(m, ply + 1, -beta, -alpha);
+            else                     score = -quiescence<!side, kMoved>(m, ply + 1, -beta, -alpha);
+
+            if (score > best) {
+                best = score;
+                if (score > alpha) {
+                    alpha = score;
+                    if (score >= beta) return best;
+                }
+            }
+        }
+
         return best;
     }
 
-    template <int depth, bool side, uint8_t kMoved, bool useTT>
-    ForceInline int search(const BoardState& board, BoardState& bestMove) {
-        Batch batch;
-        movegen::generate<depth, false, side, kMoved, useTT>(board, &batch);
+    template <int depth, bool first, bool side, uint8_t kMoved, bool useTT>
+    ForceInline int alphaBeta(const BoardState& board, int ply, int alpha, int beta, BoardState* bestMove = nullptr) {
+        constexpr uint8_t kMovedK = kMoved | KING_MOVED[side];
 
-        int n = batch.size();
-
-        stats.generated += n;
         stats.nodes++;
 
-        if (n == 0) return board.checks ? -MATE : 0;
+        constexpr bool doTT = useTT && tt::USE_HASH<depth> && !first;
 
-        BoardState* moves = batch.moves();
+        const int   alphaOrig = alpha;
+        tt::Bucket* ttBucket = nullptr;
+        uint16_t    ttMove = 0;
+
+        if constexpr (doTT) {
+            const Zobrist z = board.zobrist;
+            ttBucket = &tt::bucket<depth>(z);
+            tt::TTData e;
+            if (tt::probe(*ttBucket, z, e)) {
+                ttMove = e.move;
+                if (e.depth >= depth) {
+                    const int s = valueFromTT(e.score, ply);
+                    if (e.bound == tt::BOUND_EXACT || (e.bound == tt::BOUND_LOWER && s >= beta) || (e.bound == tt::BOUND_UPPER && s <= alpha))
+                        return s;
+                }
+            }
+        }
+
+        Batch& batch = batches[ply];
+        batch.size = 0;
+        movegen::generate<depth, false, side, kMoved, useTT>(board, &batch);
+
+        stats.generated += batch.size;
+
+        if (batch.size == 0) return board.checks ? -MATE + ply : 0;
+
+        BoardState* moves = batch.moves;
 
         int sc[Batch::MAX];
-        for (int i = 0; i < n; ++i) sc[i] = scoreMove(board, moves[i]);
+        scoreMoves<side, doTT>(sc, moves, batch.size, ply, ttMove);
 
-        int alpha = -INF, best = -INF;
-        for (int i = 0; i < n; ++i) {
-            int bi = i;
-            for (int j = i + 1; j < n; ++j) if (sc[j] > sc[bi]) bi = j;
-            if (bi != i) { std::swap(moves[i], moves[bi]); std::swap(sc[i], sc[bi]); }
+        uint16_t triedQuiets[Batch::MAX]; int nQuiet = 0;
 
-            const int score = -Engine<depth - 1, !side, kMoved, useTT>::search(moves[i], 1, -INF, -alpha);
+        [[maybe_unused]] uint16_t bestMoveLocal = 0;
+        int best = -INF, searched = 0, score;
 
-            if (score > best) { best = score; bestMove = moves[i]; }
+        for (int i = 0; i < batch.size; ++i) {
+            pickMove(moves, sc, batch.size, i);
+
+            const bool quiet = !moves[i].cap && !moves[i].promo;
+
+            if (moves[i].king) [[unlikely]] score = -Engine<depth - 1, false, !side, kMovedK, useTT>::search(moves[i], ply + 1, -beta, -alpha);
+            else                            score = -Engine<depth - 1, false, !side, kMoved, useTT>::search(moves[i], ply + 1, -beta, -alpha);
+
+            if (score > best) {
+                best = score;
+                bestMoveLocal = packMove(moves[i]);
+                if constexpr (first) *bestMove = moves[i];
+            }
+
+            if constexpr (!first) {
+                if (score >= beta) {
+                    stats.betaCutoffs++;
+                    if (searched == 0) stats.firstMoveCutoffs++;
+
+                    if (quiet) {
+                        const uint16_t pm = packMove(moves[i]);
+                        if (pm != killers[ply][0]) {
+                            killers[ply][1] = killers[ply][0];
+                            killers[ply][0] = pm;
+                        }
+                        constexpr int bonus = depth * depth;
+                        int& h = history[side][moves[i].from][moves[i].to];
+                        h += bonus - h * abs(bonus) / HIST_MAX;
+
+                        for (int q = 0; q < nQuiet; ++q) {
+                            int f = triedQuiets[q] & 63, t = (triedQuiets[q] >> 6) & 63;
+                            int& hm = history[side][f][t];
+                            hm += -bonus - hm * abs(bonus) / HIST_MAX;
+                        }
+                    }
+                    else {
+                        constexpr int bonus = depth * depth;
+                        int& ch = captHistory[side][moves[i].atkr][moves[i].to][moves[i].vctm];
+                        ch += bonus - ch * abs(bonus) / HIST_MAX;
+                    }
+                    break;
+                }
+            }
+
+            if (quiet) triedQuiets[nQuiet++] = packMove(moves[i]);
+
             if (score > alpha) alpha = score;
+            searched++;
         }
+
+        if constexpr (doTT) {
+            const uint8_t bound = (best >= beta) ? tt::BOUND_LOWER
+                : (best > alphaOrig) ? tt::BOUND_EXACT
+                : tt::BOUND_UPPER;
+            tt::write<depth>(*ttBucket, board.zobrist, valueToTT(best, ply), bound, bestMoveLocal, tt::GENERATION);
+        }
+
         return best;
     }
 
     template <bool side, uint8_t kMoved, bool useTT>
-    ForceInline int search(int depth, const BoardState& board, BoardState& bestMove) {
+    static int search(int depth, const BoardState& board, BoardState* bestMove) {
         switch (depth) {
-        case 18: return search<18, side, kMoved, useTT>(board, bestMove);
-        case 17: return search<17, side, kMoved, useTT>(board, bestMove);
-        case 16: return search<16, side, kMoved, useTT>(board, bestMove);
-        case 15: return search<15, side, kMoved, useTT>(board, bestMove);
-        case 14: return search<14, side, kMoved, useTT>(board, bestMove);
-        case 13: return search<13, side, kMoved, useTT>(board, bestMove);
-        case 12: return search<12, side, kMoved, useTT>(board, bestMove);
-        case 11: return search<11, side, kMoved, useTT>(board, bestMove);
-        case 10: return search<10, side, kMoved, useTT>(board, bestMove);
-        case 9: return search<9, side, kMoved, useTT>(board, bestMove);
-        case 8: return search<8, side, kMoved, useTT>(board, bestMove);
-        case 7: return search<7, side, kMoved, useTT>(board, bestMove);
-        case 6: return search<6, side, kMoved, useTT>(board, bestMove);
-        case 5: return search<5, side, kMoved, useTT>(board, bestMove);
-        case 4: return search<4, side, kMoved, useTT>(board, bestMove);
-        case 3: return search<3, side, kMoved, useTT>(board, bestMove);
-        case 2: return search<2, side, kMoved, useTT>(board, bestMove);
-        default: return search<1, side, kMoved, useTT>(board, bestMove);
+        /*case 18: return alphaBeta<18, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 17: return alphaBeta<17, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 16: return alphaBeta<16, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 15: return alphaBeta<15, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 14: return alphaBeta<14, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 13: return alphaBeta<13, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);*/
+        case 12: return alphaBeta<12, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 11: return alphaBeta<11, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 10: return alphaBeta<10, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 9: return alphaBeta<9, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 8: return alphaBeta<8, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 7: return alphaBeta<7, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 6: return alphaBeta<6, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 5: return alphaBeta<5, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 4: return alphaBeta<4, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 3: return alphaBeta<3, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        case 2: return alphaBeta<2, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
+        default: return alphaBeta<1, true, side, kMoved, useTT>(board, 0, -INF, INF, bestMove);
         }
     }
 
     template <bool useTT>
-    ForceInline int search(int depth, const BoardState& board, BoardState& bestMove) {
+    static int search(int depth, const BoardState& board, BoardState* bestMove) {
         const uint8_t kMoved = (!(board.casPerms & (wk | wq)) ? KING_MOVED[white] : 0)
             | (!(board.casPerms & (bk | bq)) ? KING_MOVED[black] : 0);
 
@@ -258,26 +437,23 @@ namespace engine {
         }
     }
 
-    ForceInline int search(int depth, const BoardState& board, BoardState& bestMove) {
-        if (ttEnabled)	return search<true>(depth, board, bestMove);
-        else			return search<false>(depth, board, bestMove);
-
-    }
-
-    ForceInline void start(int maxDepth, const BoardState& board, BoardState& bestMove) {
+    template <bool useTT>
+    ForceInline void start(int maxDepth, const BoardState& board, BoardState* bestMove) {
         using clock = std::chrono::steady_clock;
+
+        clearHeuristics();
+        tt::GENERATION++;
 
         if (maxDepth >= MAX_PLY) maxDepth = MAX_PLY - 1;
 
-        printf("depth   score  bestmove       nodes         time      nps        EBF   cutoffs      1st-move\n");
-        printf("---------------------------------------------------------------------------------------------\n");
-
+        printf("depth   score  bestmove       nodes         generated     time      nps        EBF   cutoffs      1st-move\n");
+        printf("---------------------------------------------------------------------------------------------------------------\n");
         uint64_t prevNodes = 0;
         for (int d = 1; d <= maxDepth; ++d) {
             stats.reset();
-            
+
             const auto t0 = clock::now();
-            const int score = search(d, board, bestMove);
+            const int score = search<useTT>(d, board, bestMove);
             const auto t1 = clock::now();
 
             const double sec = std::chrono::duration<double>(t1 - t0).count();
@@ -286,9 +462,10 @@ namespace engine {
             const double firstPct = stats.betaCutoffs
                 ? 100.0 * (double)stats.firstMoveCutoffs / (double)stats.betaCutoffs : 0.0;
 
-            printf("%5d  %+6d  %-8s  %12llu  %8.3fs  %9.0f  %5.2f  %10llu  %6.1f%%\n",
-                d, score, utils::getMoveSimple(bestMove).c_str(),
-                (unsigned long long)stats.nodes, sec, nps, ebf,
+            printf("%5d  %+6d  %-8s  %12llu  %12llu  %8.3fs  %9.0f  %5.2f  %10llu  %6.1f%%\n",
+                d, score, utils::getMoveSimple(*bestMove).c_str(),
+                (unsigned long long)stats.nodes, (unsigned long long)stats.generated,
+                sec, nps, ebf,
                 (unsigned long long)stats.betaCutoffs, firstPct);
 
             prevNodes = stats.nodes;
@@ -297,17 +474,24 @@ namespace engine {
         }
     }
 
-    template <int depth, bool side, uint8_t kMoved, bool useTT>
+    template <int depth, bool first, bool side, uint8_t kMoved, bool useTT>
     struct Engine {
         static __declspec(noinline) int search(const BoardState& board, int ply, int alpha, int beta) {
-            return alphaBeta<depth, side, kMoved, useTT>(board, ply, alpha, beta);
+            return alphaBeta<depth, first, side, kMoved, useTT>(board, ply, alpha, beta);
         }
     };
 
-    template <bool side, uint8_t kMoved, bool useTT>
-    struct Engine<0, side, kMoved, useTT> {
+    template <bool side, bool first, uint8_t kMoved, bool useTT>
+    struct Engine<1, first, side, kMoved, useTT> {
         ForceInline int search(const BoardState& board, int ply, int alpha, int beta) {
-            return quiescence(board, ply, alpha, beta);
+            return alphaBeta<1, first, side, kMoved, useTT>(board, ply, alpha, beta);
+        }
+    };
+
+    template <bool side, bool first, uint8_t kMoved, bool useTT>
+    struct Engine<0, first, side, kMoved, useTT> {
+        ForceInline int search(const BoardState& board, int ply, int alpha, int beta) {
+            return quiescence<side, kMoved>(board, ply, alpha, beta);
         }
     };
 }

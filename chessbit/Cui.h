@@ -34,7 +34,6 @@ private:
 	void perft(vector<string>& cmd);
 	void perftFast(int depth);
 	void perftDivide(int depth, int threads);
-	template <bool useTT>
 	__forceinline U64 divide(int depth, int threads);
 	void test();
 	void perftsuite();
@@ -44,9 +43,8 @@ private:
 	void toggleTT(vector<string>& cmd);
 
 	U64 generateMoves(int depth);
-	template <bool useTT>
 	U64 generateMoves(int depth, const BoardState& board);
-	template <bool side, uint8_t kMoved, bool useTT>
+	template <bool side, uint8_t kMoved>
 	U64 generateMoves(int depth, const BoardState& board);
 
 	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);
@@ -88,7 +86,6 @@ namespace cui {
 	const string PERFT_D = "-d";
 	const string PERFT_F = "-f";
 	const string PERFT_T = "-t";
-	const string PERFT_H = "-h";
 
 	const Command COMMANDS[]{
 		{ EXIT, {} },
