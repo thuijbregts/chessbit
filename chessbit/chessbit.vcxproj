@@ -164,7 +164,7 @@
       <EnableSyclOffload>false</EnableSyclOffload>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>MaxSpeedHighLevel</Optimization>
-      <DebugInformationFormat>None</DebugInformationFormat>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -185,10 +185,12 @@
   <ItemGroup>
     <ClInclude Include="AttackTables.h" />
     <ClInclude Include="Batch.h" />
+    <ClInclude Include="BestMoveTest.h" />
     <ClInclude Include="BoardState.h" />
     <ClInclude Include="Cui.h" />
     <ClInclude Include="Definitions.h" />
     <ClInclude Include="Engine.h" />
+    <ClInclude Include="Eval.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="MoveGenerator.h" />
     <ClInclude Include="Perft.h" />

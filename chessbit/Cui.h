@@ -37,6 +37,7 @@ private:
 	__forceinline U64 divide(int depth, int threads);
 	void test();
 	void perftsuite();
+	void bestmove(vector<string>& cmd);
 	void benchmark(string& depth, string& amount);
 	void executeBenchmark(int depth, int amount, bool print);
 	void compare();
@@ -79,6 +80,7 @@ namespace cui {
 	const string PLAY = "play";
 	const string TEST = "test";
 	const string PERFT_SUITE = "perftsuite";
+	const string BEST_MOVE = "bestmove";
 	const string BENCHMARK = "benchmark";
 	const string COMPARE = "cmp";
 	const string TT = "tt";
@@ -102,6 +104,7 @@ namespace cui {
 		{ PLAY,{} },
 		{ TEST,{} },
 		{ PERFT_SUITE,{} },
+		{ BEST_MOVE,{} },
 		{ BENCHMARK,{} },
 		{ COMPARE,{} },
 		{ TT,{} }

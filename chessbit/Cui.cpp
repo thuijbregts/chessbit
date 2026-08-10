@@ -1,4 +1,5 @@
 #include "Test.hpp"
+#include "BestMoveTest.h"
 #include "Cui.h"
 #include "Perft.h"
 #include "Engine.h"
@@ -144,6 +145,11 @@ void Cui::execute(vector<string>& cmd) {
 		return;
 	}
 
+	if (first == cui::BEST_MOVE) {
+		bestmove(cmd);
+		return;
+	}
+
 	if (first == cui::BENCHMARK) {
 		string param1, param2;
 		if (cmd.size() > 1) param1 = cmd[1];
@@ -196,7 +202,7 @@ void Cui::play() {
 	long long total = duration_cast<microseconds>(end - start).count();
 
 	cout << "Time:\t\t" << total / 1000 << " ms" << endl;
-	
+
 	game::makeMove(bestMove);
 }
 
@@ -260,7 +266,7 @@ void Cui::toggleTT(vector<string>& cmd) {
 			return;
 		}
 	}
-	
+
 	ttEnabled = !ttEnabled;
 
 	if (ttEnabled) {
@@ -457,6 +463,65 @@ void Cui::perftsuite() {
 	ttEnabled = tt;
 }
 
+void Cui::bestmove(vector<string>& cmd) {
+	int requested = 4;
+	if (cmd.size() >= 2) {
+		if (utils::isPositiveDigits(cmd[1]) && stoi(cmd[1]) > 0) requested = stoi(cmd[1]);
+		else {
+			cout << "Incorrect depth value" << endl;
+			return;
+		}
+	}
+
+	string fen = game::getFen();
+
+	int passed = 0;
+	long long totalUs = 0;
+	long long worstUs = 0;
+	string worstFen;
+
+	printf("Best-move suite: %d positions, requested depth %d (min per position enforced)\n", bmtest::COUNT, requested);
+	printf("-----------------------------------------------------------------------------\n");
+	printf("  #   mate  depth  expected  got     time         result\n");
+	printf("-----------------------------------------------------------------------------\n");
+
+	for (int i = 0; i < bmtest::COUNT; ++i) {
+		const bmtest::BestMoveTest& t = bmtest::TESTS[i];
+		const int depth = requested < t.depth ? t.depth : requested;
+
+		game::setFen(t.fen);
+
+		BoardState bestMove;
+		engine::clearHeuristics();
+		tt::GENERATION++;
+
+		const auto s = high_resolution_clock::now();
+		const int score = engine::search<false>(depth, game::board, &bestMove);
+		const auto e = high_resolution_clock::now();
+
+		const long long us = duration_cast<microseconds>(e - s).count();
+		totalUs += us;
+		if (us > worstUs) { worstUs = us; worstFen = t.fen; }
+
+		const string got = utils::getMoveSimple(bestMove);
+		const bool ok = got.substr(0, 4) == string(t.bm).substr(0, 4);
+		if (ok) passed++;
+
+		printf("%3d   #%-3d  %5d  %-8s  %-6s  %8.3f ms   %s\n",
+			i + 1, t.mateIn, depth, t.bm, got.c_str(), us / 1000.0, ok ? "OK" : "FAIL");
+
+		if (!ok) printf("        -> FEN: %s   (score %d)\n", t.fen, score);
+	}
+
+	printf("-----------------------------------------------------------------------------\n");
+	printf("Passed:      %d/%d\n", passed, bmtest::COUNT);
+	printf("Total time:  %lld ms\n", totalUs / 1000);
+	printf("Average:     %.3f ms/pos\n", (totalUs / 1000.0) / bmtest::COUNT);
+	printf("Slowest:     %lld ms  (%s)\n", worstUs / 1000, worstFen.c_str());
+
+	game::setFen(fen.c_str());
+}
+
 void Cui::benchmark(string& depth, string& amount) {
 	int d = 6;
 	int a = 25;
@@ -628,9 +693,9 @@ U64 Cui::generateMoves(int depth, const BoardState& board) {
 		case 14: return PerftGenerator<14, side, kMoved>::generate(board);
 		case 13: return PerftGenerator<13, side, kMoved>::generate(board);
 	case 12: return PerftGenerator<12, side, kMoved>::generate(board);
-	case 11: return PerftGenerator<11, side, kMoved>::generate(board);
+	case 11: return PerftGenerator<11, side, kMoved>::generate(board);*/
 	case 10: return PerftGenerator<10, side, kMoved>::generate(board);
-	case 9: return PerftGenerator<9, side, kMoved>::generate(board);*/
+	case 9: return PerftGenerator<9, side, kMoved>::generate(board);
 	case 8: return PerftGenerator<8, side, kMoved>::generate(board);
 	case 7: return PerftGenerator<7, side, kMoved>::generate(board);
 	case 6: return PerftGenerator<6, side, kMoved>::generate(board);
@@ -638,8 +703,7 @@ U64 Cui::generateMoves(int depth, const BoardState& board) {
 	case 4: return PerftGenerator<4, side, kMoved>::generate(board);
 	case 3: return PerftGenerator<3, side, kMoved>::generate(board);
 	case 2: return PerftGenerator<2, side, kMoved>::generate(board);
-	case 1: return PerftGenerator<1, side, kMoved>::generate(board);
-	default: return movegen::generate<1, false, side, kMoved, true>(board, &batch::batch);
+	default: return PerftGenerator<1, side, kMoved>::generate(board);
 	}
 }
 
@@ -681,6 +745,7 @@ void Cui::help() {
 	cout << "cmp\t\tIterates over popular positions and provides an average" << endl;
 	cout << "test\t\tTests popular positions to validate perft results" << endl;
 	cout << "perftsuite\tTests full list of positions to validate perft results" << endl;
+	cout << "bestmove\tRuns the engine on known forced mates and checks the move (bestmove [depth])" << endl;
 	cout << "benchmark\tPerforms a series of perft and returns the best time" << endl;
 	cout << "\t\tSpecify depth then amount. Default is 6 and 25" << endl;
 	cout << "pieces\t\tPrints the pieces' count for each side" << endl;

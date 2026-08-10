@@ -573,4 +573,10 @@ namespace zobrist {
 		z ^= CASTLINGS[prevCP] ^ CASTLINGS[casPerms];
 		return z;
 	}
+
+	ForceInline Zobrist null(int prevEP, Zobrist z) {
+		z ^= SIDE;
+		z ^= EN_PASSANT[FILES[prevEP]];
+		return z;
+	}
 }

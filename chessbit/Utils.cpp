@@ -73,7 +73,7 @@ std::string utils::getMoveSimple(const BoardState& move) {
 	result += SQUARE_NAMES[move.from];
 	result += SQUARE_NAMES[move.to];
 	if (move.promo) {
-		result += ASCII_PIECES[0][move.promo];
+		result += ASCII_PIECES[0][move.promoted];
 	}
 	
 	return result;

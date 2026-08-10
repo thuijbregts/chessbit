@@ -250,7 +250,7 @@ namespace game {
                                     pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
                                     kMS, kES, getKingAttacks(kMS), getKingAttacks(kES),
                                     occupancies[side], occupancies[!side], occupancies[both],
-                                    checks, castlingPermissions, enPassant, 0, 0, side, false, false, false, zobrist);
+                                    checks, castlingPermissions, enPassant, 0, 0, noPiece, side, false, false, false, zobrist);
 
         movesPlayed[0] = board;
     }
