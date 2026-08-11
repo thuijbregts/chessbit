@@ -16,20 +16,6 @@ namespace engine {
     using namespace movegen;
     using namespace batch;
 
-    constexpr int MAX_PLY = 64;
-    constexpr int INF = 30000;
-    constexpr int MATE = 29000;
-    constexpr int MATE_IN_MAX = MATE - MAX_PLY;
-
-    constexpr int TT_MOVE_SCORE = 2'000'000;
-    constexpr int CAPTURE_BASE = 1'000'000;
-    constexpr int KILLER_1 = 900'000;
-    constexpr int KILLER_2 = 800'000;
-    constexpr int HIST_MAX = 16'384;
-    constexpr int DELTA_MARGIN = 200;
-    constexpr int SEE_MARGIN = -50;
-    constexpr int NULL_REDUCTION = 2;
-
     template <int depth, bool first, bool side, uint8_t kMoved, bool useTT, bool null = false>
     struct Engine;
 
@@ -46,10 +32,7 @@ namespace engine {
     inline Batch batches[MAX_PLY];
 
     inline SearchStats stats;
-    inline uint16_t killers[MAX_PLY][2];
-    inline int      history[2][64][64];
-    inline int captHistory[2][6][64][6];
- 
+    
     ForceInline int valueToTT(int v, int ply) {
         if (v >= MATE_IN_MAX) return v + ply;
         if (v <= -MATE_IN_MAX) return v - ply;
@@ -61,48 +44,10 @@ namespace engine {
         return v;
     }
 
-    ForceInline uint16_t packMove(const BoardState& m) {
-        return uint16_t(m.from) | (uint16_t(m.to) << 6);
-    }
-
     ForceInline void clearHeuristics() {
         std::memset(killers, 0, sizeof(killers));
         std::memset(history, 0, sizeof(history));
         std::memset(captHistory, 0, sizeof(captHistory));
-    }
-
-    ForceInline int evaluate(const BoardState& board) {
-        int mg = 0, eg = 0, phase = 0;
-
-        U64 bb = board.pM;
-        Bitloop(bb) { int s = SquareOf(bb); mg += VAL_MG[p] + PAWN_MG[s];   eg += VAL_EG[p] + PAWN_EG[s]; }
-        bb = board.nM;
-        Bitloop(bb) { int s = SquareOf(bb); mg += VAL_MG[n] + KNIGHT_MG[s]; eg += VAL_EG[n] + KNIGHT_EG[s]; phase += 1; }
-        bb = board.bM;
-        Bitloop(bb) { int s = SquareOf(bb); mg += VAL_MG[b] + BISHOP_MG[s]; eg += VAL_EG[b] + BISHOP_EG[s]; phase += 1; }
-        bb = board.rM;
-        Bitloop(bb) { int s = SquareOf(bb); mg += VAL_MG[r] + ROOK_MG[s];   eg += VAL_EG[r] + ROOK_EG[s];   phase += 2; }
-        bb = board.qM;
-        Bitloop(bb) { int s = SquareOf(bb); mg += VAL_MG[q] + QUEEN_MG[s];  eg += VAL_EG[q] + QUEEN_EG[s];  phase += 4; }
-        mg += KING_MG[board.kMS];
-        eg += KING_EG[board.kMS];
-
-        bb = board.pE;
-        Bitloop(bb) { int s = SquareOf(bb) ^ 56; mg -= VAL_MG[p] + PAWN_MG[s];   eg -= VAL_EG[p] + PAWN_EG[s]; }
-        bb = board.nE;
-        Bitloop(bb) { int s = SquareOf(bb) ^ 56; mg -= VAL_MG[n] + KNIGHT_MG[s]; eg -= VAL_EG[n] + KNIGHT_EG[s]; phase += 1; }
-        bb = board.bE;
-        Bitloop(bb) { int s = SquareOf(bb) ^ 56; mg -= VAL_MG[b] + BISHOP_MG[s]; eg -= VAL_EG[b] + BISHOP_EG[s]; phase += 1; }
-        bb = board.rE;
-        Bitloop(bb) { int s = SquareOf(bb) ^ 56; mg -= VAL_MG[r] + ROOK_MG[s];   eg -= VAL_EG[r] + ROOK_EG[s];   phase += 2; }
-        bb = board.qE;
-        Bitloop(bb) { int s = SquareOf(bb) ^ 56; mg -= VAL_MG[q] + QUEEN_MG[s];  eg -= VAL_EG[q] + QUEEN_EG[s];  phase += 4; }
-        mg -= KING_MG[board.kES ^ 56];
-        eg -= KING_EG[board.kES ^ 56];
-
-        int mgPhase = phase > 24 ? 24 : phase;
-        int egPhase = 24 - mgPhase;
-        return (mg * mgPhase + eg * egPhase) / 24;
     }
 
     constexpr int SEE_VALUE[7] = { 100, 320, 330, 500, 900, 20000, 0 };
@@ -192,13 +137,13 @@ namespace engine {
         for (int i = 0; i < size; ++i) {
             const BoardState& m = moves[i];
             if constexpr (useTT) {
-                if (packMove(m) == ttMove) { sc[i] = TT_MOVE_SCORE; continue; }
+                if (packMove(m.from, m.to) == ttMove) { sc[i] = TT_MOVE_SCORE; continue; }
             }
             if (m.cap || m.promo) {
                 sc[i] = CAPTURE_BASE + (PIECE_VALUE[m.vctm] * 16 - PIECE_VALUE[m.atkr]) + (captHistory[side][m.atkr][m.to][m.vctm] / 32);
             }
             else {
-                const uint16_t pm = packMove(m);
+                const uint16_t pm = packMove(m.from, m.to);
                 if (pm == k0) sc[i] = KILLER_1;
                 else if (pm == k1) sc[i] = KILLER_2;
                 else               sc[i] = history[side][m.from][m.to];
@@ -206,7 +151,7 @@ namespace engine {
         }
     }
 
-    ForceInline void pickMove(BoardState* moves, int* sc, int size, int i) {
+    /*ForceInline void pickMove(BoardState* moves, int* sc, int size, int i) {
         int best = i;
         for (int j = i + 1; j < size; ++j) {
             if (sc[j] > sc[best]) best = j;
@@ -215,13 +160,13 @@ namespace engine {
             std::swap(moves[i], moves[best]);
             std::swap(sc[i], sc[best]);
         }
-    }
+    }*/
 
     template <bool side, uint8_t kMoved>
     static int quiescence(const BoardState& board, int ply, int alpha, int beta) {
         stats.nodes++;
 
-        if (ply >= MAX_PLY - 1) { stats.leaves++; return evaluate(board); }
+        if (ply >= MAX_PLY - 1) { stats.leaves++; return board.score; }
 
         constexpr uint8_t kMovedK = kMoved | KING_MOVED[side];
 
@@ -234,7 +179,7 @@ namespace engine {
         batch.size = 0;
 
         if (!inCheck) {
-            standPat = evaluate(board);
+            standPat = board.score;
             best = standPat;
 
             if (standPat >= beta) { stats.leaves++; return standPat; }
@@ -253,17 +198,16 @@ namespace engine {
 
         if (batch.size == 0) return inCheck ? -MATE + ply : standPat;
 
-        BoardState* moves = batch.moves;
-
-        int sc[Batch::MAX];
-        scoreMoves<side, false>(sc, moves, batch.size, ply);
+        //int sc[Batch::MAX];
+        //scoreMoves<side, false>(sc, moves, batch.size, ply);
 
         const int futilityBase = standPat + DELTA_MARGIN;
         int score;
 
         for (int i = 0; i < batch.size; ++i) {
-            pickMove(moves, sc, batch.size, i);
-            BoardState& m = moves[i];
+            //pickMove(moves, sc, batch.size, i);
+            batch.pick(i);
+            BoardState& m = batch[i];
 
             if (!inCheck) {
                 if (futilityBase + SEE_VALUE[m.vctm] <= alpha)
@@ -299,7 +243,7 @@ namespace engine {
         constexpr int nullDepth = depth - NULL_REDUCTION - 1;
 
         if constexpr (!null && nullDepth >= 0) {
-            if (!board.checks && evaluate(board) >= beta) {
+            if (!board.checks && board.score >= beta) {
                 // staticEval >= beta && !zugzwang && enoughMaterial && !pvNode
                 const BoardState nullBoard = board.makeNull<side>(board);
 
@@ -319,7 +263,7 @@ namespace engine {
             const Zobrist z = board.zobrist;
             ttBucket = &tt::bucket<depth>(z);
             tt::TTData e;
-            if (tt::probe(*ttBucket, z, e)) {               
+            if (tt::probe(*ttBucket, z, e)) {
                 if (e.depth >= depth) {
                     ttMove = e.move;
                     const int s = valueFromTT(e.score, ply);
@@ -337,26 +281,27 @@ namespace engine {
 
         if (batch.size == 0) return board.checks ? -MATE + ply : 0;
 
-        BoardState* moves = batch.moves;
-
-        int sc[Batch::MAX];
-        scoreMoves<side, doTT>(sc, moves, batch.size, ply, ttMove);
+        //int sc[Batch::MAX];
+        //scoreMoves<side, doTT>(sc, moves, batch.size, ply, ttMove);
 
         BoardState* bestMoveTT = nullptr;
         int best = -INF, searched = 0, score;
 
         for (int i = 0; i < batch.size; ++i) {
-            pickMove(moves, sc, batch.size, i);
+            //pickMove(moves, sc, batch.size, i);
+            batch.pick(i);
 
-            const bool quiet = !moves[i].cap && !moves[i].promo;
+            BoardState& m = batch[i];
 
-            if (moves[i].king) [[unlikely]] score = -Engine<depth - 1, false, !side, kMovedK, useTT>::search(moves[i], ply + 1, -beta, -alpha);
-            else                            score = -Engine<depth - 1, false, !side, kMoved, useTT>::search(moves[i], ply + 1, -beta, -alpha);
+            const bool quiet = !m.cap && !m.promo;
+
+            if (m.king) [[unlikely]] score = -Engine<depth - 1, false, !side, kMovedK, useTT>::search(m, ply + 1, -beta, -alpha);
+            else                     score = -Engine<depth - 1, false, !side, kMoved, useTT>::search(m, ply + 1, -beta, -alpha);
 
             if (score > best) {
                 best = score;
-                if constexpr (doTT)  bestMoveTT = &moves[i];
-                if constexpr (first) *bestMove = moves[i];
+                if constexpr (doTT)  bestMoveTT = &m;
+                if constexpr (first) *bestMove = m;
             }
 
             if constexpr (!first) {
@@ -365,18 +310,18 @@ namespace engine {
                     if (searched == 0) stats.firstMoveCutoffs++;
 
                     if (quiet) {
-                        const uint16_t pm = packMove(moves[i]);
-                        if (pm != killers[ply][0]) {
-                            killers[ply][1] = killers[ply][0];
-                            killers[ply][0] = pm;
+                        const uint16_t pm = packMove(m.from, m.to);
+                        if (pm != killers[depth][0]) {
+                            killers[depth][1] = killers[depth][0];
+                            killers[depth][0] = pm;
                         }
 
-                        int& h = history[side][moves[i].from][moves[i].to];
+                        int& h = history[side][m.from][m.to];
                         h += bonus - h * bonus / HIST_MAX;
                     }
                     else {
 
-                        int& ch = captHistory[side][moves[i].atkr][moves[i].to][moves[i].vctm];
+                        int& ch = captHistory[side][m.atkr][m.to][m.vctm];
                         ch += bonus - ch * bonus / HIST_MAX;
                     }
                     break;
@@ -384,7 +329,7 @@ namespace engine {
             }
 
             if (quiet) {
-                int& hm = history[side][moves[i].from][moves[i].to];
+                int& hm = history[side][m.from][m.to];
                 hm += -bonus - hm * bonus / HIST_MAX;
             }
 
@@ -395,7 +340,7 @@ namespace engine {
         if constexpr (doTT) {
             const uint8_t bound = (best >= beta) ? tt::BOUND_LOWER : (best > alphaOrig) ? tt::BOUND_EXACT : tt::BOUND_UPPER;
             int ttMove = 0;
-            if (bestMoveTT) ttMove = packMove(*bestMoveTT);
+            if (bestMoveTT) ttMove = packMove(bestMoveTT->from, bestMoveTT->to);
             tt::write<depth>(*ttBucket, board.zobrist, valueToTT(best, ply), bound, ttMove, tt::GENERATION);
         }
 

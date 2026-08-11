@@ -124,9 +124,8 @@ namespace movegen {
     ForceInline void enumMoves(U64& nodes, U64 moves, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         Bitloop(moves) {
             int to = SquareOf(moves);
-            const BoardState newBoard = board.make<piece, side, capture, kMoved>(from, to, board, discovers);
-            
-            batch->add<depth, useTT>(newBoard);
+ 
+            batch->add<depth, side, !capture, useTT>([&] { return board.make<piece, side, capture, kMoved>(from, to, board, discovers); });
         }
     }
 
@@ -139,41 +138,30 @@ namespace movegen {
 
     template <int depth, bool side, uint8_t kMoved, bool useTT, bool capture, Piece piece>
     ForceInline void makeMove(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
-        const BoardState newBoard = board.make<piece, side, capture, kMoved>(from, to, board, discovers);
-        batch->add<depth, useTT>(newBoard);
+        batch->add<depth, side, !capture, useTT>([&] { return board.make<piece, side, capture, kMoved>(from, to, board, discovers); });
     }
 
     template <int depth, bool side, uint8_t kMoved, bool useTT>
     ForceInline void makeEnPassant(U64& nodes, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
-        const BoardState newBoard = board.makeEnPassant<side>(from, board.eP, board);
-        batch->add<depth, useTT>(newBoard);
+        batch->add<depth, side, false, useTT>([&] { return board.makeEnPassant<side>(from, board.eP, board); });
     }
 
     template <int depth, bool side, uint8_t kMoved, bool useTT>
     ForceInline void makeDoublePush(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
-        const BoardState newBoard = board.makeDoublePush<side>(from, to, board, discovers);
-        batch->add<depth, useTT>(newBoard);
+        batch->add<depth, side, true, useTT>([&] { return board.makeDoublePush<side>(from, to, board, discovers); });
     }
 
     template <int depth, bool side, uint8_t kMoved, bool useTT, bool capture>
     ForceInline void makePromotionMoves(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
-        const BoardState newBoardN = board.makePromotion<Piece::Knight, side, capture, kMoved>(from, to, board, discovers);
-        batch->add<depth, useTT>(newBoardN);
-
-        const BoardState newBoardB = board.makePromotion<Piece::Bishop, side, capture, kMoved>(from, to, board, discovers);
-        batch->add<depth, useTT>(newBoardB);
-
-        const BoardState newBoardR = board.makePromotion<Piece::Rook, side, capture, kMoved>(from, to, board, discovers);
-        batch->add<depth, useTT>(newBoardR);
-
-        const BoardState newBoardQ = board.makePromotion<Piece::Queen, side, capture, kMoved>(from, to, board, discovers);
-        batch->add<depth, useTT>(newBoardQ);
+        batch->add<depth, side, false, useTT>([&] { return board.makePromotion<Piece::Knight, side, capture, kMoved>(from, to, board, discovers); });
+        batch->add<depth, side, false, useTT>([&] { return board.makePromotion<Piece::Bishop, side, capture, kMoved>(from, to, board, discovers); });
+        batch->add<depth, side, false, useTT>([&] { return board.makePromotion<Piece::Rook, side, capture, kMoved>(from, to, board, discovers); });
+        batch->add<depth, side, false, useTT>([&] { return board.makePromotion<Piece::Queen, side, capture, kMoved>(from, to, board, discovers); });
     }
 
     template <int depth, bool side, uint8_t kMoved, bool useTT, int castlingSide>
     ForceInline void makeCastling(U64& nodes, const BoardState& board, Batch* batch) noexcept {
-        const BoardState newBoard = board.makeCastling<castlingSide>(board);
-        batch->add<depth, useTT>(newBoard);
+        batch->add<depth, side, true, useTT>([&] { return board.makeCastling<castlingSide>(board); });
     }
 
     template <int depth, bool count, bool side, uint8_t kMoved, bool useTT, bool capsOnly = false>

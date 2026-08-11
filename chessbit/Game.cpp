@@ -7,6 +7,7 @@
 #include <iostream>
 #include "Game.h"
 #include "Zobrist.h"
+#include "Eval.h"
 
 using std::string;
 
@@ -72,7 +73,7 @@ namespace game {
 
         printf("     En Passant:  %s\n", (board.eP != noSquare) ? SQUARE_NAMES[board.eP] : "no");
 
-        printf("     Castling:  %c%c%c%c\n\n", 
+        printf("     Castling:  %c%c%c%c\n\n",
             (board.casPerms & wk) ? 'K' : '-',
             (board.casPerms & wq) ? 'Q' : '-',
             (board.casPerms & bk) ? 'k' : '-',
@@ -245,12 +246,14 @@ namespace game {
         int kES = SquareOf(pieces[!side][k]);
 
         Zobrist zobrist = zobrist::init(pieces, side, castlingPermissions, enPassant);
+        int mg = 0, eg = 0; int8_t phase = 0;
+        int score = eval::init(pieces, side, mg, eg, phase);
 
         board = bstate::BoardState(0, 0, pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
-                                    pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
-                                    kMS, kES, getKingAttacks(kMS), getKingAttacks(kES),
-                                    occupancies[side], occupancies[!side], occupancies[both],
-                                    checks, castlingPermissions, enPassant, 0, 0, noPiece, side, false, false, false, zobrist);
+            pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
+            kMS, kES, getKingAttacks(kMS), getKingAttacks(kES),
+            occupancies[side], occupancies[!side], occupancies[both],
+            checks, castlingPermissions, enPassant, 0, 0, noPiece, side, false, false, false, score, mg, eg, phase, zobrist);
 
         movesPlayed[0] = board;
     }
