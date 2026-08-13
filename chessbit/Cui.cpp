@@ -163,6 +163,11 @@ void Cui::execute(vector<string>& cmd) {
 		return;
 	}
 
+	if (first == cui::COMPARE_SEARCH) {
+		compareSearch();
+		return;
+	}
+
 	if (first == cui::PIECES) {
 		pieces();
 		return;
@@ -195,7 +200,7 @@ void Cui::play() {
 
 	start = high_resolution_clock::now();
 	BoardState bestMove;
-	if (ttEnabled)	engine::start<true>(12, game::board, &bestMove);
+	if (ttEnabled)	engine::start<true>(10, game::board, &bestMove);
 	else			engine::start<false>(10, game::board, &bestMove);
 	end = high_resolution_clock::now();
 
@@ -384,9 +389,6 @@ __forceinline U64 Cui::divide(int depth, int threads) {
 }
 
 void Cui::test() {
-	bool tt = ttEnabled;
-	ttEnabled = false;
-
 	string fen = game::getFen();
 
 	high_resolution_clock::time_point start, end;
@@ -422,14 +424,9 @@ void Cui::test() {
 	cout << "Final results:\t\t" << success << "/" << tests << endl;
 
 	game::setFen(fen.c_str());
-
-	ttEnabled = tt;
 }
 
 void Cui::perftsuite() {
-	bool tt = ttEnabled;
-	ttEnabled = false;
-
 	string fenS = game::getFen();
 
 	int success = 0;
@@ -459,8 +456,6 @@ void Cui::perftsuite() {
 	cout << "Final results:\t\t" << success << "/" << tests << endl;
 
 	game::setFen(fenS.c_str());
-
-	ttEnabled = tt;
 }
 
 void Cui::bestmove(vector<string>& cmd) {
@@ -657,6 +652,32 @@ void Cui::compare() {
 	game::setFen(fen.c_str());
 }
 
+void Cui::compareSearch() {
+	string fen = game::getFen();
+
+	high_resolution_clock::time_point start, end;
+
+	start = high_resolution_clock::now();
+	for (PerftTest test : cui::TESTS) {
+		cout << "Position:\t\t" << test.fen << endl;
+		cout << "Depth:\t\t\t" << test.searchDepth << endl;
+
+		setFen(test.fen);
+
+		if (ttEnabled) tt::clear();
+
+		BoardState bestMove;
+		if (ttEnabled)	engine::start<true>(test.searchDepth, game::board, &bestMove);
+		else			engine::start<false>(test.searchDepth, game::board, &bestMove);
+	}
+	end = high_resolution_clock::now();
+	long long total = duration_cast<microseconds>(end - start).count();
+
+	cout << "Time:\t\t\t" << total / 1000 << " ms" << endl;
+
+	game::setFen(fen.c_str());
+}
+
 U64 Cui::generateMoves(int depth) {
 	return generateMoves(depth, game::board);
 }
@@ -743,6 +764,7 @@ void Cui::help() {
 	cout << "\t-t\tNumber of threads for -d (default: max available threads)" << endl;
 	cout << "tt\t\tToggles the transposition table on/off (tt [size])" << endl;
 	cout << "cmp\t\tIterates over popular positions and provides an average" << endl;
+	cout << "cmps\t\tSearches popular positions and provides an average" << endl;
 	cout << "test\t\tTests popular positions to validate perft results" << endl;
 	cout << "perftsuite\tTests full list of positions to validate perft results" << endl;
 	cout << "bestmove\tRuns the engine on known forced mates and checks the move (bestmove [depth])" << endl;

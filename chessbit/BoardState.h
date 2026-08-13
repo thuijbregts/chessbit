@@ -239,7 +239,7 @@ namespace bstate {
                 if ((QUEEN_XRAYS[board.kES] & t) && !(PIN_MASKS[board.kES][to] & occB)) [[unlikely]] checks |= t;
             }
 
-            int casPerms = board.casPerms, score, mg = board.mg, eg = board.eg;
+            int casPerms = board.casPerms, score, mg = board.mg, eg = board.eg, v = NO_CAPTURE;
             int8_t phase = board.phase;
             Zobrist zobrist;
 
@@ -250,11 +250,13 @@ namespace bstate {
                     nE ^= t;
                     score = eval::updatePromotion<piece, Piece::Knight, side>(from, to, mg, eg, phase);
                     zobrist = zobrist::promotion<piece, side, Piece::Knight>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
+                    v = n;
                 }
                 else if (bE & t) {
                     bE ^= t;
                     score = eval::updatePromotion<piece, Piece::Bishop, side>(from, to, mg, eg, phase);
                     zobrist = zobrist::promotion<piece, side, Piece::Bishop>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
+                    v = b;
                 }
                 else if (rE & t) {
                     if constexpr (!kEMoved)  casPerms &= NO_CASTLE_ROOK[to];
@@ -262,11 +264,13 @@ namespace bstate {
                     rE ^= t;
                     score = eval::updatePromotion<piece, Piece::Rook, side>(from, to, mg, eg, phase);
                     zobrist = zobrist::promotion<piece, side, Piece::Rook>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
+                    v = r;
                 }
                 else {
                     qE ^= t;
                     score = eval::updatePromotion<piece, Piece::Queen, side>(from, to, mg, eg, phase);
                     zobrist = zobrist::promotion<piece, side, Piece::Queen>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
+                    v = q;
                 }
             }
             else {
@@ -276,7 +280,7 @@ namespace bstate {
 
             if (discovers) [[unlikely]] checks |= discovers & DISCOVER_RAYS[board.kES][from];
 
-            return BoardState(from, to, board.pE, nE, bE, rE, qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, q, p, static_cast<int>(piece), !side, capture, true, false, -score, -mg, -eg, phase, zobrist);
+            return BoardState(from, to, board.pE, nE, bE, rE, qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, v, p, static_cast<int>(piece), !side, capture, true, false, -score, -mg, -eg, phase, zobrist);
         }
 
         template <bool side>
@@ -304,7 +308,7 @@ namespace bstate {
             }
             else                        checks = (PAWN_CAPTURES[!side][board.kES] & pM);
 
-            return BoardState(from, to, board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, eP, 0, 0, noPiece, !side, false, false, false, -score, -mg, -eg, board.phase, zobrist);
+            return BoardState(from, to, board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, eP, NO_CAPTURE, p, noPiece, !side, false, false, false, -score, -mg, -eg, board.phase, zobrist);
         }
 
         template <bool side>
@@ -358,7 +362,7 @@ namespace bstate {
             constexpr int from = CASTLING_KING_SOURCE_SQUARE[castlingSide];
             constexpr int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
 
-            return BoardState(from, to, board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, KING_ATTACKS[to], board.occE, occM, occB, checks, casPerms, noSquare, 0, 0, noPiece, !side, false, false, true, -score, -mg, -eg, board.phase, zobrist);
+            return BoardState(from, to, board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, KING_ATTACKS[to], board.occE, occM, occB, checks, casPerms, noSquare, NO_CAPTURE, k, noPiece, !side, false, false, true, -score, -mg, -eg, board.phase, zobrist);
         }
 
         template <bool side>

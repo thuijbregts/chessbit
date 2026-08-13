@@ -41,6 +41,7 @@ private:
 	void benchmark(string& depth, string& amount);
 	void executeBenchmark(int depth, int amount, bool print);
 	void compare();
+	void compareSearch();
 	void toggleTT(vector<string>& cmd);
 
 	U64 generateMoves(int depth);
@@ -61,6 +62,7 @@ struct Command {
 struct PerftTest {
 	const char* fen;
 	int depth;
+	int searchDepth;
 	U64 result;
 };
 
@@ -83,6 +85,7 @@ namespace cui {
 	const string BEST_MOVE = "bestmove";
 	const string BENCHMARK = "benchmark";
 	const string COMPARE = "cmp";
+	const string COMPARE_SEARCH = "cmps";
 	const string TT = "tt";
 
 	const string PERFT_D = "-d";
@@ -107,17 +110,18 @@ namespace cui {
 		{ BEST_MOVE,{} },
 		{ BENCHMARK,{} },
 		{ COMPARE,{} },
+		{ COMPARE_SEARCH,{} },
 		{ TT,{} }
 	};
 
 	const PerftTest TESTS[]{
-		{ StartPosition, 7, 3195901860 },
-		{ KiwiPete, 6, 8031647685 },
-		{ EndGame, 6, 849167880 },
-		{ Pos3, 8, 3009794393 },
-		{ Pos4, 6, 706045033 },
-		{ Pos5, 5, 89941194 },
-		{ Pos6, 6, 6923051137 }
+		{ StartPosition, 7, 10, 3195901860 },
+		{ KiwiPete, 6, 10, 8031647685 },
+		{ EndGame, 6, 10, 849167880 },
+		{ Pos3, 8, 12, 3009794393 },
+		{ Pos4, 6, 10, 706045033 },
+		{ Pos5, 5, 11, 89941194 },
+		{ Pos6, 6, 10, 6923051137 }
 	};
 }
 

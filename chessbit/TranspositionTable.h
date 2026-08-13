@@ -72,7 +72,7 @@ namespace tt {
         for (int i = 0; i < MAX_ENTRIES; ++i) {
             const U64 d = b.data[i];
             if (b.key[i] == (z.high ^ d)) {
-                out.score = d & SCORE_MASK;
+                out.score = (int16_t)(d & SCORE_MASK);
                 out.move  = (d >> MOVE_SHIFT)  & MOVE_MASK;
                 out.depth = (d >> DEPTH_SHIFT) & DEPTH_MASK;
                 out.bound = (d >> BOUND_SHIFT) & BOUND_MASK;
@@ -85,7 +85,7 @@ namespace tt {
     template <int depth>
     ForceInline void write(Bucket& b, Zobrist z, int score, uint8_t bound, uint16_t move, uint8_t gen) noexcept {
         int v    = 0;
-        int lowest = ~0;
+        int lowest = INT_MAX;
 
         for (int i = 0; i < MAX_ENTRIES; ++i) {
             const U64 di = b.data[i];
@@ -138,6 +138,10 @@ namespace tt {
         printf("Transposition table cleared\n");
     }
 
+    inline void clear() {
+        std::memset(TABLE, 0, BYTES);
+    }
+
     inline void init(size_t mb = 0) {
         printf("\n");
         printf("Initializing transposition table\n");
@@ -172,7 +176,7 @@ namespace tt {
         printf("Final size: %llu MB\n", BYTES >> 20);
 
         TABLE = static_cast<Bucket*>(::operator new(BYTES, std::align_val_t(64)));
-        std::memset(TABLE, 0, BYTES);
+        clear();
 
         printf("Initialization complete\n\n");
     }

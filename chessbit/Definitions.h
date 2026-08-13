@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <type_traits>
 #include <cstdio>
-#include <cstdio>
 #include "AttackTables.h"
 
 namespace defs {
@@ -40,17 +39,19 @@ namespace defs {
 	constexpr int MATE_IN_MAX = MATE - MAX_PLY;
 
 	constexpr int TT_MOVE_SCORE = 2'000'000;
+	constexpr int PROMOTION_BASE = 1'500'000;
 	constexpr int CAPTURE_BASE = 1'000'000;
 	constexpr int KILLER_1 = 900'000;
 	constexpr int KILLER_2 = 800'000;
 	constexpr int HIST_MAX = 16'384;
 	constexpr int DELTA_MARGIN = 200;
 	constexpr int SEE_MARGIN = -50;
+	constexpr int SEE_PRUNING_MAX_DEPTH = 3;
 	constexpr int NULL_REDUCTION = 2;
 
 	inline uint16_t killers[MAX_PLY][2];
 	inline int      history[2][64][64];
-	inline int captHistory[2][6][64][6];
+	inline int		captHistory[2][6][64][6];
 
 	enum Pieces { p, n, b, r, q, k, noPiece };
 
@@ -157,8 +158,17 @@ namespace defs {
 
 	constexpr int MAX_DEPTH = 18;
 
-	constexpr int PIECE_VALUE[] = { 100, 320, 330, 500, 900, 0 };
-	constexpr int NO_CAPTURE = 5;
+	constexpr int PIECE_VALUE[] = { 100, 320, 330, 500, 900, 1000, 0 };
+
+	constexpr int MVV_LVA[5][6] = {
+	{  1500,  0,  0,  0,   0,   0 },
+	{  5020,  4800,  0,  0,  0,  0 },
+	{  5180,  4960,  4950,  0,  0,  0 },
+	{  7900,  7680,  7670,  7500,  0,  0 },
+	{ 14300, 14080, 14070, 13900, 13500, 0 },
+	};
+
+	constexpr int NO_CAPTURE = 6;
 
 	constexpr int RANKS[64] = {
 		8, 8, 8, 8, 8, 8, 8, 8,
@@ -793,8 +803,6 @@ namespace defs {
 		0x1000000000000ULL,0x2000000000000ULL,0x4000000000000ULL,0x8000000000000ULL,0x10000000000000ULL,0x20000000000000ULL,0x40000000000000ULL,0x80000000000000ULL,
 		0x100000000000000ULL,0x200000000000000ULL,0x400000000000000ULL,0x800000000000000ULL,0x1000000000000000ULL,0x2000000000000000ULL,0x4000000000000000ULL,0x8000000000000000ULL,0x0ULL
 	};
-
-	constexpr int MVV_LVA[6] = { 100, 200, 300, 400, 500, 600 };
 
 	constexpr U64 KING_ATTACKS[] = {
 		0x0000000000000302, 0x0000000000000705, 0x0000000000000E0A, 0x0000000000001C14, 0x0000000000003828, 0x0000000000007050, 0x000000000000E0A0, 0x000000000000C040,
