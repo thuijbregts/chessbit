@@ -45,6 +45,7 @@ namespace bstate {
         int eg;
         int8_t phase;
 
+        int8_t toPrev;
         int8_t from;
         int8_t to;
         int8_t kMS;
@@ -52,6 +53,7 @@ namespace bstate {
         int8_t casPerms;
         int8_t eP;
         int8_t vctm;
+        int8_t atkrPrev;
         int8_t atkr;
         int8_t promoted;
         bool   side;
@@ -62,12 +64,12 @@ namespace bstate {
         constexpr BoardState() = default;
 
         constexpr BoardState(
-            int8_t from, int8_t to,
+            int8_t toPrev, int8_t from, int8_t to,
             U64 pM, U64 nM, U64 bM, U64 rM, U64 qM, U64 kM,
             U64 pE, U64 nE, U64 bE, U64 rE, U64 qE, U64 kE,
             int8_t kMS, int8_t kES, U64 kMA, U64 kEA,
             U64 occM, U64 occE, U64 occB,
-            U64 checks, int8_t casPerms, int8_t eP, int8_t vctm, int8_t atkr, int8_t promoted,
+            U64 checks, int8_t casPerms, int8_t eP, int8_t vctm, int8_t atkrPrev, int8_t atkr, int8_t promoted,
             bool side, bool cap, bool promo, bool king, int score, int mg, int eg, int8_t phase, Zobrist zobrist) noexcept :
             pM(pM), nM(nM), bM(bM), rM(rM), qM(qM), kM(kM),
             pE(pE), nE(nE), bE(bE), rE(rE), qE(qE), kE(kE),
@@ -75,9 +77,9 @@ namespace bstate {
             occM(occM), occE(occE), occB(occB),
             checks(checks), zobrist(zobrist),
             score(score), mg(mg), eg(eg), phase(phase),
-            from(from), to(to),
+            toPrev(toPrev), from(from), to(to),
             kMS(kMS), kES(kES),
-            casPerms(casPerms), eP(eP), vctm(vctm), atkr(atkr), promoted(promoted),
+            casPerms(casPerms), eP(eP), vctm(vctm), atkrPrev(atkrPrev), atkr(atkr), promoted(promoted),
             side(side), cap(cap), promo(promo), king(king)
         {
 
@@ -192,8 +194,8 @@ namespace bstate {
                 }
             }
 
-            if constexpr (Piece::King == piece) return BoardState(from, to, pE, nE, bE, rE, qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, v, k, noPiece, !side, capture, false, true, -score, -mg, -eg, phase, zobrist);
-            else                                return BoardState(from, to, pE, nE, bE, rE, qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, v, static_cast<int>(piece), noPiece, !side, capture, false, false, -score, -mg, -eg, phase, zobrist);
+            if constexpr (Piece::King == piece) return BoardState(board.to, from, to, pE, nE, bE, rE, qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, to, board.kEA, getKingAttacks(to), occE, occM, occB, checks, casPerms, noSquare, v, board.atkr, k, noPiece, !side, capture, false, true, -score, -mg, -eg, phase, zobrist);
+            else                                return BoardState(board.to, from, to, pE, nE, bE, rE, qE, board.kE, pM, nM, bM, rM, qM, kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, v, board.atkr, static_cast<int>(piece), noPiece, !side, capture, false, false, -score, -mg, -eg, phase, zobrist);
         }
 
         template <Piece piece, bool side, bool capture, uint8_t kMoved>
@@ -280,7 +282,7 @@ namespace bstate {
 
             if (discovers) [[unlikely]] checks |= discovers & DISCOVER_RAYS[board.kES][from];
 
-            return BoardState(from, to, board.pE, nE, bE, rE, qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, v, p, static_cast<int>(piece), !side, capture, true, false, -score, -mg, -eg, phase, zobrist);
+            return BoardState(board.to, from, to, board.pE, nE, bE, rE, qE, board.kE, pM, nM, bM, rM, qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, casPerms, noSquare, v, board.atkr, p, static_cast<int>(piece), !side, capture, true, false, -score, -mg, -eg, phase, zobrist);
         }
 
         template <bool side>
@@ -308,7 +310,7 @@ namespace bstate {
             }
             else                        checks = (PAWN_CAPTURES[!side][board.kES] & pM);
 
-            return BoardState(from, to, board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, eP, NO_CAPTURE, p, noPiece, !side, false, false, false, -score, -mg, -eg, board.phase, zobrist);
+            return BoardState(board.to, from, to, board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, occM, occB, checks, board.casPerms, eP, NO_CAPTURE, board.atkr, p, noPiece, !side, false, false, false, -score, -mg, -eg, board.phase, zobrist);
         }
 
         template <bool side>
@@ -339,7 +341,7 @@ namespace bstate {
             if (ROOK_XRAYS[board.kES] & ROOK_XRAYS[from] & rqM) [[unlikely]]
                 checks |= getRookAttacks(board.kES, occB) & rqM;
 
-            return BoardState(from, to, pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, p, p, noPiece, !side, true, false, false, -score, -mg, -eg, board.phase, zobrist);
+            return BoardState(board.to, from, to, pE, board.nE, board.bE, board.rE, board.qE, board.kE, pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, occE, occM, occB, checks, board.casPerms, noSquare, p, board.atkr, p, noPiece, !side, true, false, false, -score, -mg, -eg, board.phase, zobrist);
         }
 
         template <int castlingSide>
@@ -362,16 +364,16 @@ namespace bstate {
             constexpr int from = CASTLING_KING_SOURCE_SQUARE[castlingSide];
             constexpr int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
 
-            return BoardState(from, to, board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, KING_ATTACKS[to], board.occE, occM, occB, checks, casPerms, noSquare, NO_CAPTURE, k, noPiece, !side, false, false, true, -score, -mg, -eg, board.phase, zobrist);
+            return BoardState(board.to, from, to, board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, KING_ATTACKS[to], board.occE, occM, occB, checks, casPerms, noSquare, NO_CAPTURE, board.atkr, k, noPiece, !side, false, false, true, -score, -mg, -eg, board.phase, zobrist);
         }
 
         template <bool side>
         ForceInline BoardState makeNull(const BoardState& board) noexcept {
             const Zobrist zobrist = zobrist::null(board.eP, board.zobrist);
 
-            return BoardState(0, 0, board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, board.occM, board.occB, 0, board.casPerms, noSquare, 0, 0, noPiece, !side, false, false, false, -board.score, -board.mg, -board.eg, board.phase, zobrist);
+            return BoardState(0, 0, 0, board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, board.rM, board.qM, board.kM, board.kES, board.kMS, board.kEA, board.kMA, board.occE, board.occM, board.occB, 0, board.casPerms, noSquare, 0, 0, 0, noPiece, !side, false, false, false, -board.score, -board.mg, -board.eg, board.phase, zobrist);
         }
     };
 
-    inline static BoardState dummy = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0 });
+    inline static BoardState dummy = BoardState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0 });
 }

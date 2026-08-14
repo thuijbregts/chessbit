@@ -24,7 +24,7 @@ private:
 
 	bool isCommand(vector<string>& command);
 	bool executeMove(string& move);
-	void play();
+	void play(vector<string>& cmd);
 	void undo();
 	void showMoves();
 	void reset();

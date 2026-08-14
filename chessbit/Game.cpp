@@ -249,11 +249,11 @@ namespace game {
         int mg = 0, eg = 0; int8_t phase = 0;
         int score = eval::init(pieces, side, mg, eg, phase);
 
-        board = bstate::BoardState(0, 0, pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
+        board = bstate::BoardState(0, 0, 0, pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
             pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
             kMS, kES, getKingAttacks(kMS), getKingAttacks(kES),
             occupancies[side], occupancies[!side], occupancies[both],
-            checks, castlingPermissions, enPassant, 0, 0, noPiece, side, false, false, false, score, mg, eg, phase, zobrist);
+            checks, castlingPermissions, enPassant, 0, 0, 0, noPiece, side, false, false, false, score, mg, eg, phase, zobrist);
 
         movesPlayed[0] = board;
     }

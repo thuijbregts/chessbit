@@ -38,20 +38,25 @@ namespace defs {
 	constexpr int MATE = 29000;
 	constexpr int MATE_IN_MAX = MATE - MAX_PLY;
 
-	constexpr int TT_MOVE_SCORE = 2'000'000;
+	constexpr int ID_MOVE_SCORE = 2'000'000;
 	constexpr int PROMOTION_BASE = 1'500'000;
 	constexpr int CAPTURE_BASE = 1'000'000;
+	constexpr int TT_MOVE_SCORE = 950'000;
 	constexpr int KILLER_1 = 900'000;
 	constexpr int KILLER_2 = 800'000;
+	constexpr int COUNTER_MOVE_BONUS = 700'000;
 	constexpr int HIST_MAX = 16'384;
 	constexpr int DELTA_MARGIN = 200;
 	constexpr int SEE_MARGIN = -50;
+	constexpr int SEE_MARGIN_QUIET = 0;
 	constexpr int SEE_PRUNING_MAX_DEPTH = 3;
 	constexpr int NULL_REDUCTION = 2;
 
 	inline uint16_t killers[MAX_PLY][2];
 	inline int      history[2][64][64];
 	inline int		captHistory[2][6][64][6];
+	inline int		continuationHistory[6][64][6][64];
+	inline int		counterMove[2][6][64];
 
 	enum Pieces { p, n, b, r, q, k, noPiece };
 

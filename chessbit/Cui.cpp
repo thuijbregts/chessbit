@@ -91,7 +91,7 @@ void Cui::execute(vector<string>& cmd) {
 	string first = cmd[0];
 
 	if (first == cui::PLAY) {
-		play();
+		play(cmd);
 		return;
 	}
 
@@ -195,13 +195,25 @@ bool Cui::executeMove(string& move) {
 	return false;
 }
 
-void Cui::play() {
+void Cui::play(vector<string>& cmd) {
+	int depth = 10;
+	for (size_t i = 1; i < cmd.size(); i++) {
+		string& tok = cmd[i];
+		if (utils::isPositiveDigits(tok) && stoi(tok) > 0) {
+			depth = stoi(tok);
+		}
+		else {
+			cout << "Invalid depth" << endl;
+			return;
+		}
+	}
+
 	high_resolution_clock::time_point start, end;
 
 	start = high_resolution_clock::now();
 	BoardState bestMove;
-	if (ttEnabled)	engine::start<true>(10, game::board, &bestMove);
-	else			engine::start<false>(10, game::board, &bestMove);
+	if (ttEnabled)	engine::start<true>(depth, game::board, &bestMove);
+	else			engine::start<false>(depth, game::board, &bestMove);
 	end = high_resolution_clock::now();
 
 	long long total = duration_cast<microseconds>(end - start).count();
@@ -491,7 +503,7 @@ void Cui::bestmove(vector<string>& cmd) {
 		tt::GENERATION++;
 
 		const auto s = high_resolution_clock::now();
-		const int score = engine::search<false>(depth, game::board, &bestMove);
+		const int score = engine::search<false>(depth, game::board, 0, -INF, INF, &bestMove);
 		const auto e = high_resolution_clock::now();
 
 		const long long us = duration_cast<microseconds>(e - s).count();
@@ -753,6 +765,7 @@ void Cui::help() {
 	cout << "\n******Transposition Table******\n" << endl;
 	cout << (ttEnabled ? "ON" : "OFF") << endl;
 	cout << "\n******Commands******\n" << endl;
+	cout << "play\t\tPlays the best move for a given depth" << endl;
 	cout << "undo\t\tCancels the last move made" << endl;
 	cout << "moves\t\tPrints the legal moves of the current position" << endl;
 	cout << "reset\t\tResets the game to its initial position" << endl;
