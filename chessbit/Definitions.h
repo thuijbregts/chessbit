@@ -49,6 +49,9 @@ namespace defs {
 	constexpr int DELTA_MARGIN = 200;
 	constexpr int SEE_MARGIN = -50;
 	constexpr int SEE_MARGIN_QUIET = 0;
+
+	constexpr int MAX_EXTENSIONS = 16;
+	constexpr int IIR_MIN_DEPTH = 4;
 	constexpr int SEE_PRUNING_MAX_DEPTH = 3;
 	constexpr int NULL_REDUCTION = 2;
 

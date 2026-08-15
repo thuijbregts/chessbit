@@ -10,7 +10,7 @@ using std::string;
 
 namespace game {
     extern int moveCount;
-    inline static BoardState movesPlayed[5949];
+    inline static BoardState movesPlayed[17697];
 
     extern bstate::BoardState board;
 

@@ -177,11 +177,25 @@ namespace game {
         {
             int file = fen[0] - 'a';
             int rank = 8 - (fen[1] - '0');
-
             enPassant = rank * 8 + file;
+            fen += 2;
         }
         else {
             enPassant = noSquare;
+            fen += 1;
+        }
+
+        while (*fen == ' ') fen++;
+
+        //go to halfclock moves
+        uint8_t halfClock = 0;
+        if (*fen >= '0' && *fen <= '9') {
+            int hc = 0;
+            while (*fen >= '0' && *fen <= '9') {
+                hc = hc * 10 + (*fen - '0');
+                fen++;
+            }
+            halfClock = (uint8_t)hc;
         }
 
         for (int piece = p; piece <= k; piece++) {
@@ -253,7 +267,7 @@ namespace game {
             pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
             kMS, kES, getKingAttacks(kMS), getKingAttacks(kES),
             occupancies[side], occupancies[!side], occupancies[both],
-            checks, castlingPermissions, enPassant, 0, 0, 0, noPiece, side, false, false, false, score, mg, eg, phase, zobrist);
+            checks, castlingPermissions, enPassant, 0, 0, 0, noPiece, side, false, false, false, score, mg, eg, phase, halfClock, zobrist);
 
         movesPlayed[0] = board;
     }
@@ -304,9 +318,7 @@ namespace game {
         }
 
         fen += " ";
-
         fen += (!board.side ? "w" : "b");
-
         fen += " ";
 
         string castling = (board.casPerms & wk) ? "K" : "";
@@ -315,12 +327,12 @@ namespace game {
         castling += (board.casPerms & bq) ? "q" : "";
 
         fen += (board.casPerms > 0) ? castling : "-";
-
         fen += " ";
-
         fen += (board.eP != noSquare) ? SQUARE_NAMES[board.eP] : "-";
-
-        //TODO halfclock moves + total moves
+        fen += " ";
+        fen += std::to_string(board.halfClock);   
+        fen += " ";
+        fen += std::to_string(moveCount / 2 + 1);
 
         return fen;
     }

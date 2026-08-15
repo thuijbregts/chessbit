@@ -6,39 +6,29 @@ using namespace movegen;
 using namespace tt;
 
 namespace perft {
-
-    template <int depth, bool side, uint8_t kMoved>
-    struct PerftGenerator;
-
-    template <int depth, bool side, uint8_t kMoved>
-    ForceInline U64 iterateBatch(const BoardState& board) noexcept {
+    template <bool side, uint8_t kMoved>
+    ForceInline U64 iterateBatch(int depth, const BoardState& board) noexcept {
         constexpr uint8_t kMovedK = kMoved | KING_MOVED[side];
-        constexpr int nDepth = depth - 1;
 
         U64 nodes = 0ULL;
-
         Batch batch;
-        movegen::generate<depth, false, side, kMoved, false>(board, &batch);
+        batch.perft = true;
+        if (depth <= 1) return movegen::generate<true, side, kMoved>(board);
+
+        movegen::generate<false, side, kMoved>(board, &batch);
 
         for (int i = 0; i < batch.size; ++i) {
-            if (batch.moves[i].king)    nodes += PerftGenerator<nDepth, !side, kMovedK>::generate(batch.moves[i]);
-            else                        nodes += PerftGenerator<nDepth, !side, kMoved>::generate(batch.moves[i]);
+            if (batch.moves[i].king)    nodes += iterateBatch<!side, kMovedK>(depth - 1, batch.moves[i]);
+            else                        nodes += iterateBatch<!side, kMoved>(depth - 1, batch.moves[i]);
         }
 
         return nodes;
     }
 
-    template <int depth, bool side, uint8_t kMoved>
-    struct PerftGenerator {
-        static __declspec(noinline) U64 generate(const BoardState& board) {
-            return iterateBatch<depth, side, kMoved>(board);
-        }
-    };
-
     template <bool side, uint8_t kMoved>
-    struct PerftGenerator<1, side, kMoved> {
-        ForceInline U64 generate(const BoardState& board) {
-            return movegen::generate<1, true, side, kMoved, false>(board);
-        }
-    };
+    ForceInline U64 start(int depth, const BoardState& board, Batch* batch = nullptr) noexcept {
+        if (depth <= 1) return movegen::generate<false, side, kMoved>(board, batch);
+
+        return iterateBatch<side, kMoved>(depth, board);
+    }
 }

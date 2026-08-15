@@ -58,14 +58,12 @@ namespace tt {
         uint8_t  bound;
     };
 
-    template <int depth>
     ForceInline U64 index(Zobrist z) noexcept {
         return z.low & MASK;
     }
 
-    template <int depth>
     ForceInline Bucket& bucket(Zobrist z) noexcept {
-        return TABLE[index<depth>(z)];
+        return TABLE[index(z)];
     }
 
     ForceInline bool probe(Bucket& b, Zobrist z, TTData& out) noexcept {
@@ -82,8 +80,7 @@ namespace tt {
         return false;
     }
 
-    template <int depth>
-    ForceInline void write(Bucket& b, Zobrist z, int score, uint8_t bound, uint16_t move, uint8_t gen) noexcept {
+    ForceInline void write(int depth, Bucket& b, Zobrist z, int score, uint8_t bound, uint16_t move, uint8_t gen) noexcept {
         int v    = 0;
         int lowest = INT_MAX;
 
@@ -121,11 +118,8 @@ namespace tt {
         b.data[v] = data;
     }
 
-    template <int depth>
-    ForceInline void prefetch(Zobrist z) noexcept {
-        if constexpr (USE_HASH<depth>) {
-            _mm_prefetch(reinterpret_cast<const char*>(&TABLE[index<depth>(z)]), _MM_HINT_T0);
-        }
+    ForceInline void prefetch(Zobrist z, int depth) noexcept {
+        _mm_prefetch(reinterpret_cast<const char*>(&TABLE[index(z)]), _MM_HINT_T0);
     }
 
     inline void free() {

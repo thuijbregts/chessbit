@@ -48,7 +48,7 @@ void Cui::start() {
 
 void Cui::initMoves() {
 	batch::batch.reset();
-	generateMoves(0);
+	generateMoves(1, &batch::batch);
 }
 
 bool Cui::isCommand(vector<string>& cmd) {
@@ -212,8 +212,7 @@ void Cui::play(vector<string>& cmd) {
 
 	start = high_resolution_clock::now();
 	BoardState bestMove;
-	if (ttEnabled)	engine::start<true>(depth, game::board, &bestMove);
-	else			engine::start<false>(depth, game::board, &bestMove);
+	engine::start(depth, game::board, &bestMove);
 	end = high_resolution_clock::now();
 
 	long long total = duration_cast<microseconds>(end - start).count();
@@ -503,7 +502,7 @@ void Cui::bestmove(vector<string>& cmd) {
 		tt::GENERATION++;
 
 		const auto s = high_resolution_clock::now();
-		const int score = engine::search<false>(depth, game::board, 0, -INF, INF, &bestMove);
+		const int score = engine::search(depth, game::board, 0, -INF, INF, &bestMove);
 		const auto e = high_resolution_clock::now();
 
 		const long long us = duration_cast<microseconds>(e - s).count();
@@ -679,8 +678,7 @@ void Cui::compareSearch() {
 		if (ttEnabled) tt::clear();
 
 		BoardState bestMove;
-		if (ttEnabled)	engine::start<true>(test.searchDepth, game::board, &bestMove);
-		else			engine::start<false>(test.searchDepth, game::board, &bestMove);
+		engine::start(test.searchDepth, game::board, &bestMove);
 	}
 	end = high_resolution_clock::now();
 	long long total = duration_cast<microseconds>(end - start).count();
@@ -690,53 +688,29 @@ void Cui::compareSearch() {
 	game::setFen(fen.c_str());
 }
 
-U64 Cui::generateMoves(int depth) {
-	return generateMoves(depth, game::board);
+U64 Cui::generateMoves(int depth, batch::Batch* batch) {
+	return generateMoves(depth, game::board, batch);
 }
 
-U64 Cui::generateMoves(int depth, const BoardState& board) {
+U64 Cui::generateMoves(int depth, const BoardState& board, batch::Batch* batch) {
 	const uint8_t kMoved = (!(board.casPerms & (wk | wq)) ? KING_MOVED[white] : 0)
 		| (!(board.casPerms & (bk | bq)) ? KING_MOVED[black] : 0);
 
 	if (board.side == white) {
 		switch (kMoved) {
-		case KING_MOVED[white]: return generateMoves<white, KING_MOVED[white]>(depth, board);
-		case KING_MOVED[black]: return generateMoves<white, KING_MOVED[black]>(depth, board);
-		case KING_MOVED[both]:  return generateMoves<white, KING_MOVED[both]>(depth, board);
-		default:                return generateMoves<white, 0>(depth, board);
+		case KING_MOVED[white]: return perft::start<white, KING_MOVED[white]>(depth, board, batch);
+		case KING_MOVED[black]: return perft::start<white, KING_MOVED[black]>(depth, board, batch);
+		case KING_MOVED[both]:  return perft::start<white, KING_MOVED[both]>(depth, board, batch);
+		default:                return perft::start<white, 0>(depth, board, batch);
 		}
 	}
 	else {
 		switch (kMoved) {
-		case KING_MOVED[white]: return generateMoves<black, KING_MOVED[white]>(depth, board);
-		case KING_MOVED[black]: return generateMoves<black, KING_MOVED[black]>(depth, board);
-		case KING_MOVED[both]:  return generateMoves<black, KING_MOVED[both]>(depth, board);
-		default:                return generateMoves<black, 0>(depth, board);
+		case KING_MOVED[white]: return perft::start<black, KING_MOVED[white]>(depth, board, batch);
+		case KING_MOVED[black]: return perft::start<black, KING_MOVED[black]>(depth, board, batch);
+		case KING_MOVED[both]:  return perft::start<black, KING_MOVED[both]>(depth, board, batch);
+		default:                return perft::start<black, 0>(depth, board, batch);
 		}
-	}
-}
-
-template <bool side, uint8_t kMoved>
-U64 Cui::generateMoves(int depth, const BoardState& board) {
-	switch (depth) {
-		/*case 18: return PerftGenerator<18, side, kMoved>::generate(board);
-		case 17: return PerftGenerator<17, side, kMoved>::generate(board);
-		case 16: return PerftGenerator<16, side, kMoved>::generate(board);
-		case 15: return PerftGenerator<15, side, kMoved>::generate(board);
-		case 14: return PerftGenerator<14, side, kMoved>::generate(board);
-		case 13: return PerftGenerator<13, side, kMoved>::generate(board);
-	case 12: return PerftGenerator<12, side, kMoved>::generate(board);
-	case 11: return PerftGenerator<11, side, kMoved>::generate(board);*/
-	case 10: return PerftGenerator<10, side, kMoved>::generate(board);
-	case 9: return PerftGenerator<9, side, kMoved>::generate(board);
-	case 8: return PerftGenerator<8, side, kMoved>::generate(board);
-	case 7: return PerftGenerator<7, side, kMoved>::generate(board);
-	case 6: return PerftGenerator<6, side, kMoved>::generate(board);
-	case 5: return PerftGenerator<5, side, kMoved>::generate(board);
-	case 4: return PerftGenerator<4, side, kMoved>::generate(board);
-	case 3: return PerftGenerator<3, side, kMoved>::generate(board);
-	case 2: return PerftGenerator<2, side, kMoved>::generate(board);
-	default: return PerftGenerator<1, side, kMoved>::generate(board);
 	}
 }
 

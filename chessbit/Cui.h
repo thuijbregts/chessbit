@@ -9,6 +9,10 @@
 using namespace std;
 using namespace game;
 
+namespace batch {
+	struct Batch;
+}
+
 class Cui {
 
 public:
@@ -44,10 +48,8 @@ private:
 	void compareSearch();
 	void toggleTT(vector<string>& cmd);
 
-	U64 generateMoves(int depth);
-	U64 generateMoves(int depth, const BoardState& board);
-	template <bool side, uint8_t kMoved>
-	U64 generateMoves(int depth, const BoardState& board);
+	U64 generateMoves(int depth, batch::Batch* batch = nullptr);
+	U64 generateMoves(int depth, const BoardState& board, batch::Batch* batch = nullptr);
 
 	void iteratePieces(U64 p, U64 n, U64 b, U64 r, U64 q);
 	void pieces();
