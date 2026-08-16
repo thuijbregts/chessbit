@@ -16,7 +16,7 @@ namespace batch {
         uint64_t   keys[MAX];
         int size = 0;
         bool useTT = false;
-        bool perft = false;
+        bool sort = true;
         int depth = 0;
         int ply = 0;
         uint16_t idMove;
@@ -28,7 +28,7 @@ namespace batch {
 
             if (useTT) tt::prefetch(b.zobrist, depth - 1);
 
-            if (!perft) {
+            if (sort) {
                 int32_t score;
                 if (idMove && packMove(b.from, b.to) == idMove) score = ID_MOVE_SCORE;
                 else {

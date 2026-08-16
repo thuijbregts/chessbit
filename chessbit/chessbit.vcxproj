@@ -196,6 +196,7 @@
     <ClInclude Include="Perft.h" />
     <ClInclude Include="See.h" />
     <ClInclude Include="TranspositionTable.h" />
+    <ClInclude Include="Uci.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="Zobrist.h" />
   </ItemGroup>

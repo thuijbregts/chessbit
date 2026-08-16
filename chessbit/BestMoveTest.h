@@ -12,7 +12,7 @@ namespace bmtest {
 
     inline constexpr BestMoveTest TESTS[] = {
         // ---- mate in 1 (unique mating move) ----
-        { "7k/1R6/8/3K1R1p/8/8/P4p2/8 w - - 0 1", "f5f8", 2, 1 },
+        { "7k/1R6/8/3K1R1p/8/8/P4p2/8 w - - 99 1", "f5f8", 2, 1 },
         { "8/2K5/8/1p4p1/5Q2/8/N7/3k1N2 w - - 0 1", "f4d2", 2, 1 },
         { "1R6/1p6/R7/3p1p1K/8/8/2Q5/6k1 w - - 0 1", "a6a1", 2, 1 },
         { "3k4/8/3K4/8/8/6R1/8/5N2 w - - 0 1", "g3g8", 2, 1 },

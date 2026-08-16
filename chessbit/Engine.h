@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <algorithm>
 #include <utility>
+#include <atomic>
 
 namespace engine {
 
@@ -28,6 +29,20 @@ namespace engine {
         void reset() { nodes = leaves = generated = betaCutoffs = firstMoveCutoffs = iirFired = 0; }
     };
 
+    struct StopSearch {};
+    inline std::atomic<bool> stopSearch{ false };
+    inline std::chrono::steady_clock::time_point searchDeadline;
+    inline bool useDeadline = false;
+
+    ForceInline bool checkTime() {
+        if (stopSearch.load(std::memory_order_relaxed)) return true;
+        if (useDeadline && std::chrono::steady_clock::now() >= searchDeadline) {
+            stopSearch.store(true, std::memory_order_relaxed);
+            return true;
+        }
+        return false;
+    }
+
     inline Zobrist repHistory[101 + MAX_PLY];
     inline int repCount;
 
@@ -35,10 +50,12 @@ namespace engine {
     inline SearchStats stats;
     inline int lmrTable[MAX_PLY][256];
 
-    inline void initLmr() {
-        for (int d = 1; d < MAX_PLY; ++d)
-            for (int i = 1; i < 256; ++i)
+    static void initLmr() {
+        for (int d = 1; d < MAX_PLY; ++d) {
+            for (int i = 1; i < 256; ++i) {
                 lmrTable[d][i] = int(0.75 + std::log(d) * std::log(i) * 0.5);
+            }
+        }
     }
     
     ForceInline int valueToTT(int v, int ply) {
@@ -62,8 +79,9 @@ namespace engine {
 
     ForceInline bool isRepetition(const BoardState& board, int ply) {
         int current = repCount + ply;
+        int lower = std::max(0, current - board.halfClock);
 
-        for (int i = current - 2; i >= current - board.halfClock; i -= 2) {
+        for (int i = current - 2; i >= lower; i -= 2) {
             if (repHistory[i] == board.zobrist) return true;
         }
 
@@ -73,6 +91,7 @@ namespace engine {
     template <bool side, uint8_t kMoved>
     static int quiescence(const BoardState& board, int ply, int alpha, int beta) {
         stats.nodes++;
+        if ((stats.nodes & 2047) == 0 && checkTime()) throw StopSearch{};
 
         if (ply >= MAX_PLY - 1) { stats.leaves++; return board.score; }
 
@@ -112,11 +131,11 @@ namespace engine {
             BoardState& m = batch[i];
 
             if (!board.checks) {
-                if (futilityBase + see::SEE_VALUE[m.vctm] <= alpha)
-                    continue;
+                //futility pruning
+                if (futilityBase + see::SEE_VALUE[m.vctm] <= alpha) continue;
 
-                if (!see::seeGE(m, SEE_MARGIN))
-                    continue;
+                //SEE pruning
+                if (!see::seeGE(m, SEE_MARGIN)) continue;
             }
 
             if (m.king) score = -quiescence<!side, kMovedK>(m, ply + 1, -beta, -alpha);
@@ -146,11 +165,13 @@ namespace engine {
 
         if (depth == 0) return quiescence<side, kMoved>(board, ply, alpha, beta);
 
+        //mate distance pruning
         alpha = std::max(alpha, -MATE + ply);
         beta = std::min(beta, MATE - ply - 1);
         if (alpha >= beta) return alpha;
 
         stats.nodes++;
+        if ((stats.nodes & 2047) == 0 && checkTime()) throw StopSearch{};
 
         constexpr uint8_t kMovedK = kMoved | KING_MOVED[side];
         bool doTT = ttEnabled && depth > 1;
@@ -178,10 +199,21 @@ namespace engine {
             }
         }
 
+        bool pvNode = beta - alpha > 1;
+
+        if constexpr (!first) {
+            if (!pvNode && !board.checks) {
+                //Reverse futility pruning
+                if (depth <= RFP_MAX_DEPTH && beta < MATE_IN_MAX && board.score - RFP_MARGIN * depth >= beta) return board.score;
+
+                //Razoring
+                if (board.score + RAZOR_MARGIN + RAZOR_VAR * depth * depth < alpha) return quiescence<side, kMoved>(board, ply, alpha, beta);
+            }
+        }
+
         //Null move pruning
         if constexpr (!null && !first) {
             int nullDepth = depth - NULL_REDUCTION - 1;
-            bool pvNode = beta - alpha > 1;
             if (nullDepth >= 0 && !pvNode && !board.checks && board.score >= beta && BoardState::hasEnoughMaterial(board)) {
                 const BoardState nullBoard = board.makeNull<side>(board);
 
@@ -208,7 +240,7 @@ namespace engine {
         if (batch.size == 0) return board.checks ? -MATE + ply : 0;
 
         BoardState* bestMoveTT = nullptr;
-        int best = -INF, searched = 0, score, bonus = depth * depth;;
+        int best = -INF, searched = 0, score, bonus = depth * depth;
 
         for (int i = 0; i < batch.size; ++i) {
             batch.pick(i);
@@ -216,9 +248,21 @@ namespace engine {
             BoardState& m = batch[i];
 
             const bool quiet = !m.cap && !m.promo;
-            //quiet SEE pruning
+            int& h = history[side][m.from][m.to];
+
             if constexpr (!first) {
-                if (depth <= SEE_PRUNING_MAX_DEPTH && quiet && i > 0 && best > -MATE_IN_MAX && !(board.checks | m.checks) && !see::seeGE(m, SEE_MARGIN_QUIET)) continue;
+                if (quiet && i > 0 && best > -MATE_IN_MAX && !(board.checks | m.checks)) {
+
+                    //Late move pruning with history modulation
+                    if (!pvNode && depth <= LMP_MAX_DEPTH) {
+                        int lmp = LMP_LIMIT[depth] + std::clamp(h / HIST_DIVISOR, -LMP_HIST_CLAMP, LMP_HIST_CLAMP);
+
+                        if (i >= lmp) continue;
+                    }
+
+                    //quiet SEE pruning
+                    if (depth <= SEE_PRUNING_MAX_DEPTH && !see::seeGE(m, SEE_MARGIN_QUIET)) continue;
+                } 
             }
 
             int extension = 0;
@@ -226,17 +270,17 @@ namespace engine {
 
             int newExtensions = extensions + extension;
 
-            if (depth >= 2 && i > 0 && !first) {
+            if (!first && depth >= 2 && i > 0) {
                 const uint16_t pm = packMove(m.from, m.to);
                 int reduction = 0;
                 bool canReduce = quiet && !(board.checks | m.checks) && i >= 3 && best > -MATE_IN_MAX
                     && pm != ttMove && pm != killers[ply][0] && pm != killers[ply][1];//&& pm != counterMove[side][board.atkr][board.to];
                 if (canReduce) {
                     bool pvNode = beta - alpha > 1;
-                    reduction = lmrTable[depth][std::min(i, 255)];
+                    reduction = lmrTable[depth][i];
 
-                    if (!pvNode)              reduction++;
-                    if (history[side][m.from][m.to] < 0) reduction++;
+                    if (!pvNode) reduction++;
+                    if (h < 0)   reduction++;
                     reduction = std::clamp(reduction, 0, depth - 1);
                 }
 
@@ -284,7 +328,6 @@ namespace engine {
                         int& cth = continuationHistory[board.atkr][board.to][m.atkr][m.to];
                         cth += bonus - cth * bonus / HIST_MAX;
 
-                        int& h = history[side][m.from][m.to];
                         h += bonus - h * bonus / HIST_MAX;
                     }
                     else {
@@ -301,8 +344,7 @@ namespace engine {
                     int& cth = continuationHistory[board.atkr][board.to][m.atkr][m.to];
                     cth += -bonus - cth * bonus / HIST_MAX;
 
-                    int& hm = history[side][m.from][m.to];
-                    hm += -bonus - hm * bonus / HIST_MAX;
+                    h += -bonus - h * bonus / HIST_MAX;
                 }
                 else {
                     int& ch = captHistory[side][m.atkr][m.to][m.vctm];
@@ -315,7 +357,7 @@ namespace engine {
 
         if (doTT) {
             const uint8_t bound = (best >= beta) ? tt::BOUND_LOWER : (best > alphaOrig) ? tt::BOUND_EXACT : tt::BOUND_UPPER;
-            int ttMove = packMove(bestMoveTT->from, bestMoveTT->to);
+            uint16_t ttMove = packMove(bestMoveTT->from, bestMoveTT->to);
             tt::write(depth, *ttBucket, board.zobrist, valueToTT(best, ply), bound, ttMove, tt::GENERATION);
         }
 

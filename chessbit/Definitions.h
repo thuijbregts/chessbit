@@ -33,27 +33,41 @@ namespace defs {
 
 	inline bool ttEnabled = false;
 
-	constexpr int MAX_PLY = 64;
-	constexpr int INF = 30000;
-	constexpr int MATE = 29000;
-	constexpr int MATE_IN_MAX = MATE - MAX_PLY;
+	inline constexpr int MAX_PLY = 64;
+	inline constexpr int INF = 30000;
+	inline constexpr int MATE = 29000;
+	inline constexpr int MATE_IN_MAX = MATE - MAX_PLY;
 
-	constexpr int ID_MOVE_SCORE = 2'000'000;
-	constexpr int PROMOTION_BASE = 1'500'000;
-	constexpr int CAPTURE_BASE = 1'000'000;
-	constexpr int TT_MOVE_SCORE = 950'000;
-	constexpr int KILLER_1 = 900'000;
-	constexpr int KILLER_2 = 800'000;
-	constexpr int COUNTER_MOVE_BONUS = 700'000;
-	constexpr int HIST_MAX = 16'384;
-	constexpr int DELTA_MARGIN = 200;
-	constexpr int SEE_MARGIN = -50;
-	constexpr int SEE_MARGIN_QUIET = 0;
+	inline constexpr int ID_MOVE_SCORE = 2'000'000;
+	inline constexpr int PROMOTION_BASE = 1'500'000;
+	inline constexpr int CAPTURE_BASE = 1'000'000;
+	inline constexpr int TT_MOVE_SCORE = 950'000;
+	inline constexpr int KILLER_1 = 900'000;
+	inline constexpr int KILLER_2 = 800'000;
+	inline constexpr int COUNTER_MOVE_BONUS = 700'000;
+	inline constexpr int HIST_MAX = 16'384;
+	inline constexpr int DELTA_MARGIN = 200;
+	inline constexpr int SEE_MARGIN = -50;
+	inline constexpr int SEE_MARGIN_QUIET = 0;
+	inline constexpr int RFP_MAX_DEPTH = 6;
+	inline constexpr int RFP_MARGIN = 90;
+	inline constexpr int RAZOR_MARGIN = 500;
+	inline constexpr int RAZOR_VAR = 240;
+	inline constexpr int LMP_MAX_DEPTH = 6;
+	inline constexpr int LMP_BASE = 3;
+	inline constexpr int LMP_MULT = 1;
+	inline constexpr int HIST_DIVISOR = HIST_MAX / 3;
+	inline constexpr int LMP_HIST_CLAMP = 2;
 
-	constexpr int MAX_EXTENSIONS = 16;
-	constexpr int IIR_MIN_DEPTH = 4;
-	constexpr int SEE_PRUNING_MAX_DEPTH = 3;
-	constexpr int NULL_REDUCTION = 2;
+	inline constexpr int LMP_LIMIT[64] = {
+		3, 4, 7, 12, 19, 28, 39, 52, 67, 84, 103, 124, 147, 172, 199, 228, 259, 292, 327, 364, 403, 444, 487, 532, 579, 628, 679, 732, 787, 844, 903, 964, 1027, 1092, 1159, 1228, 1299, 1372, 1447, 1524, 1603, 1684, 1767, 1852, 1939, 2028, 2119, 2212, 2307, 2404, 2503, 2604, 2707, 2812, 2919, 3028, 3139, 3252, 3367, 3484, 3603, 3724, 3847, 3972 
+	};
+
+
+	inline constexpr int MAX_EXTENSIONS = 16;
+	inline constexpr int IIR_MIN_DEPTH = 4;
+	inline constexpr int SEE_PRUNING_MAX_DEPTH = 3;
+	inline constexpr int NULL_REDUCTION = 2;
 
 	inline uint16_t killers[MAX_PLY][2];
 	inline int      history[2][64][64];
@@ -121,16 +135,16 @@ namespace defs {
 			return high == z.high && low == z.low;
 		}
 
-		constexpr Zobrist operator^(const Zobrist& z) const noexcept {
+		inline constexpr Zobrist operator^(const Zobrist& z) const noexcept {
 			return { high ^ z.high, low ^ z.low };
 		}
 
-		constexpr Zobrist& operator^=(const Zobrist& z) noexcept {
+		inline constexpr Zobrist& operator^=(const Zobrist& z) noexcept {
 			high ^= z.high; low ^= z.low; return *this;
 		}
 	};
 
-	constexpr char ASCII_PIECES[2][7] = { { 'P', 'N', 'B', 'R', 'Q', 'K', '.' }, { 'p', 'n', 'b', 'r', 'q', 'k', '.' } };
+	inline constexpr char ASCII_PIECES[2][7] = { { 'P', 'N', 'B', 'R', 'Q', 'K', '.' }, { 'p', 'n', 'b', 'r', 'q', 'k', '.' } };
 
 	inline constexpr int getPieceForCharacter(char c) {
 		switch (c) {
@@ -162,13 +176,13 @@ namespace defs {
 		return -1;
 	}
 
-	constexpr U64 FULL_BOARD = ~0;
+	inline constexpr U64 FULL_BOARD = ~0;
 
-	constexpr int MAX_DEPTH = 18;
+	inline constexpr int MAX_DEPTH = 18;
 
-	constexpr int PIECE_VALUE[] = { 100, 320, 330, 500, 900, 1000, 0 };
+	inline constexpr int PIECE_VALUE[] = { 100, 320, 330, 500, 900, 1000, 0 };
 
-	constexpr int MVV_LVA[5][6] = {
+	inline constexpr int MVV_LVA[5][6] = {
 	{  1500,  0,  0,  0,   0,   0 },
 	{  5020,  4800,  0,  0,  0,  0 },
 	{  5180,  4960,  4950,  0,  0,  0 },
@@ -176,9 +190,9 @@ namespace defs {
 	{ 14300, 14080, 14070, 13900, 13500, 0 },
 	};
 
-	constexpr int NO_CAPTURE = 6;
+	inline constexpr int NO_CAPTURE = 6;
 
-	constexpr int RANKS[64] = {
+	inline constexpr int RANKS[64] = {
 		8, 8, 8, 8, 8, 8, 8, 8,
 		7, 7, 7, 7, 7, 7, 7, 7,
 		6, 6, 6, 6, 6, 6, 6, 6,
@@ -189,12 +203,12 @@ namespace defs {
 		1, 1, 1, 1, 1, 1, 1, 1
 	};
 
-	constexpr U64 FIRST_COL = 0x101010101010101;
-	constexpr U64 LAST_COL = 0x8080808080808080;
+	inline constexpr U64 FIRST_COL = 0x101010101010101;
+	inline constexpr U64 LAST_COL = 0x8080808080808080;
 
-	constexpr U64 NO_EDGES = 0x007E7E7E7E7E7E00;
+	inline constexpr U64 NO_EDGES = 0x007E7E7E7E7E7E00;
 
-	constexpr U64 NO_EDGES_ROOK[64] = {
+	inline constexpr U64 NO_EDGES_ROOK[64] = {
 		0x017F7F7F7F7F7FFFULL, 0x007E7E7E7E7E7EFFULL, 0x007E7E7E7E7E7EFFULL, 0x007E7E7E7E7E7EFFULL,
 		0x007E7E7E7E7E7EFFULL, 0x007E7E7E7E7E7EFFULL, 0x007E7E7E7E7E7EFFULL, 0x80FEFEFEFEFEFEFFULL,
 		0x017F7F7F7F7F7F01ULL, 0x007E7E7E7E7E7E00ULL, 0x007E7E7E7E7E7E00ULL, 0x007E7E7E7E7E7E00ULL,
@@ -213,7 +227,7 @@ namespace defs {
 		0xFF7E7E7E7E7E7E00ULL, 0xFF7E7E7E7E7E7E00ULL, 0xFF7E7E7E7E7E7E00ULL, 0xFFFEFEFEFEFEFE80ULL
 	};
 
-	constexpr U64 RANK_BIT[64] = {
+	inline constexpr U64 RANK_BIT[64] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff00, 0xff00, 0xff00, 0xff00, 0xff00, 0xff00, 0xff00, 0xff00,
 		0xff0000, 0xff0000, 0xff0000, 0xff0000, 0xff0000, 0xff0000, 0xff0000, 0xff0000,
@@ -224,7 +238,7 @@ namespace defs {
 		0xff00000000000000, 0xff00000000000000, 0xff00000000000000, 0xff00000000000000, 0xff00000000000000, 0xff00000000000000, 0xff00000000000000, 0xff00000000000000
 	};
 
-	constexpr U64 FILE_BIT[64] = {
+	inline constexpr U64 FILE_BIT[64] = {
 		0x0101010101010101ULL, 0x0202020202020202ULL, 0x0404040404040404ULL, 0x0808080808080808ULL,
 		0x1010101010101010ULL, 0x2020202020202020ULL, 0x4040404040404040ULL, 0x8080808080808080ULL,
 
@@ -250,13 +264,13 @@ namespace defs {
 		0x1010101010101010ULL, 0x2020202020202020ULL, 0x4040404040404040ULL, 0x8080808080808080ULL,
 	};
 
-	constexpr U64 EN_PASSANT_RANK[2] = {
+	inline constexpr U64 EN_PASSANT_RANK[2] = {
 		0xff000000, 0xff00000000
 	};
 
-	constexpr U64 FIRST_PUSH_RANK[2] = { 0xff0000000000, 0xff0000 };
+	inline constexpr U64 FIRST_PUSH_RANK[2] = { 0xff0000000000, 0xff0000 };
 
-	constexpr int FILES[65] = {
+	inline constexpr int FILES[65] = {
 		0, 1, 2, 3, 4, 5, 6, 7,
 		0, 1, 2, 3, 4, 5, 6, 7,
 		0, 1, 2, 3, 4, 5, 6, 7,
@@ -268,7 +282,7 @@ namespace defs {
 	};
 
 
-	constexpr bool RANK_7[64] = {
+	inline constexpr bool RANK_7[64] = {
 	   0, 0, 0, 0, 0, 0, 0, 0,
 	   1, 1, 1, 1, 1, 1, 1, 1,
 	   0, 0, 0, 0, 0, 0, 0, 0,
@@ -279,7 +293,7 @@ namespace defs {
 	   0, 0, 0, 0, 0, 0, 0, 0
 	};
 
-	constexpr bool RANK_2[64] = {
+	inline constexpr bool RANK_2[64] = {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -290,7 +304,7 @@ namespace defs {
 		0, 0, 0, 0, 0, 0, 0, 0
 	};
 
-	constexpr bool EDGES[64] = {
+	inline constexpr bool EDGES[64] = {
 		1, 1, 1, 1, 1, 1, 1, 1,
 		1, 0, 0, 0, 0, 0, 0, 1,
 		1, 0, 0, 0, 0, 0, 0, 1,
@@ -301,7 +315,7 @@ namespace defs {
 		1, 1, 1, 1, 1, 1, 1, 1
 	};
 
-	constexpr bool INNER_RANKS[64] = {
+	inline constexpr bool INNER_RANKS[64] = {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1,
@@ -312,7 +326,7 @@ namespace defs {
 		0, 0, 0, 0, 0, 0, 0, 0
 	};
 
-	constexpr bool INNER_FILES[64] = {
+	inline constexpr bool INNER_FILES[64] = {
 		0, 1, 1, 1, 1, 1, 1, 0,
 		0, 1, 1, 1, 1, 1, 1, 0,
 		0, 1, 1, 1, 1, 1, 1, 0,
@@ -324,7 +338,7 @@ namespace defs {
 	};
 
 	//just to move counts, to avoid if "promo"
-	constexpr int RANK_MULTIPLIER[2][64] = {
+	inline constexpr int RANK_MULTIPLIER[2][64] = {
 		{
 			0, 0, 0, 0, 0, 0, 0, 0,
 			4, 4, 4, 4, 4, 4, 4, 4,
@@ -347,7 +361,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int PAWN_ATTACK_COUNT_CHECK[65] = {
+	inline constexpr int PAWN_ATTACK_COUNT_CHECK[65] = {
 		4, 4, 4, 4, 4, 4, 4, 4,
 		1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1,
@@ -358,7 +372,7 @@ namespace defs {
 		4, 4, 4, 4, 4, 4, 4, 4, 0
 	};
 
-	constexpr U64 NULL_MASK[65] = {
+	inline constexpr U64 NULL_MASK[65] = {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -369,22 +383,22 @@ namespace defs {
 		0, 0, 0, 0, 0, 0, 0, 0, FULL_BOARD
 	};
 
-	constexpr int PAWN_PUSH[2] = { -8, 8 };
-	constexpr int PAWN_DOUBLE_PUSH[2] = { -16, 16 };
-	constexpr int PAWN_LEFT[2] = { -9, 7 };
-	constexpr int PAWN_RIGHT[2] = { -7, 9 };
+	inline constexpr int PAWN_PUSH[2] = { -8, 8 };
+	inline constexpr int PAWN_DOUBLE_PUSH[2] = { -16, 16 };
+	inline constexpr int PAWN_LEFT[2] = { -9, 7 };
+	inline constexpr int PAWN_RIGHT[2] = { -7, 9 };
 	const bool* const PROMO_RANK[2] = { RANK_7, RANK_2 };
 	const bool* const DOUBLE_PUSH_RANK[2] = { RANK_2, RANK_7 };
 
-	constexpr bool CAPTURE_ONLY[] = { true, true, false, false, false, false };
+	inline constexpr bool CAPTURE_ONLY[] = { true, true, false, false, false, false };
 
-	constexpr uint8_t KING_MOVED[] = { 1, 2, 3 };
+	inline constexpr uint8_t KING_MOVED[] = { 1, 2, 3 };
 
-	constexpr int CASTLE_K = 0;
-	constexpr int CASTLE_Q = 1;
+	inline constexpr int CASTLE_K = 0;
+	inline constexpr int CASTLE_Q = 1;
 
-	constexpr int NO_CASTLE[2] = { bk | bq, wk | wq };
-	constexpr int NO_CASTLE_ROOK[64] = {
+	inline constexpr int NO_CASTLE[2] = { bk | bq, wk | wq };
+	inline constexpr int NO_CASTLE_ROOK[64] = {
 		7, 15, 15, 15, 15, 15, 15, 11,
 		15, 15, 15, 15, 15, 15, 15, 15,
 		15, 15, 15, 15, 15, 15, 15, 15,
@@ -395,62 +409,62 @@ namespace defs {
 		13, 15, 15, 15, 15, 15, 15, 14
 	};
 
-	constexpr U64 CASTLE_ROOK_INITIAL[2][2] = { { 0x8000000000000000, 0x100000000000000 }, { 0x80, 0x1 } };
+	inline constexpr U64 CASTLE_ROOK_INITIAL[2][2] = { { 0x8000000000000000, 0x100000000000000 }, { 0x80, 0x1 } };
 
-	constexpr U64 ROOKS_INITIAL[4] = { CASTLE_ROOK_INITIAL[white][0], CASTLE_ROOK_INITIAL[white][1], CASTLE_ROOK_INITIAL[black][0], CASTLE_ROOK_INITIAL[black][1] };
+	inline constexpr U64 ROOKS_INITIAL[4] = { CASTLE_ROOK_INITIAL[white][0], CASTLE_ROOK_INITIAL[white][1], CASTLE_ROOK_INITIAL[black][0], CASTLE_ROOK_INITIAL[black][1] };
 
-	constexpr int CASTLE_ROOK_KING[2] = { h1, h8 };
+	inline constexpr int CASTLE_ROOK_KING[2] = { h1, h8 };
 
-	constexpr int CASTLE_ROOK_QUEEN[2] = { a1, a8 };
+	inline constexpr int CASTLE_ROOK_QUEEN[2] = { a1, a8 };
 
-	constexpr U64 PROMO_RANKS[2] = {
+	inline constexpr U64 PROMO_RANKS[2] = {
 		65280ULL, 71776119061217280ULL
 	};
 
-	constexpr U64 FIRST_RANKS[2] = {
+	inline constexpr U64 FIRST_RANKS[2] = {
 		71776119061217280ULL, 65280ULL
 	};
 
-	constexpr U64 LAST_RANK[2] = {
+	inline constexpr U64 LAST_RANK[2] = {
 		0xff, 0xff00000000000000
 	};
 
-	constexpr U64 LAST_RANKS = { 0xff | 0xff00000000000000 };
+	inline constexpr U64 LAST_RANKS = { 0xff | 0xff00000000000000 };
 
-	constexpr U64 MIDDLE_RANKS = 0xffffffff0000;
+	inline constexpr U64 MIDDLE_RANKS = 0xffffffff0000;
 
-	constexpr int CASTLING_SIDE_K[2] = { 0, 2 };
+	inline constexpr int CASTLING_SIDE_K[2] = { 0, 2 };
 
-	constexpr int CASTLING_SIDE_Q[2] = { 1, 3 };
+	inline constexpr int CASTLING_SIDE_Q[2] = { 1, 3 };
 
-	constexpr int CASTLING_BIT_K[2] = { 1, 4 };
+	inline constexpr int CASTLING_BIT_K[2] = { 1, 4 };
 
-	constexpr int CASTLING_BIT_Q[2] = { 2, 8 };
+	inline constexpr int CASTLING_BIT_Q[2] = { 2, 8 };
 
-	constexpr U64 CASTLING_PROMO_BIT[2] = {
+	inline constexpr U64 CASTLING_PROMO_BIT[2] = {
 		(1ULL << a2), (1ULL << a7)
 	};
 
-	constexpr U64 CASTLING_OCCUPIED_SQUARES[4] = {
+	inline constexpr U64 CASTLING_OCCUPIED_SQUARES[4] = {
 		6917529027641081856ULL, 1008806316530991104ULL,
 		96ULL, 14ULL
 	};
 
 	//test with rook square also in
-	/*constexpr U64 CASTLING_OCCUPIED_SQUARES[4] = {
+	/*inline constexpr U64 CASTLING_OCCUPIED_SQUARES[4] = {
 		0xe000000000000000, 0xf00000000000000,
 		0xe0, 0xf
 	};*/
 
-	constexpr int CASTLING_ATTACK_SQUARES[4][2] = {
+	inline constexpr int CASTLING_ATTACK_SQUARES[4][2] = {
 		{ f1, g1 }, { c1, d1 }, { f8, g8 }, { c8, d8 }
 	};
 
-	constexpr U64 CASTLING_PASSING_SQUARES[4] = {
+	inline constexpr U64 CASTLING_PASSING_SQUARES[4] = {
 		0x6000000000000000, 0xc00000000000000, 0x60, 0xc
 	};
 
-	constexpr U64 CASTLING_PASSING_SQUARES_NULL[2][16] = {
+	inline constexpr U64 CASTLING_PASSING_SQUARES_NULL[2][16] = {
 		{
 			0x0ULL,                          // 0000
 			0x6000000000000000ULL,           // 0001
@@ -489,107 +503,107 @@ namespace defs {
 		}
 	};
 
-	constexpr int CASTLING[4] = {
+	inline constexpr int CASTLING[4] = {
 		wk, wq,
 		bk, bq
 	};
 
-	constexpr int CASTLING_KING[2] = {
+	inline constexpr int CASTLING_KING[2] = {
 		wk, bk
 	};
 
-	constexpr int CASTLING_QUEEN[2] = {
+	inline constexpr int CASTLING_QUEEN[2] = {
 		wq, bq
 	};
 
-	constexpr U64 CASTLING_ROOK_KING[2] = {
+	inline constexpr U64 CASTLING_ROOK_KING[2] = {
 		0x8000000000000000, 0x80
 	};
 
-	constexpr U64 CASTLING_ROOK_QUEEN[2] = {
+	inline constexpr U64 CASTLING_ROOK_QUEEN[2] = {
 		0x100000000000000, 0x1
 	};
 
-	constexpr U64 CASTLING_ROOK[4] = {
+	inline constexpr U64 CASTLING_ROOK[4] = {
 		0x8000000000000000, 0x100000000000000,
 		0x80, 0x1
 	};
 
-	constexpr int NO_CASTLE_ROOK_KING[2] = {
+	inline constexpr int NO_CASTLE_ROOK_KING[2] = {
 		14, 11
 	};
 
-	constexpr int NO_CASTLE_ROOK_QUEEN[2] = {
+	inline constexpr int NO_CASTLE_ROOK_QUEEN[2] = {
 		13, 7
 	};
 
-	constexpr int CASTLING_BOTH[2] = { wk | wq, bk | bq };
+	inline constexpr int CASTLING_BOTH[2] = { wk | wq, bk | bq };
 
-	constexpr int KING_SOURCE_SQUARE[2] = {
+	inline constexpr int KING_SOURCE_SQUARE[2] = {
 		e1, e8
 	};
 
-	constexpr int CASTLING_KING_SOURCE_SQUARE[4] = {
+	inline constexpr int CASTLING_KING_SOURCE_SQUARE[4] = {
 		e1, e1,
 		e8, e8
 	};
 
-	constexpr int CASTLING_ROOK_SOURCE_SQUARE[4] = {
+	inline constexpr int CASTLING_ROOK_SOURCE_SQUARE[4] = {
 		h1, a1,
 		h8, a8
 	};
 
-	constexpr int CASTLING_KING_TARGET_SQUARE[4] = {
+	inline constexpr int CASTLING_KING_TARGET_SQUARE[4] = {
 		g1, c1,
 		g8, c8
 	};
 
-	constexpr int CASTLING_ROOK_TARGET_SQUARE[4] = {
+	inline constexpr int CASTLING_ROOK_TARGET_SQUARE[4] = {
 		f1, d1,
 		f8, d8
 	};
 
-	constexpr int CASTLING_SIDE[4] = {
+	inline constexpr int CASTLING_SIDE[4] = {
 		white, white,
 		black, black
 	};
 
 	//squares where the enemy pieces can't be in order to castle
 	//for white: king castle: e2, g2  queen castle: c2, e2
-	constexpr U64 CASTLING_FORBIDDEN_SQUARES[4] = {
+	inline constexpr U64 CASTLING_FORBIDDEN_SQUARES[4] = {
 		0xf0000000000000, 0x1e000000000000,
 		0xf000, 0x1e00
 	};
 
 	//square where the enemy pieces can't be in order to castle, except the knight
 	//for white: king castle: f2  queen castle: d2
-	constexpr U64 CASTLING_FORBIDDEN_SQUARE_EXCEPT_KNIGHT[4] = {
+	inline constexpr U64 CASTLING_FORBIDDEN_SQUARE_EXCEPT_KNIGHT[4] = {
 		9007199254740992ULL, 2251799813685248ULL,
 		8192ULL, 2048ULL
 	};
 	//square where the enemy pieces can't be in order to castle, except the rook
 	//for white: king castle: h2  queen castle: b2
-	constexpr U64 CASTLING_FORBIDDEN_SQUARE_EXCEPT_ROOK[4] = {
+	inline constexpr U64 CASTLING_FORBIDDEN_SQUARE_EXCEPT_ROOK[4] = {
 		36028797018963968ULL, 562949953421312ULL,
 		32768ULL, 512ULL
 	};
 	//squares where the knights can't be in order to castle
-	/*constexpr U64 CASTLING_FORBIDDEN_KNIGHT_SQUARES[4] = {
+	/*inline constexpr U64 CASTLING_FORBIDDEN_KNIGHT_SQUARES[4] = {
 		43048079250685952ULL, 14388209161076736ULL,
 		15767552ULL, 1979136ULL
 	};*/
 
-	constexpr U64 CASTLING_FORBIDDEN_KNIGHT_SQUARES[4] = {
+	inline constexpr U64 CASTLING_FORBIDDEN_KNIGHT_SQUARES[4] = {
 		0x98f00000000000, 0x331e0000000000,
 		0xf09800, 0x1e3300
 	};
 
 	//for null move; square that needs to be considered because attacking castle passing square
-	constexpr U64 CASTLE_NULL_BIT[2] = {
+	inline constexpr U64 CASTLE_NULL_BIT[2] = {
 		(1ULL << b2), (1ULL << b7)
 	};
 
-	constexpr int NULL_KING_COEFF[65] = {
+	inline constexpr int NULL_KING_COEFF[65] = {
 		4,4,4,4,4,4,4,4,
 		1,1,1,1,1,1,1,1,
 		1,1,1,1,1,1,1,1,
@@ -600,7 +614,7 @@ namespace defs {
 		4,4,4,4,4,4,4,4, 0
 	};
 
-	constexpr int CASTLE_ROOK_FROM[64] = {
+	inline constexpr int CASTLE_ROOK_FROM[64] = {
 		0,0,0,0,0,0,7,0,
 		0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,
@@ -611,7 +625,7 @@ namespace defs {
 		0,0,56,0,0,0,63,0
 	};
 
-	constexpr int CASTLE_ROOK_TO[64] = {
+	inline constexpr int CASTLE_ROOK_TO[64] = {
 		0,0,3,0,0,0,5,0,
 		0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,
@@ -622,7 +636,7 @@ namespace defs {
 		0,0,59,0,0,0,61,0
 	};
 
-	constexpr int EN_PASSANT_SQUARES[64][64] = {
+	inline constexpr int EN_PASSANT_SQUARES[64][64] = {
 		{noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,},
 		{noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,},
 		{noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,noSquare,},
@@ -700,7 +714,7 @@ namespace defs {
 		"a1","b1","c1","d1","e1","f1","g1","h1", "no"
 	};
 
-	constexpr int ROOK_OCCUPANCY_BITS[64] = {
+	inline constexpr int ROOK_OCCUPANCY_BITS[64] = {
 		12, 11, 11, 11, 11, 11, 11, 12,
 		11, 10, 10, 10, 10, 10, 10, 11,
 		11, 10, 10, 10, 10, 10, 10, 11,
@@ -711,7 +725,7 @@ namespace defs {
 		12, 11, 11, 11, 11, 11, 11, 12
 	};
 
-	constexpr int BISHOP_OCCUPANCY_BITS[64] = {
+	inline constexpr int BISHOP_OCCUPANCY_BITS[64] = {
 		6, 5, 5, 5, 5, 5, 5, 6,
 		5, 5, 5, 5, 5, 5, 5, 5,
 		5, 5, 7, 7, 7, 7, 5, 5,
@@ -722,7 +736,7 @@ namespace defs {
 		6, 5, 5, 5, 5, 5, 5, 6
 	};
 
-	constexpr int ROOK_SHIFT[64] = {
+	inline constexpr int ROOK_SHIFT[64] = {
 		52, 53, 53, 53, 53, 53, 53, 52,
 		53, 54, 54, 54, 54, 54, 54, 53,
 		53, 54, 54, 54, 54, 54, 54, 53,
@@ -733,7 +747,7 @@ namespace defs {
 		52, 53, 53, 53, 53, 53, 53, 52
 	};
 
-	constexpr int BISHOP_SHIFT[64] = {
+	inline constexpr int BISHOP_SHIFT[64] = {
 		58, 59, 59, 59, 59, 59, 59, 58,
 		59, 59, 59, 59, 59, 59, 59, 59,
 		59, 59, 57, 57, 57, 57, 59, 59,
@@ -744,7 +758,7 @@ namespace defs {
 		58, 59, 59, 59, 59, 59, 59, 58
 	};
 
-	constexpr int PAWN_OCCUPANCY_BITS[2][64] = {
+	inline constexpr int PAWN_OCCUPANCY_BITS[2][64] = {
 		{
 			0, 0, 0, 0, 0, 0, 0, 0,
 			2, 3, 3, 3, 3, 3, 3, 2,
@@ -767,7 +781,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int PAWN_SHIFT[2][64] = {
+	inline constexpr int PAWN_SHIFT[2][64] = {
 		{
 			0, 0, 0, 0, 0, 0, 0, 0,
 			62, 61, 61, 61, 61, 61, 61, 62,
@@ -790,7 +804,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int KING_ATTACKS_BIT_SHIFTS[64] = {
+	inline constexpr int KING_ATTACKS_BIT_SHIFTS[64] = {
 		0,  0,  1,  2,  3,  4,  5,  6,
 		0,  0,  1,  2,  3,  4,  5,  6,
 		8,  8,  9,  10, 11, 12, 13, 14,
@@ -801,7 +815,7 @@ namespace defs {
 		48, 48, 49, 50, 51, 52, 53, 54
 	};
 
-	constexpr U64 SQUARE_BITS[65] = {
+	inline constexpr U64 SQUARE_BITS[65] = {
 		0x1ULL,0x2ULL,0x4ULL,0x8ULL,0x10ULL,0x20ULL,0x40ULL,0x80ULL,
 		0x100ULL,0x200ULL,0x400ULL,0x800ULL,0x1000ULL,0x2000ULL,0x4000ULL,0x8000ULL,
 		0x10000ULL,0x20000ULL,0x40000ULL,0x80000ULL,0x100000ULL,0x200000ULL,0x400000ULL,0x800000ULL,
@@ -812,7 +826,7 @@ namespace defs {
 		0x100000000000000ULL,0x200000000000000ULL,0x400000000000000ULL,0x800000000000000ULL,0x1000000000000000ULL,0x2000000000000000ULL,0x4000000000000000ULL,0x8000000000000000ULL,0x0ULL
 	};
 
-	constexpr U64 KING_ATTACKS[] = {
+	inline constexpr U64 KING_ATTACKS[] = {
 		0x0000000000000302, 0x0000000000000705, 0x0000000000000E0A, 0x0000000000001C14, 0x0000000000003828, 0x0000000000007050, 0x000000000000E0A0, 0x000000000000C040,
 		0x0000000000030203, 0x0000000000070507, 0x00000000000E0A0E, 0x00000000001C141C, 0x0000000000382838, 0x0000000000705070, 0x0000000000E0A0E0, 0x0000000000C040C0,
 		0x0000000003020300, 0x0000000007050700, 0x000000000E0A0E00, 0x000000001C141C00, 0x0000000038283800, 0x0000000070507000, 0x00000000E0A0E000, 0x00000000C040C000,
@@ -823,7 +837,7 @@ namespace defs {
 		0x0203000000000000, 0x0507000000000000, 0x0A0E000000000000, 0x141C000000000000, 0x2838000000000000, 0x5070000000000000, 0xA0E0000000000000, 0x40C0000000000000,
 	};
 
-	constexpr U64 KING_ZONES[64] = {
+	inline constexpr U64 KING_ZONES[64] = {
 		0x70404,0xf0808,0x1f1111,0x3e2222,0x7c4444,0xf88888,0xf01010,0xe02020,
 		0x7040404,0xf080808,0x1f111111,0x3e222222,0x7c444444,0xf8888888,0xf0101010,0xe0202020,
 		0x704040407,0xf0808080f,0x1f1111111f,0x3e2222223e,0x7c4444447c,0xf8888888f8,0xf0101010f0,0xe0202020e0,
@@ -834,7 +848,7 @@ namespace defs {
 		0x8080f0000000000,0x11111f0000000000,0x22223e0000000000,0x44447c0000000000,0x8888f80000000000,0x1010f00000000000,0x2020e00000000000
 	};
 
-	constexpr U64 KNIGHT_ATTACKS[] = {
+	inline constexpr U64 KNIGHT_ATTACKS[] = {
 		0x0000000000020400, 0x0000000000050800, 0x00000000000A1100, 0x0000000000142200, 0x0000000000284400, 0x0000000000508800, 0x0000000000A01000, 0x0000000000402000,
 		0x0000000002040004, 0x0000000005080008, 0x000000000A110011, 0x0000000014220022, 0x0000000028440044, 0x0000000050880088, 0x00000000A0100010, 0x0000000040200020,
 		0x0000000204000402, 0x0000000508000805, 0x0000000A1100110A, 0x0000001422002214, 0x0000002844004428, 0x0000005088008850, 0x000000A0100010A0, 0x0000004020002040,
@@ -845,17 +859,17 @@ namespace defs {
 		0x0004020000000000, 0x0008050000000000, 0x00110A0000000000, 0x0022140000000000, 0x0044280000000000, 0x0088500000000000, 0x0010A00000000000, 0x0020400000000000,
 	};
 
-	constexpr U64 CASTLE_MASKS_BISHOP[4] = {
+	inline constexpr U64 CASTLE_MASKS_BISHOP[4] = {
 		0xf0980c06030100, 0x1e3361c0800000,
 		0x103060c98f000, 0x80c061331e00
 	};
 
-	constexpr U64 CASTLE_MASKS_ROOK[4] = {
+	inline constexpr U64 CASTLE_MASKS_ROOK[4] = {
 		0x60606060606060, 0xc0c0c0c0c0c0c,
 		0x6060606060606000, 0xc0c0c0c0c0c0c00
 	};
 
-	constexpr int PAWN_OFFSETS[128] = {
+	inline constexpr int PAWN_OFFSETS[128] = {
 		0,0,0,0,0,0,0,0,
 		0,4,12,20,28,36,44,52,
 		56,60,68,76,84,92,100,108,
@@ -874,7 +888,7 @@ namespace defs {
 		0,0,0,0,0,0,0,0
 	};
 
-	constexpr int PAWN_OFFSETS1[2][64] = {
+	inline constexpr int PAWN_OFFSETS1[2][64] = {
 		{
 			0,0,0,0,0,0,0,0,
 			0,4,12,20,28,36,44,52,
@@ -897,7 +911,7 @@ namespace defs {
 		}
 	};
 
-	constexpr U64 PAWN_MASKS[128] = {
+	inline constexpr U64 PAWN_MASKS[128] = {
 		0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,
 		0x3ULL,0x7ULL,0xeULL,0x1cULL,0x38ULL,0x70ULL,0xe0ULL,0xc0ULL,
 		0x300ULL,0x700ULL,0xe00ULL,0x1c00ULL,0x3800ULL,0x7000ULL,0xe000ULL,0xc000ULL,
@@ -916,7 +930,7 @@ namespace defs {
 		0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL
 	};
 
-	constexpr U64 PAWN_MASKS1[2][64] = {
+	inline constexpr U64 PAWN_MASKS1[2][64] = {
 		{
 			0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,
 			0x3ULL,0x7ULL,0xeULL,0x1cULL,0x38ULL,0x70ULL,0xe0ULL,0xc0ULL,
@@ -939,7 +953,7 @@ namespace defs {
 		}
 	};
 
-	constexpr U64 PAWN_FRONT_MASKS[2][64] = {
+	inline constexpr U64 PAWN_FRONT_MASKS[2][64] = {
 		{
 			0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,0x0ULL,
 			0x1ULL,0x2ULL,0x4ULL,0x8ULL,0x10ULL,0x20ULL,0x40ULL,0x80ULL,
@@ -962,7 +976,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int PAWN_MG[2][64] = {
+	inline constexpr int PAWN_MG[2][64] = {
 	{
 		   82,    82,    82,    82,    82,    82,    82,    82,
 		  180,   216,   143,   177,   150,   208,   116,    71,
@@ -985,7 +999,7 @@ namespace defs {
 	}
 	};
 
-	constexpr int PAWN_EG[2][64] = {
+	inline constexpr int PAWN_EG[2][64] = {
 		{
 			   94,    94,    94,    94,    94,    94,    94,    94,
 			  272,   267,   252,   228,   241,   226,   259,   281,
@@ -1008,7 +1022,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int KNIGHT_MG[2][64] = {
+	inline constexpr int KNIGHT_MG[2][64] = {
 		{
 			  170,   248,   303,   288,   398,   240,   322,   230,
 			  264,   296,   409,   373,   360,   399,   344,   320,
@@ -1031,7 +1045,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int KNIGHT_EG[2][64] = {
+	inline constexpr int KNIGHT_EG[2][64] = {
 		{
 			  223,   243,   268,   253,   250,   254,   218,   182,
 			  256,   273,   256,   279,   272,   256,   257,   229,
@@ -1054,7 +1068,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int BISHOP_MG[2][64] = {
+	inline constexpr int BISHOP_MG[2][64] = {
 		{
 			  336,   369,   283,   328,   340,   323,   372,   357,
 			  339,   381,   347,   352,   395,   424,   383,   318,
@@ -1077,7 +1091,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int BISHOP_EG[2][64] = {
+	inline constexpr int BISHOP_EG[2][64] = {
 		{
 			  283,   276,   286,   289,   290,   288,   280,   273,
 			  289,   293,   304,   285,   294,   284,   293,   283,
@@ -1100,7 +1114,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int ROOK_MG[2][64] = {
+	inline constexpr int ROOK_MG[2][64] = {
 		{
 			  509,   519,   509,   528,   540,   486,   508,   520,
 			  504,   509,   535,   539,   557,   544,   503,   521,
@@ -1123,7 +1137,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int ROOK_EG[2][64] = {
+	inline constexpr int ROOK_EG[2][64] = {
 		{
 			  525,   522,   530,   527,   524,   524,   520,   517,
 			  523,   525,   525,   523,   509,   515,   520,   515,
@@ -1146,7 +1160,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int QUEEN_MG[2][64] = {
+	inline constexpr int QUEEN_MG[2][64] = {
 		{
 			  997,  1025,  1054,  1037,  1084,  1069,  1068,  1070,
 			 1001,   986,  1020,  1026,  1009,  1082,  1053,  1079,
@@ -1169,7 +1183,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int QUEEN_EG[2][64] = {
+	inline constexpr int QUEEN_EG[2][64] = {
 		{
 			  927,   958,   958,   963,   963,   955,   946,   956,
 			  919,   956,   968,   977,   994,   961,   966,   936,
@@ -1192,7 +1206,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int KING_MG[2][64] = {
+	inline constexpr int KING_MG[2][64] = {
 		{
 			  -65,    23,    16,   -15,   -56,   -34,     2,    13,
 			   29,    -1,   -20,    -7,    -8,    -4,   -38,   -29,
@@ -1215,7 +1229,7 @@ namespace defs {
 		}
 	};
 
-	constexpr int KING_EG[2][64] = {
+	inline constexpr int KING_EG[2][64] = {
 		{
 			  -74,   -35,   -18,   -18,   -11,    15,     4,   -17,
 			  -12,    17,    14,    17,    17,    38,    23,    11,
@@ -1243,11 +1257,11 @@ namespace defs {
 		const U64* AttackPtr;
 		const U64 Mask;
 
-		constexpr RookAttack(int offset, U64 mask) : AttackPtr(ROOK_ATTACKS + offset), Mask(mask) {
+		inline constexpr RookAttack(int offset, U64 mask) : AttackPtr(ROOK_ATTACKS + offset), Mask(mask) {
 
 		}
 
-		__forceinline constexpr U64 operator[](const U64 blocker) const
+		__forceinline inline constexpr U64 operator[](const U64 blocker) const
 		{
 			return AttackPtr[_pext_u64(blocker, Mask)];
 		}
@@ -1258,11 +1272,11 @@ namespace defs {
 		const U64* AttackPtr;
 		const U64 Mask;
 
-		constexpr BishopAttack(int offset, U64 mask) : AttackPtr(BISHOP_ATTACKS + offset), Mask(mask) {
+		inline constexpr BishopAttack(int offset, U64 mask) : AttackPtr(BISHOP_ATTACKS + offset), Mask(mask) {
 
 		}
 
-		__forceinline constexpr U64 operator[](const U64 blocker) const
+		__forceinline inline constexpr U64 operator[](const U64 blocker) const
 		{
 			return AttackPtr[_pext_u64(blocker, Mask)];
 		}
