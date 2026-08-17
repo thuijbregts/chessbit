@@ -158,9 +158,15 @@ namespace engine {
         if (ply >= MAX_PLY - 1) return board.score;
 
         if constexpr (!first) {
-            repHistory[repCount + ply] = board.zobrist;
+            if (isRepetition(board, ply)) return 0;
 
-            if (board.halfClock >= 100 || isRepetition(board, ply)) return 0;
+            if (board.halfClock >= 100) {
+                if (!board.checks) return 0;
+
+                return movegen::generate<true, side, kMoved>(board) ? 0 : (-MATE + ply);
+            }
+
+            repHistory[repCount + ply] = board.zobrist;
         }
 
         if (depth == 0) return quiescence<side, kMoved>(board, ply, alpha, beta);
@@ -249,6 +255,8 @@ namespace engine {
 
             const bool quiet = !m.cap && !m.promo;
             int& h = history[side][m.from][m.to];
+            int& ch = captHistory[side][m.atkr][m.to][m.vctm];
+            int& cth = continuationHistory[board.atkr][board.to][m.atkr][m.to];
 
             if constexpr (!first) {
                 if (quiet && i > 0 && best > -MATE_IN_MAX && !(board.checks | m.checks)) {
@@ -283,8 +291,7 @@ namespace engine {
                     reduction = std::clamp(reduction, 0, depth - 1);
                 }
 
-                const int newDepth = depth - 1 + extension;
-                const int reducedDepth = std::max(newDepth - reduction, 0);
+                const int reducedDepth = depth - 1 - reduction;
 
                 if (m.king) score = -alphaBeta<false, !side, kMovedK>(reducedDepth, m, ply + 1, -alpha - 1, -alpha, newExtensions);
                 else        score = -alphaBeta<false, !side, kMoved>(reducedDepth, m, ply + 1, -alpha - 1, -alpha, newExtensions);
@@ -324,14 +331,11 @@ namespace engine {
                             killers[ply][1] = killers[ply][0];
                             killers[ply][0] = pm;
                         }
-        
-                        int& cth = continuationHistory[board.atkr][board.to][m.atkr][m.to];
-                        cth += bonus - cth * bonus / HIST_MAX;
 
+                        cth += bonus - cth * bonus / HIST_MAX;
                         h += bonus - h * bonus / HIST_MAX;
                     }
                     else {
-                        int& ch = captHistory[side][m.atkr][m.to][m.vctm];
                         ch += bonus - ch * bonus / HIST_MAX;
                     }
                     break;
@@ -341,13 +345,10 @@ namespace engine {
             if (score > alpha) alpha = score;
             else if constexpr (!first) {
                 if (quiet) {
-                    int& cth = continuationHistory[board.atkr][board.to][m.atkr][m.to];
                     cth += -bonus - cth * bonus / HIST_MAX;
-
                     h += -bonus - h * bonus / HIST_MAX;
                 }
                 else {
-                    int& ch = captHistory[side][m.atkr][m.to][m.vctm];
                     ch += -bonus - ch * bonus / HIST_MAX;
                 }
             }
