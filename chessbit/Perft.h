@@ -15,7 +15,7 @@ namespace perft {
         batch.sort = false;
         if (depth <= 1) return movegen::generate<true, side, kMoved>(board);
 
-        movegen::generate<false, side, kMoved>(board, &batch);
+        movegen::generate<false, side, kMoved>(board, 0, &batch);
 
         for (int i = 0; i < batch.size; ++i) {
             if (batch.moves[i].king)    nodes += iterateBatch<!side, kMovedK>(depth - 1, batch.moves[i]);

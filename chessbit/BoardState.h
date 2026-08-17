@@ -4,14 +4,12 @@
 #include "Definitions.h"
 #include "Eval.h"
 #include "Zobrist.h"
+#include "Nnue.h"
 
 using namespace defs;
 using namespace eval;
 using namespace zobrist;
-
-namespace moveinfo {
-    struct MoveInfo;
-}
+using namespace nnue;
 
 namespace bstate {
     struct BoardState {
@@ -87,7 +85,7 @@ namespace bstate {
         }
 
         template <Piece piece, bool side, bool capture, uint8_t kMoved>
-        ForceInline BoardState make(int from, int to, const BoardState& board, U64 discovers) noexcept {
+        ForceInline BoardState make(int from, int to, const BoardState& board, U64 discovers, int ply) noexcept {
             constexpr bool kMMoved = kMoved & KING_MOVED[side];
             constexpr bool kEMoved = kMoved & KING_MOVED[!side];
 
@@ -146,6 +144,10 @@ namespace bstate {
                 if constexpr (!kMMoved) casPerms &= NO_CASTLE[side];
             }
 
+            Accumulator& a = accumulators[ply + 1] = accumulators[ply];
+            if constexpr (piece != Piece::King) nnue::movePiece<piece, side>(a, from, to, board.kMS);
+            else                                nnue::refresh<side>(a, pM, nM, bM, rM, qM, to);
+
             int score, mg = board.mg, eg = board.eg;
             int8_t phase = board.phase, v = NO_CAPTURE;
             Zobrist zobrist;
@@ -156,18 +158,21 @@ namespace bstate {
                 if (pE & t) {
                     pE ^= t;
                     score = eval::update<piece, Piece::Pawn, side>(from, to, mg, eg, phase);
+                    nnue::removePiece<Piece::Pawn, !side>(a, to, board.kMS);
                     zobrist = zobrist::basic<piece, side, Piece::Pawn>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
                     v = p;
                 }
                 else if (nE & t) {
                     nE ^= t;
                     score = eval::update<piece, Piece::Knight, side>(from, to, mg, eg, phase);
+                    nnue::removePiece<Piece::Knight, !side>(a, to, board.kMS);
                     zobrist = zobrist::basic<piece, side, Piece::Knight>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
                     v = n;
                 }
                 else if (bE & t) {
                     bE ^= t;
                     score = eval::update<piece, Piece::Bishop, side>(from, to, mg, eg, phase);
+                    nnue::removePiece<Piece::Bishop, !side>(a, to, board.kMS);
                     zobrist = zobrist::basic<piece, side, Piece::Bishop>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
                     v = b;
                 }
@@ -176,12 +181,14 @@ namespace bstate {
 
                     rE ^= t;
                     score = eval::update<piece, Piece::Rook, side>(from, to, mg, eg, phase);
+                    nnue::removePiece<Piece::Rook, !side>(a, to, board.kMS);
                     zobrist = zobrist::basic<piece, side, Piece::Rook>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
                     v = r;
                 }
                 else {
                     qE ^= t;
                     score = eval::update<piece, Piece::Queen, side>(from, to, mg, eg, phase);
+                    nnue::removePiece<Piece::Queen, !side>(a, to, board.kMS);
                     zobrist = zobrist::basic<piece, side, Piece::Queen>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
                     v = q;
                 }
@@ -203,8 +210,12 @@ namespace bstate {
         }
 
         template <Piece piece, bool side, bool capture, uint8_t kMoved>
-        ForceInline BoardState makePromotion(int from, int to, const BoardState& board, U64 discovers) noexcept {
+        ForceInline BoardState makePromotion(int from, int to, const BoardState& board, U64 discovers, int ply) noexcept {
             constexpr bool kEMoved = kMoved & KING_MOVED[!side];
+
+            Accumulator& a = accumulators[ply + 1] = accumulators[ply];
+            nnue::addPiece<piece, side>(a, to, board.kMS);
+            nnue::removePiece<Piece::Pawn, side>(a, from, board.kMS);
 
             const U64 f = (1ULL << from);
             const U64 t = (1ULL << to);
@@ -255,12 +266,14 @@ namespace bstate {
                 if (nE & t) {
                     nE ^= t;
                     score = eval::updatePromotion<piece, Piece::Knight, side>(from, to, mg, eg, phase);
+                    nnue::removePiece<Piece::Knight, !side>(a, to, board.kMS);
                     zobrist = zobrist::promotion<piece, side, Piece::Knight>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
                     v = n;
                 }
                 else if (bE & t) {
                     bE ^= t;
                     score = eval::updatePromotion<piece, Piece::Bishop, side>(from, to, mg, eg, phase);
+                    nnue::removePiece<Piece::Bishop, !side>(a, to, board.kMS);
                     zobrist = zobrist::promotion<piece, side, Piece::Bishop>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
                     v = b;
                 }
@@ -269,12 +282,14 @@ namespace bstate {
 
                     rE ^= t;
                     score = eval::updatePromotion<piece, Piece::Rook, side>(from, to, mg, eg, phase);
+                    nnue::removePiece<Piece::Rook, !side>(a, to, board.kMS);
                     zobrist = zobrist::promotion<piece, side, Piece::Rook>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
                     v = r;
                 }
                 else {
                     qE ^= t;
                     score = eval::updatePromotion<piece, Piece::Queen, side>(from, to, mg, eg, phase);
+                    nnue::removePiece<Piece::Queen, !side>(a, to, board.kMS);
                     zobrist = zobrist::promotion<piece, side, Piece::Queen>(from, to, casPerms, board.casPerms, board.eP, board.zobrist);
                     v = q;
                 }
@@ -290,7 +305,10 @@ namespace bstate {
         }
 
         template <bool side>
-        ForceInline BoardState makeDoublePush(int from, int to, const BoardState& board, U64 discovers) noexcept {
+        ForceInline BoardState makeDoublePush(int from, int to, const BoardState& board, U64 discovers, int ply) noexcept {
+            Accumulator& a = accumulators[ply + 1] = accumulators[ply];
+            nnue::movePiece<Piece::Pawn, side>(a, from, to, board.kMS);
+
             int8_t eP = from + PAWN_PUSH[side];
             if (!(PAWN_CAPTURES[side][eP] & board.pE)) eP = noSquare;
 
@@ -318,8 +336,12 @@ namespace bstate {
         }
 
         template <bool side>
-        ForceInline BoardState makeEnPassant(int from, int to, const BoardState& board) noexcept {
+        ForceInline BoardState makeEnPassant(int from, int to, const BoardState& board, int ply) noexcept {
             const int ePS = (to + PAWN_PUSH[!side]);
+
+            Accumulator& a = accumulators[ply + 1] = accumulators[ply];
+            nnue::movePiece<Piece::Pawn, side>(a, from, to, board.kMS);
+            nnue::removePiece<Piece::Pawn, !side>(a, ePS, board.kMS);
 
             int mg = board.mg, eg = board.eg;
             int score = eval::updateEnPassant<side>(from, to, ePS, mg, eg, board.phase);
@@ -349,7 +371,7 @@ namespace bstate {
         }
 
         template <int castlingSide>
-        ForceInline BoardState makeCastling(const BoardState& board) noexcept {
+        ForceInline BoardState makeCastling(const BoardState& board, int ply) noexcept {
             constexpr bool side = CASTLING_SIDE[castlingSide];
             const int casPerms = board.casPerms & NO_CASTLE[side];
 
@@ -367,6 +389,9 @@ namespace bstate {
 
             constexpr int from = CASTLING_KING_SOURCE_SQUARE[castlingSide];
             constexpr int to = CASTLING_KING_TARGET_SQUARE[castlingSide];
+
+            Accumulator& a = accumulators[ply + 1] = accumulators[ply];
+            nnue::refresh<side>(a, board.pM, board.nM, board.bM, rM, board.qM, to);
 
             return BoardState(board.to, from, to, board.pE, board.nE, board.bE, board.rE, board.qE, board.kE, board.pM, board.nM, board.bM, rM, board.qM, kM, board.kES, to, board.kEA, KING_ATTACKS[to], board.occE, occM, occB, checks, casPerms, noSquare, NO_CAPTURE, board.atkr, k, noPiece, !side, false, false, true, -score, -mg, -eg, board.phase, board.halfClock + 1, zobrist);
         }

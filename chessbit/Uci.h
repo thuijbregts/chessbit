@@ -35,27 +35,19 @@ namespace uci {
 
     inline batch::Batch genBatch;
 
-    inline void genLegal(const BoardState& b) {
+    template <bool count, bool side>
+    inline U64 genLegal(const BoardState& b) {
         genBatch.init(false, 0, 0, 0, 0);
         genBatch.sort = false;
 
         const uint8_t kMoved = (!(b.casPerms & (wk | wq)) ? KING_MOVED[white] : 0)
             | (!(b.casPerms & (bk | bq)) ? KING_MOVED[black] : 0);
-        if (b.side == white) {
-            switch (kMoved) {
-            case KING_MOVED[white]: movegen::generate<false, white, KING_MOVED[white]>(b, &genBatch); break;
-            case KING_MOVED[black]: movegen::generate<false, white, KING_MOVED[black]>(b, &genBatch); break;
-            case KING_MOVED[both]:  movegen::generate<false, white, KING_MOVED[both]>(b, &genBatch);  break;
-            default:                movegen::generate<false, white, 0>(b, &genBatch);                 break;
-            }
-        }
-        else {
-            switch (kMoved) {
-            case KING_MOVED[white]: movegen::generate<false, black, KING_MOVED[white]>(b, &genBatch); break;
-            case KING_MOVED[black]: movegen::generate<false, black, KING_MOVED[black]>(b, &genBatch); break;
-            case KING_MOVED[both]:  movegen::generate<false, black, KING_MOVED[both]>(b, &genBatch);  break;
-            default:                movegen::generate<false, black, 0>(b, &genBatch);                 break;
-            }
+
+        switch (kMoved) {
+        case KING_MOVED[white]: return movegen::generate<count, side, KING_MOVED[white]>(b, 0, &genBatch); break;
+        case KING_MOVED[black]: return movegen::generate<count, side, KING_MOVED[black]>(b, 0, &genBatch); break;
+        case KING_MOVED[both]:  return movegen::generate<count, side, KING_MOVED[both]>(b, 0, &genBatch);  break;
+        default:                return movegen::generate<count, side, 0>(b, 0, &genBatch);                 break;
         }
     }
 
@@ -69,7 +61,9 @@ namespace uci {
     }
 
     inline bool applyMove(const std::string& mv) {
-        genLegal(game::board);
+        if (game::board.side == white) genLegal<false, white>(game::board);
+        else                           genLegal<false, black>(game::board);
+
         for (int i = 0; i < genBatch.size; ++i) {
             if (uciMove(genBatch.moves[i]) == mv) {
                 game::makeMove(genBatch.moves[i]);
@@ -163,17 +157,25 @@ namespace uci {
         }
         if (lim.depth > MAX_PLY - 1) lim.depth = MAX_PLY - 1;
 
-        genLegal(game::board);
-        if (genBatch.size == 0) { std::cout << "bestmove 0000\n"; std::cout.flush(); return; }
+        int moves;
+        if (game::board.side == white) moves = genLegal<true, white>(game::board);
+        else                           moves = genLegal<true, black>(game::board);
+
+        if (moves == 0) { std::cout << "bestmove 0000\n"; std::cout.flush(); return; }
 
         const long long budget = computeBudget(lim);
 
         uint64_t totalNodes = 0;
-        BoardState best = engine::runSearch(lim.depth, game::board, budget,
-            [&totalNodes](int d, int score, const BoardState& b, double /*iterSec*/, long long totalMs) {
+
+        auto searchResult = [&totalNodes](int d, int score, const BoardState& b,
+            double /*iterSec*/, long long totalMs) {
                 totalNodes += engine::stats.nodes;
                 emitInfo(d, score, totalNodes, totalMs, b);
-            });
+            };
+
+        BoardState best;
+        if (game::board.side == white)  best = engine::runSearch<white>(lim.depth, game::board, budget, searchResult);
+        else                            best = engine::runSearch<black>(lim.depth, game::board, budget, searchResult);
 
         std::cout << "bestmove " << uci::uciMove(best) << "\n";
         std::cout.flush();

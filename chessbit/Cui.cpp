@@ -230,7 +230,8 @@ void Cui::play(vector<string>& cmd) {
 
 	start = high_resolution_clock::now();
 	BoardState bestMove;
-	engine::start(depth, game::board, &bestMove, budget);
+	if (game::board.side == white) engine::start<white>(depth, game::board, &bestMove, budget);
+	else						   engine::start<black>(depth, game::board, &bestMove, budget);
 	end = high_resolution_clock::now();
 
 	long long total = duration_cast<microseconds>(end - start).count();
@@ -509,6 +510,7 @@ void Cui::bestmove(vector<string>& cmd) {
 	printf("  #   mate  depth  expected  got     time         result\n");
 	printf("-----------------------------------------------------------------------------\n");
 
+	int score;
 	for (int i = 0; i < bmtest::COUNT; ++i) {
 		const bmtest::BestMoveTest& t = bmtest::TESTS[i];
 		const int depth = requested < t.depth ? t.depth : requested;
@@ -520,7 +522,8 @@ void Cui::bestmove(vector<string>& cmd) {
 		tt::GENERATION++;
 
 		const auto s = high_resolution_clock::now();
-		const int score = engine::search(depth, game::board, 0, -INF, INF, &bestMove);
+		if (game::board.side == white) score = engine::search<white>(depth, game::board, 0, -INF, INF, &bestMove);
+		else						   score = engine::search<black>(depth, game::board, 0, -INF, INF, &bestMove);
 		const auto e = high_resolution_clock::now();
 
 		const long long us = duration_cast<microseconds>(e - s).count();
@@ -696,7 +699,8 @@ void Cui::compareSearch() {
 		if (ttEnabled) tt::clear();
 
 		BoardState bestMove;
-		engine::start(test.searchDepth, game::board, &bestMove);
+		if (game::board.side == white) engine::start<white>(test.searchDepth, game::board, &bestMove);
+		else						   engine::start<black>(test.searchDepth, game::board, &bestMove);
 	}
 	end = high_resolution_clock::now();
 	long long total = duration_cast<microseconds>(end - start).count();

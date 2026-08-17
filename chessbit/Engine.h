@@ -3,6 +3,7 @@
 #include "MoveGenerator.h"
 #include "Eval.h"
 #include "Utils.h"
+#include "Nnue.h"
 #include "See.h"
 #include <chrono>
 #include <cstdint>
@@ -17,6 +18,7 @@ namespace engine {
     using namespace bstate;
     using namespace movegen;
     using namespace batch;
+    using namespace nnue;
 
     struct SearchStats {
         uint64_t nodes;
@@ -104,7 +106,7 @@ namespace engine {
         batch.init(false, 0, 0, 0, ply);
 
         if (!board.checks) {
-            standPat = board.score;
+            standPat = nnue::evaluate<side>(accumulators[ply]);
             best = standPat;
 
             if (standPat >= beta) { stats.leaves++; return standPat; }
@@ -115,9 +117,9 @@ namespace engine {
                 return alpha;
             }
 
-            movegen::generate<false, side, kMoved, true>(board, &batch);
+            movegen::generate<false, side, kMoved, true>(board, ply, &batch);
         }
-        else movegen::generate<false, side, kMoved>(board, &batch);
+        else movegen::generate<false, side, kMoved>(board, ply, &batch);
 
         stats.generated += batch.size;
 
@@ -239,7 +241,7 @@ namespace engine {
         Batch& batch = batches[ply];
         batch.init(doTT, ttMove, idMove, depth, ply);
 
-        movegen::generate<false, side, kMoved>(board, &batch);
+        movegen::generate<false, side, kMoved>(board, ply, &batch);
 
         stats.generated += batch.size;
 
@@ -365,32 +367,24 @@ namespace engine {
         return best;
     }
 
+    template <bool side>
     ForceInline int search(int depth, const BoardState& board, int ply, int alpha, int beta, BoardState* bestMove) {
         const uint8_t kMoved = (!(board.casPerms & (wk | wq)) ? KING_MOVED[white] : 0)
             | (!(board.casPerms & (bk | bq)) ? KING_MOVED[black] : 0);
 
-        if (board.side == white) {
-            switch (kMoved) {
-            case KING_MOVED[white]: return alphaBeta<true, white, KING_MOVED[white]>(depth, board, ply, alpha, beta, 0, bestMove);
-            case KING_MOVED[black]: return alphaBeta<true, white, KING_MOVED[black]>(depth, board, ply, alpha, beta, 0, bestMove);
-            case KING_MOVED[both]:  return alphaBeta<true, white, KING_MOVED[both]>(depth, board, ply, alpha, beta, 0, bestMove);
-            default:                return alphaBeta<true, white, 0>(depth, board, ply, alpha, beta, 0, bestMove);
-            }
-        }
-        else {
-            switch (kMoved) {
-            case KING_MOVED[white]: return alphaBeta<true, black, KING_MOVED[white]>(depth, board, ply, alpha, beta, 0, bestMove);
-            case KING_MOVED[black]: return alphaBeta<true, black, KING_MOVED[black]>(depth, board, ply, alpha, beta, 0, bestMove);
-            case KING_MOVED[both]:  return alphaBeta<true, black, KING_MOVED[both]>(depth, board, ply, alpha, beta, 0, bestMove);
-            default:                return alphaBeta<true, black, 0>(depth, board, ply, alpha, beta, 0, bestMove);
-            }
+        switch (kMoved) {
+        case KING_MOVED[white]: return alphaBeta<true, side, KING_MOVED[white]>(depth, board, ply, alpha, beta, 0, bestMove);
+        case KING_MOVED[black]: return alphaBeta<true, side, KING_MOVED[black]>(depth, board, ply, alpha, beta, 0, bestMove);
+        case KING_MOVED[both]:  return alphaBeta<true, side, KING_MOVED[both]>(depth, board, ply, alpha, beta, 0, bestMove);
+        default:                return alphaBeta<true, side, 0>(depth, board, ply, alpha, beta, 0, bestMove);
         }
     }
 
-    template <class SearchResult>
+    template <bool side, class SearchResult>
     BoardState runSearch(int maxDepth, const BoardState& board, long long budgetMs, SearchResult results) {
         using clock = std::chrono::steady_clock;
 
+        nnue::init<side>(nnue::accumulators[0], board.pM, board.nM, board.bM, board.rM, board.qM, board.kMS, board.pE, board.nE, board.bE, board.rE, board.qE, board.kES);
         clearHeuristics();
         tt::GENERATION++;
 
@@ -423,7 +417,7 @@ namespace engine {
                     alpha = score - delta;
                     beta = score + delta;
                     while (true) {
-                        newScore = search(d, board, 0, alpha, beta, &best);
+                        newScore = search<side>(d, board, 0, alpha, beta, &best);
                         if (newScore <= alpha) { beta = (alpha + beta) / 2; delta *= 2; alpha = newScore - delta; }
                         else if (newScore >= beta) { delta *= 2; beta = newScore + delta; }
                         else break;
@@ -432,7 +426,7 @@ namespace engine {
                     score = newScore;
                 }
                 else {
-                    score = search(d, board, 0, -INF, INF, &best);
+                    score = search<side>(d, board, 0, -INF, INF, &best);
                 }
             }
             catch (const StopSearch&) {
@@ -458,19 +452,20 @@ namespace engine {
         if (!have) {
             useDeadline = false;
             stopSearch.store(false, std::memory_order_relaxed);
-            search(1, board, 0, -INF, INF, &lastBest);
+            search<side>(1, board, 0, -INF, INF, &lastBest);
         }
 
         return lastBest;
     }
 
+    template <bool side>
     ForceInline void start(int maxDepth, const BoardState& board, BoardState* bestMove, long long budgetMs = 0) {
         printf("depth   score  bestmove       nodes         generated     time      nps        EBF   iir          cutoffs      1st-move\n");
         printf("----------------------------------------------------------------------------------------------------------------------------\n");
 
         uint64_t prevNodes = 0;
 
-        BoardState result = runSearch(maxDepth, board, budgetMs,
+        BoardState result = runSearch<side>(maxDepth, board, budgetMs,
             [&prevNodes](int d, int score, const BoardState& best, double iterSec, long long /*totalMs*/) {
                 const double nps = iterSec > 0.0 ? stats.nodes / iterSec : 0.0;
                 const double ebf = prevNodes ? (double)stats.nodes / (double)prevNodes : 0.0;

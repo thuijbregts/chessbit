@@ -193,6 +193,7 @@
     <ClInclude Include="Eval.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="MoveGenerator.h" />
+    <ClInclude Include="Nnue.h" />
     <ClInclude Include="Perft.h" />
     <ClInclude Include="See.h" />
     <ClInclude Include="TranspositionTable.h" />
