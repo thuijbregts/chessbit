@@ -89,10 +89,11 @@ namespace cui {
 	const string COMPARE = "cmp";
 	const string COMPARE_SEARCH = "cmps";
 	const string TT = "tt";
+	const string UCI = "uci";
 
-	const string PERFT_D = "-d";
-	const string PERFT_F = "-f";
-	const string PERFT_T = "-t";
+	const string ARG_D = "-d";
+	const string ARG_F = "-f";
+	const string ARG_T = "-t";
 
 	const Command COMMANDS[]{
 		{ EXIT, {} },
@@ -113,7 +114,8 @@ namespace cui {
 		{ BENCHMARK,{} },
 		{ COMPARE,{} },
 		{ COMPARE_SEARCH,{} },
-		{ TT,{} }
+		{ TT,{} },
+		{ UCI,{} }
 	};
 
 	const PerftTest TESTS[]{

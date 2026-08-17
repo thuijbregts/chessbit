@@ -1,6 +1,7 @@
 #include "Test.hpp"
 #include "BestMoveTest.h"
 #include "Cui.h"
+#include "Uci.h"
 #include "Perft.h"
 #include "Engine.h"
 #include <iostream>
@@ -92,6 +93,11 @@ void Cui::execute(vector<string>& cmd) {
 
 	if (first == cui::PLAY) {
 		play(cmd);
+		return;
+	}
+
+	if (first == cui::UCI) {
+		uci::loop();
 		return;
 	}
 
@@ -197,22 +203,34 @@ bool Cui::executeMove(string& move) {
 
 void Cui::play(vector<string>& cmd) {
 	int depth = 10;
+	long long budget = 0;
 	for (size_t i = 1; i < cmd.size(); i++) {
 		string& tok = cmd[i];
-		if (utils::isPositiveDigits(tok) && stoi(tok) > 0) {
+		if (tok == cui::ARG_T) {
+			if (i + 1 < cmd.size() && utils::isPositiveDigits(cmd[i + 1]) && stoi(cmd[i + 1]) > 0) {
+				budget = stoi(cmd[++i]);
+			}
+			else {
+				cout << "Incorrect time value" << endl;
+				return;
+			}
+		}
+		else if (utils::isPositiveDigits(tok) && stoi(tok) > 0) {
 			depth = stoi(tok);
 		}
 		else {
-			cout << "Invalid depth" << endl;
+			cout << "Invalid argument" << endl;
 			return;
 		}
 	}
+
+	if (budget > 0) depth = MAX_PLY;
 
 	high_resolution_clock::time_point start, end;
 
 	start = high_resolution_clock::now();
 	BoardState bestMove;
-	engine::start(depth, game::board, &bestMove);
+	engine::start(depth, game::board, &bestMove, budget);
 	end = high_resolution_clock::now();
 
 	long long total = duration_cast<microseconds>(end - start).count();
@@ -301,10 +319,10 @@ void Cui::perft(vector<string>& cmd) {
 
 	for (size_t i = 1; i < cmd.size(); i++) {
 		string& tok = cmd[i];
-		if (tok == cui::PERFT_D) {
+		if (tok == cui::ARG_D) {
 			divideMode = true;
 		}
-		else if (tok == cui::PERFT_T) {
+		else if (tok == cui::ARG_T) {
 			if (i + 1 < cmd.size() && utils::isPositiveDigits(cmd[i + 1]) && stoi(cmd[i + 1]) > 0) {
 				threads = stoi(cmd[++i]);
 			}

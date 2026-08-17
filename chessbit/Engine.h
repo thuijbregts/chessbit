@@ -50,7 +50,7 @@ namespace engine {
     inline SearchStats stats;
     inline int lmrTable[MAX_PLY][256];
 
-    static void initLmr() {
+    ForceInline void initLmr() {
         for (int d = 1; d < MAX_PLY; ++d) {
             for (int i = 1; i < 256; ++i) {
                 lmrTable[d][i] = int(0.75 + std::log(d) * std::log(i) * 0.5);
@@ -274,9 +274,8 @@ namespace engine {
                 const uint16_t pm = packMove(m.from, m.to);
                 int reduction = 0;
                 bool canReduce = quiet && !(board.checks | m.checks) && i >= 3 && best > -MATE_IN_MAX
-                    && pm != ttMove && pm != killers[ply][0] && pm != killers[ply][1];//&& pm != counterMove[side][board.atkr][board.to];
+                    && pm != ttMove && pm != killers[ply][0] && pm != killers[ply][1] && pm != counterMove[side][board.atkr][board.to];
                 if (canReduce) {
-                    bool pvNode = beta - alpha > 1;
                     reduction = lmrTable[depth][i];
 
                     if (!pvNode) reduction++;
@@ -284,7 +283,8 @@ namespace engine {
                     reduction = std::clamp(reduction, 0, depth - 1);
                 }
 
-                const int reducedDepth = depth - 1 - reduction;
+                const int newDepth = depth - 1 + extension;
+                const int reducedDepth = std::max(newDepth - reduction, 0);
 
                 if (m.king) score = -alphaBeta<false, !side, kMovedK>(reducedDepth, m, ply + 1, -alpha - 1, -alpha, newExtensions);
                 else        score = -alphaBeta<false, !side, kMoved>(reducedDepth, m, ply + 1, -alpha - 1, -alpha, newExtensions);
@@ -386,73 +386,102 @@ namespace engine {
         }
     }
 
-    ForceInline void start(int maxDepth, const BoardState& board, BoardState* bestMove) {
+    template <class SearchResult>
+    BoardState runSearch(int maxDepth, const BoardState& board, long long budgetMs, SearchResult results) {
         using clock = std::chrono::steady_clock;
 
-        initLmr();
         clearHeuristics();
         tt::GENERATION++;
 
         repCount = 0;
-        const int start = std::max(0, moveCount - board.halfClock);
-
-        for (int i = start; i <= moveCount; ++i) {
+        const int s = std::max(0, moveCount - (int)board.halfClock);
+        for (int i = s; i <= moveCount; ++i)
             repHistory[repCount++] = game::movesPlayed[i].zobrist;
-        }
         repCount--;
 
         if (maxDepth >= MAX_PLY) maxDepth = MAX_PLY - 1;
 
-        int score, newScore, alpha, beta, delta;
+        stopSearch.store(false, std::memory_order_relaxed);
+        useDeadline = (budgetMs > 0);
+        if (useDeadline)
+            searchDeadline = clock::now() + std::chrono::milliseconds(budgetMs);
 
-        printf("depth   score  bestmove       nodes         generated     time      nps        EBF   iir          cutoffs      1st-move\n");
-        printf("----------------------------------------------------------------------------------------------------------------------------\n");
-        uint64_t prevNodes = 0;
+        BoardState best{}, lastBest{};
+        bool have = false;
+        int score = 0, newScore, alpha, beta, delta;
+        const auto t0 = clock::now();
+
         for (int d = 1; d <= maxDepth; ++d) {
             stats.reset();
+            const auto iterT0 = clock::now();
+            bool aborted = false;
 
-            const auto t0 = clock::now();
-
-            if (d >= 4) {
-                delta = 25;
-                alpha = score - delta;
-                beta = score + delta;
-                while (true) {
-                    newScore = search(d, board, 0, alpha, beta, bestMove);
-
-                    if (newScore <= alpha) {
-                        beta = (alpha + beta) / 2;
-                        delta *= 2;
-                        alpha = newScore - delta;
+            try {
+                if (d >= 4) {
+                    delta = 25;
+                    alpha = score - delta;
+                    beta = score + delta;
+                    while (true) {
+                        newScore = search(d, board, 0, alpha, beta, &best);
+                        if (newScore <= alpha) { beta = (alpha + beta) / 2; delta *= 2; alpha = newScore - delta; }
+                        else if (newScore >= beta) { delta *= 2; beta = newScore + delta; }
+                        else break;
+                        if (delta > 500) { alpha = -INF; beta = INF; }
                     }
-                    else if (newScore >= beta) {
-                        delta *= 2;
-                        beta = newScore + delta;
-                    }
-                    else break;
-
-                    if (delta > 500) { alpha = -INF; beta = INF; }
+                    score = newScore;
                 }
-                score = newScore;
+                else {
+                    score = search(d, board, 0, -INF, INF, &best);
+                }
             }
-            else {
-                score = search(d, board, 0, -INF, INF, bestMove);
+            catch (const StopSearch&) {
+                aborted = true;
             }
 
-            const auto t1 = clock::now();
+            if (aborted) break;
 
-            const double sec = std::chrono::duration<double>(t1 - t0).count();
-            const double nps = sec > 0.0 ? stats.nodes / sec : 0.0;
-            const double ebf = prevNodes ? (double)stats.nodes / (double)prevNodes : 0.0;
-            const double firstPct = stats.betaCutoffs ? 100.0 * (double)stats.firstMoveCutoffs / (double)stats.betaCutoffs : 0.0;
+            lastBest = best;
+            have = true;
 
-            printf("%5d  %+6d  %-8s  %12llu  %12llu  %8.3fs  %9.0f  %5.2f  %10llu  %10llu  %6.1f%%\n",
-                d, score, utils::getMoveSimple(*bestMove).c_str(),
-                stats.nodes, stats.generated, sec, nps, ebf, stats.iirFired, stats.betaCutoffs, firstPct);
+            const auto now = clock::now();
+            const double    iterSec = std::chrono::duration<double>(now - iterT0).count();
+            const long long totalMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - t0).count();
 
-            prevNodes = stats.nodes;
+            results(d, score, lastBest, iterSec, totalMs);
 
-            if (score > MATE_IN_MAX || score < -MATE_IN_MAX) break;
+            if (score > MATE_IN_MAX || score < -MATE_IN_MAX)  break;
+            if (useDeadline && totalMs * 2 >= budgetMs)       break;
+            if (stopSearch.load(std::memory_order_relaxed))   break;
         }
+
+        if (!have) {
+            useDeadline = false;
+            stopSearch.store(false, std::memory_order_relaxed);
+            search(1, board, 0, -INF, INF, &lastBest);
+        }
+
+        return lastBest;
+    }
+
+    ForceInline void start(int maxDepth, const BoardState& board, BoardState* bestMove, long long budgetMs = 0) {
+        printf("depth   score  bestmove       nodes         generated     time      nps        EBF   iir          cutoffs      1st-move\n");
+        printf("----------------------------------------------------------------------------------------------------------------------------\n");
+
+        uint64_t prevNodes = 0;
+
+        BoardState result = runSearch(maxDepth, board, budgetMs,
+            [&prevNodes](int d, int score, const BoardState& best, double iterSec, long long /*totalMs*/) {
+                const double nps = iterSec > 0.0 ? stats.nodes / iterSec : 0.0;
+                const double ebf = prevNodes ? (double)stats.nodes / (double)prevNodes : 0.0;
+                const double firstPct = stats.betaCutoffs ? 100.0 * (double)stats.firstMoveCutoffs / (double)stats.betaCutoffs : 0.0;
+
+                printf("%5d  %+6d  %-8s  %12llu  %12llu  %8.3fs  %9.0f  %5.2f  %10llu  %10llu  %6.1f%%\n",
+                    d, score, utils::getMoveSimple(best).c_str(),
+                    stats.nodes, stats.generated, iterSec, nps, ebf, stats.iirFired, stats.betaCutoffs, firstPct);
+
+                prevNodes = stats.nodes;
+            });
+
+        *bestMove = result;
     }
 }

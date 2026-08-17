@@ -164,83 +164,18 @@ namespace uci {
         if (lim.depth > MAX_PLY - 1) lim.depth = MAX_PLY - 1;
 
         genLegal(game::board);
-        if (genBatch.size == 0) {
-            std::cout << "bestmove 0000\n";
-            std::cout.flush();
-            return;
-        }
-
-        engine::initLmr();
-        engine::clearHeuristics();
-        tt::GENERATION++;
-
-        engine::repCount = 0;
-        const int histStart = std::max(0, game::moveCount - (int)game::board.halfClock);
-        for (int i = histStart; i <= game::moveCount; ++i)
-            engine::repHistory[engine::repCount++] = game::movesPlayed[i].zobrist;
-        engine::repCount--;
+        if (genBatch.size == 0) { std::cout << "bestmove 0000\n"; std::cout.flush(); return; }
 
         const long long budget = computeBudget(lim);
-        engine::stopSearch.store(false, std::memory_order_relaxed);
-        engine::useDeadline = (budget > 0);
-        if (engine::useDeadline)
-            engine::searchDeadline = clock::now() + std::chrono::milliseconds(budget);
 
-        BoardState best;
-        BoardState lastBest;
-        bool have = false;
         uint64_t totalNodes = 0;
-        int score = 0, newScore, alpha, beta, delta;
+        BoardState best = engine::runSearch(lim.depth, game::board, budget,
+            [&totalNodes](int d, int score, const BoardState& b, double /*iterSec*/, long long totalMs) {
+                totalNodes += engine::stats.nodes;
+                emitInfo(d, score, totalNodes, totalMs, b);
+            });
 
-        const auto t0 = clock::now();
-
-        for (int d = 1; d <= lim.depth; ++d) {
-            engine::stats.reset();
-            bool aborted = false;
-
-            try {
-                if (d >= 4) {
-                    delta = 25;
-                    alpha = score - delta;
-                    beta = score + delta;
-                    while (true) {
-                        newScore = engine::search(d, game::board, 0, alpha, beta, &best);
-                        if (newScore <= alpha) { beta = (alpha + beta) / 2; delta *= 2; alpha = newScore - delta; }
-                        else if (newScore >= beta) { delta *= 2; beta = newScore + delta; }
-                        else break;
-                        if (delta > 500) { alpha = -INF; beta = INF; }
-                    }
-                    score = newScore;
-                }
-                else {
-                    score = engine::search(d, game::board, 0, -INF, INF, &best);
-                }
-            }
-            catch (const engine::StopSearch&) {
-                aborted = true;
-            }
-
-            totalNodes += engine::stats.nodes;
-            if (aborted) break;
-
-            lastBest = best;
-            have = true;
-
-            const long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(clock::now() - t0).count();
-            emitInfo(d, score, totalNodes, ms, lastBest);
-
-            if (std::abs(score) > MATE_IN_MAX) break;
-            if (engine::useDeadline && ms * 2 >= budget) break;
-            if (engine::stopSearch.load(std::memory_order_relaxed)) break;
-        }
-
-        if (!have) {
-            engine::useDeadline = false;
-            engine::stopSearch.store(false, std::memory_order_relaxed);
-            engine::search(1, game::board, 0, -INF, INF, &lastBest);
-        }
-
-        std::cout << "bestmove " << uciMove(lastBest) << "\n";
+        std::cout << "bestmove " << uci::uciMove(best) << "\n";
         std::cout.flush();
     }
 

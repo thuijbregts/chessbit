@@ -1,14 +1,10 @@
 #include "Cui.h"
 #include "Uci.h"
-#include "TranspositionTable.h"
+#include "Engine.h"
 
 int main() {
     game::setFen(StartPosition);
+    engine::initLmr();
 
-    std::string first;
-    std::getline(std::cin, first);
-    while (!first.empty() && (first.back() == '\r' || first.back() == ' ')) first.pop_back();
-
-    if (first == "uci") uci::loop();
-    else                Cui cui;
+    Cui cui;
 }
