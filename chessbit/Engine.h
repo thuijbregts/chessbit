@@ -4,6 +4,7 @@
 #include "Eval.h"
 #include "Utils.h"
 #include "Nnue.h"
+#include "NnueOracle.h"
 #include "See.h"
 #include <chrono>
 #include <cstdint>
@@ -106,7 +107,7 @@ namespace engine {
         batch.init(false, 0, 0, 0, ply);
 
         if (!board.checks) {
-            standPat = nnue::evaluate<side>(accumulators[ply]);
+            standPat = nnue::evaluate<side>(ply, board);
             best = standPat;
 
             if (standPat >= beta) { stats.leaves++; return standPat; }
@@ -117,9 +118,9 @@ namespace engine {
                 return alpha;
             }
 
-            movegen::generate<false, side, kMoved, true>(board, ply, &batch);
+            movegen::generate<false, side, kMoved, true>(board, &batch);
         }
-        else movegen::generate<false, side, kMoved>(board, ply, &batch);
+        else movegen::generate<false, side, kMoved>(board, &batch);
 
         stats.generated += batch.size;
 
@@ -139,6 +140,10 @@ namespace engine {
                 //SEE pruning
                 if (!see::seeGE(m, SEE_MARGIN)) continue;
             }
+
+            nnue::accumulators[ply + 1].dirty = m.dirty;
+            nnue::accumulators[ply + 1].computed[white] = false;
+            nnue::accumulators[ply + 1].computed[black] = false;
 
             if (m.king) score = -quiescence<!side, kMovedK>(m, ply + 1, -beta, -alpha);
             else        score = -quiescence<!side, kMoved>(m, ply + 1, -beta, -alpha);
@@ -225,6 +230,10 @@ namespace engine {
             if (nullDepth >= 0 && !pvNode && !board.checks && board.score >= beta && BoardState::hasEnoughMaterial(board)) {
                 const BoardState nullBoard = board.makeNull<side>(board);
 
+                nnue::accumulators[ply + 1].dirty.clear();
+                nnue::accumulators[ply + 1].computed[white] = false;
+                nnue::accumulators[ply + 1].computed[black] = false;
+
                 int score;
                 if (nullDepth == 0) score = -quiescence<!side, kMoved>(nullBoard, ply + 1, -beta, -beta + 1);
                 else                score = -alphaBeta<false, !side, kMoved, true>(nullDepth, nullBoard, ply + 1, -beta, -beta + 1, extensions);
@@ -241,7 +250,7 @@ namespace engine {
         Batch& batch = batches[ply];
         batch.init(doTT, ttMove, idMove, depth, ply);
 
-        movegen::generate<false, side, kMoved>(board, ply, &batch);
+        movegen::generate<false, side, kMoved>(board, &batch);
 
         stats.generated += batch.size;
 
@@ -274,6 +283,10 @@ namespace engine {
                     if (depth <= SEE_PRUNING_MAX_DEPTH && !see::seeGE(m, SEE_MARGIN_QUIET)) continue;
                 } 
             }
+
+            nnue::accumulators[ply + 1].dirty = m.dirty;
+            nnue::accumulators[ply + 1].computed[white] = false;
+            nnue::accumulators[ply + 1].computed[black] = false;
 
             int extension = 0;
             if (!first && m.checks && !board.checks && extensions < MAX_EXTENSIONS) extension = 1;
@@ -384,7 +397,7 @@ namespace engine {
     BoardState runSearch(int maxDepth, const BoardState& board, long long budgetMs, SearchResult results) {
         using clock = std::chrono::steady_clock;
 
-        nnue::init<side>(nnue::accumulators[0], board.pM, board.nM, board.bM, board.rM, board.qM, board.kMS, board.pE, board.nE, board.bE, board.rE, board.qE, board.kES);
+        nnue::initRoot(board);
         clearHeuristics();
         tt::GENERATION++;
 

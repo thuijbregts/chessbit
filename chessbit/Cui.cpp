@@ -287,7 +287,7 @@ void Cui::setBoard(vector<string>& cmd, int size) {
 }
 
 void Cui::getFen() {
-	cout << game::getFen() << endl;
+	cout << game::getFen(game::board) << endl;
 }
 
 void Cui::toggleTT(vector<string>& cmd) {
@@ -355,7 +355,7 @@ void Cui::perft(vector<string>& cmd) {
 }
 
 void Cui::perftFast(int depth) {
-	string fen = game::getFen();
+	string fen = game::getFen(game::board);
 
 	high_resolution_clock::time_point start, end;
 
@@ -376,7 +376,7 @@ void Cui::perftFast(int depth) {
 }
 
 void Cui::perftDivide(int depth, int threads) {
-	string fen = game::getFen();
+	string fen = game::getFen(game::board);
 
 	high_resolution_clock::time_point start, end;
 
@@ -419,7 +419,7 @@ __forceinline U64 Cui::divide(int depth, int threads) {
 }
 
 void Cui::test() {
-	string fen = game::getFen();
+	string fen = game::getFen(game::board);
 
 	high_resolution_clock::time_point start, end;
 	U64 nodes;
@@ -457,7 +457,7 @@ void Cui::test() {
 }
 
 void Cui::perftsuite() {
-	string fenS = game::getFen();
+	string fenS = game::getFen(game::board);
 
 	int success = 0;
 	int tests = 0;
@@ -498,7 +498,7 @@ void Cui::bestmove(vector<string>& cmd) {
 		}
 	}
 
-	string fen = game::getFen();
+	string fen = game::getFen(game::board);
 
 	int passed = 0;
 	long long totalUs = 0;
@@ -558,7 +558,7 @@ void Cui::benchmark(string& depth, string& amount) {
 		if (depth == "all") {
 			a = 15;
 			print = false;
-			string fen = game::getFen();
+			string fen = game::getFen(game::board);
 
 			setFen(StartPosition); cout << StartPosition << endl; executeBenchmark(6, a, print);
 			setFen(KiwiPete); cout << KiwiPete << endl; executeBenchmark(5, a, print);
@@ -594,7 +594,7 @@ void Cui::benchmark(string& depth, string& amount) {
 }
 
 void Cui::executeBenchmark(int depth, int amount, bool print) {
-	string fen = game::getFen();
+	string fen = game::getFen(game::board);
 
 	high_resolution_clock::time_point start, end;
 	long long total, best;
@@ -620,7 +620,7 @@ void Cui::executeBenchmark(int depth, int amount, bool print) {
 }
 
 void Cui::compare() {
-	string fen = game::getFen();
+	string fen = game::getFen(game::board);
 
 	high_resolution_clock::time_point start, end;
 	U64 result;
@@ -685,7 +685,7 @@ void Cui::compare() {
 }
 
 void Cui::compareSearch() {
-	string fen = game::getFen();
+	string fen = game::getFen(game::board);
 
 	high_resolution_clock::time_point start, end;
 

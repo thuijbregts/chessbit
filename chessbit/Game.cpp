@@ -272,7 +272,7 @@ namespace game {
         movesPlayed[0] = board;
     }
 
-    string getFen() {
+    string getFen(BoardState& board, int fullMove) {
         string fen;
 
         int empty;
@@ -332,7 +332,8 @@ namespace game {
         fen += " ";
         fen += std::to_string(board.halfClock);   
         fen += " ";
-        fen += std::to_string(moveCount / 2 + 1);
+        if (fullMove) fen += std::to_string(fullMove);
+        else          fen += std::to_string(moveCount / 2 + 1);
 
         return fen;
     }

@@ -8,6 +8,10 @@ using namespace defs;
 using namespace bstate;
 using std::string;
 
+namespace bstate {
+    struct BoardState;
+}
+
 namespace game {
     extern int moveCount;
     inline static BoardState movesPlayed[17697];
@@ -21,7 +25,7 @@ namespace game {
     void unmakeMove();
 
     void setFen(const char* fen);
-    string getFen();
+    string getFen(BoardState& board, int fullMove = 0);
 }
 
 #endif

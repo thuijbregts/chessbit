@@ -3,7 +3,6 @@
 #include "Engine.h"
 #include "Game.h"
 #include "TranspositionTable.h"
-
 #include <atomic>
 #include <chrono>
 #include <cctype>
@@ -13,7 +12,6 @@
 #include <vector>
 
 namespace uci {
-
     using namespace defs;
     using namespace bstate;
     using clock = std::chrono::steady_clock;
@@ -44,10 +42,10 @@ namespace uci {
             | (!(b.casPerms & (bk | bq)) ? KING_MOVED[black] : 0);
 
         switch (kMoved) {
-        case KING_MOVED[white]: return movegen::generate<count, side, KING_MOVED[white]>(b, 0, &genBatch); break;
-        case KING_MOVED[black]: return movegen::generate<count, side, KING_MOVED[black]>(b, 0, &genBatch); break;
-        case KING_MOVED[both]:  return movegen::generate<count, side, KING_MOVED[both]>(b, 0, &genBatch);  break;
-        default:                return movegen::generate<count, side, 0>(b, 0, &genBatch);                 break;
+        case KING_MOVED[white]: return movegen::generate<count, side, KING_MOVED[white]>(b, &genBatch); break;
+        case KING_MOVED[black]: return movegen::generate<count, side, KING_MOVED[black]>(b, &genBatch); break;
+        case KING_MOVED[both]:  return movegen::generate<count, side, KING_MOVED[both]>(b, &genBatch);  break;
+        default:                return movegen::generate<count, side, 0>(b, &genBatch);                 break;
         }
     }
 

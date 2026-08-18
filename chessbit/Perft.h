@@ -15,7 +15,7 @@ namespace perft {
         batch.sort = false;
         if (depth <= 1) return movegen::generate<true, side, kMoved>(board);
 
-        movegen::generate<false, side, kMoved>(board, 0, &batch);
+        movegen::generate<false, side, kMoved>(board, &batch);
 
         for (int i = 0; i < batch.size; ++i) {
             if (batch.moves[i].king)    nodes += iterateBatch<!side, kMovedK>(depth - 1, batch.moves[i]);
@@ -27,7 +27,7 @@ namespace perft {
 
     template <bool side, uint8_t kMoved>
     ForceInline U64 start(int depth, const BoardState& board, Batch* batch = nullptr) noexcept {
-        if (depth <= 1) return movegen::generate<true, side, kMoved>(board);
+        if (depth <= 1) return movegen::generate<false, side, kMoved>(board, batch);
 
         return iterateBatch<side, kMoved>(depth, board);
     }
