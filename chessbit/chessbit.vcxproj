@@ -151,9 +151,8 @@
       <UseProcessorExtensions>None</UseProcessorExtensions>
       <Mtune>No</Mtune>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <InterproceduralOptimization>MultiFile</InterproceduralOptimization>
-      <AdditionalOptions>/bigobj -mbmi2 -mbmi -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH /QxAVX2 -mavx512f -mavx512bw
- %(AdditionalOptions)</AdditionalOptions>
+      <InterproceduralOptimization>NoIPO</InterproceduralOptimization>
+      <AdditionalOptions>/bigobj -mbmi2 -mbmi -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH -mavx512f -mavx512bw /arch:AVX512 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AssemblerOutput>NoListing</AssemblerOutput>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>

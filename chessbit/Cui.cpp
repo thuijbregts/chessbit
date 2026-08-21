@@ -49,7 +49,7 @@ void Cui::start() {
 
 void Cui::initMoves() {
 	batch::batch.reset();
-	generateMoves(1, &batch::batch);
+	generateMoves(0, &batch::batch);
 }
 
 bool Cui::isCommand(vector<string>& cmd) {

@@ -81,7 +81,7 @@ namespace nnue {
     constexpr int L3 = 32;
 
     // Feature HalfKA
-    constexpr int KING_BUCKETS = 64;
+    constexpr int KING_BUCKETS = 32;
     constexpr int COLORS = 2;
     constexpr int PIECE_TYPES = 6;
     constexpr int SQUARES = 64;
@@ -89,13 +89,8 @@ namespace nnue {
 
     constexpr int32_t QA = 255;
     constexpr int32_t QB = 64;
+    constexpr int32_t QB1 = 128;
     constexpr int32_t SCALE = 400;
-
-    ForceInline int32_t SCReLUHidden(int64_t pre) {
-        //formule corrigée
-        int32_t x = (int32_t)std::clamp<int64_t>(pre / QB, 0, QA);
-        return x * x;
-    }
 
     struct Network {
         alignas(64) int16_t ftW[FT_IN][L1];
@@ -141,19 +136,14 @@ namespace nnue {
 
     inline Accumulator accumulators[MAX_PLY + 1];
 
-    template <bool persp>
-    ForceInline void applyDirty(Accumulator& dst, const Accumulator& src, const DirtyPiece& d) {
-        std::memcpy(dst.v[persp], src.v[persp], sizeof(dst.v[persp]));
-        int16_t* a = dst.v[persp];
-        for (int c = 0; c < d.n; ++c) {
-            const int16_t* w = net->ftW[d.ch[c].fId[persp]];
-            const bool add = d.ch[c].add;
-            for (int i = 0; i < L1; i += W16) {
-                vi16 v = v_load16(a + i);
-                v = add ? v_add16(v, v_load16(w + i)) : v_sub16(v, v_load16(w + i));
-                v_store16(a + i, v);
-            }
-        }
+    ForceInline int32_t SCReLU_L1(int64_t pre) {
+        int32_t x = (int32_t)std::clamp<int64_t>(pre / (QA * QB1), 0, QA);
+        return x * x;
+    }
+
+    ForceInline int32_t SCReLU(int64_t pre) {
+        int32_t x = (int32_t)std::clamp<int64_t>(pre / (QA * QB), 0, QA);
+        return x * x;
     }
 
     template <bool persp, class Board>
@@ -167,11 +157,35 @@ namespace nnue {
         FeatureId f;
         const int wK = (persp == white ? kMS : kES);
         const int bK = (persp == black ? kMS : kES) ^ 56;
-        f[white] = ((wK * COLORS + (color == white ? 0 : 1)) * PIECE_TYPES + int(piece)) * SQUARES + sq;
-        f[black] = ((bK * COLORS + (color == black ? 0 : 1)) * PIECE_TYPES + int(piece)) * SQUARES + (sq ^ 56);
+
+        const int wMir = MIRROR[wK & 7];
+        const int bMir = MIRROR[bK & 7];
+
+        const int wKb = KING_BUCKET[wK ^ wMir];
+        const int bKb = KING_BUCKET[bK ^ bMir];
+
+        f[white] = ((wKb * COLORS + (color == white ? 0 : 1)) * PIECE_TYPES + int(piece)) * SQUARES + (sq ^ wMir);
+        f[black] = ((bKb * COLORS + (color == black ? 0 : 1)) * PIECE_TYPES + int(piece)) * SQUARES + ((sq ^ 56) ^ bMir);
 
         //printf("sq: %d, kms: %d, kes: %d, piece: %d, persp: %d, feat white: %d, feat black: %d\n", sq, kMS, kES, int(piece), persp, f[white], f[black]);
         return f;
+    }
+
+    template <bool persp>
+    ForceInline void applyDirty(Accumulator& dst, const Accumulator& src, const DirtyPiece& d) {
+        std::memcpy(dst.v[persp], src.v[persp], sizeof(dst.v[persp]));
+        int16_t* accuM = dst.v[persp];
+        for (int c = 0; c < d.n; ++c) {
+            const int16_t* weights = net->ftW[d.ch[c].fId[persp]];
+            const bool add = d.ch[c].add;
+            for (int i = 0; i < L1; i += W16) {
+                vi16 accuSubset = v_load16(accuM + i);
+                vi16 weightsSubset = v_load16(weights + i);
+
+                accuSubset = add ? v_add16(accuSubset, weightsSubset) : v_sub16(accuSubset, weightsSubset);
+                v_store16(accuM + i, accuSubset);
+            }
+        }
     }
 
     template <bool persp, class Board>
@@ -227,7 +241,7 @@ namespace nnue {
     }
 
     template <bool persp, class Board>
-    ForceInline void ensureComputed(int ply, const Board& board) {
+    static void ensureComputed(int ply, const Board& board) {
         if (accumulators[ply].computed[persp]) return;
 
         int base = ply;
@@ -239,11 +253,15 @@ namespace nnue {
             }
             --base;
         }
-        if (base == 0 || accumulators[base].dirty.refresh[persp]) {
+
+        if (base == 0) return;
+
+        if (accumulators[base].dirty.refresh[persp]) {
             refreshFromBoard<persp>(accumulators[ply], board);
             accumulators[ply].computed[persp] = true;
             return;
         }
+
         for (int k = base; k <= ply; ++k) {
             applyDirty<persp>(accumulators[k], accumulators[k - 1], accumulators[k].dirty);
             accumulators[k].computed[persp] = true;
@@ -285,41 +303,36 @@ namespace nnue {
             for (int i = 0; i < L1; i += 2 * W16) {
                 vi16 x0a = v_load16(inputM + i), x0b = v_load16(inputM + i + W16);
                 vi16 x1a = v_load16(inputE + i), x1b = v_load16(inputE + i + W16);
-                /*a0a = v_add32(a0a, v_madd16(v_mullo16(x0a, v_load16(w0 + i)), x0a));
+                a0a = v_add32(a0a, v_madd16(v_mullo16(x0a, v_load16(w0 + i)), x0a));
                 a0b = v_add32(a0b, v_madd16(v_mullo16(x0b, v_load16(w0 + i + W16)), x0b));
                 a1a = v_add32(a1a, v_madd16(v_mullo16(x1a, v_load16(w1 + i)), x1a));
-                a1b = v_add32(a1b, v_madd16(v_mullo16(x1b, v_load16(w1 + i + W16)), x1b));*/
+                a1b = v_add32(a1b, v_madd16(v_mullo16(x1b, v_load16(w1 + i + W16)), x1b));
 
-                //formule corrigée
-                a0a = v_add32(a0a, v_madd16(x0a, v_load16(w0 + i)));
+                /*a0a = v_add32(a0a, v_madd16(x0a, v_load16(w0 + i)));
                 a0b = v_add32(a0b, v_madd16(x0b, v_load16(w0 + i + W16)));
                 a1a = v_add32(a1a, v_madd16(x1a, v_load16(w1 + i)));
-                a1b = v_add32(a1b, v_madd16(x1b, v_load16(w1 + i + W16)));
+                a1b = v_add32(a1b, v_madd16(x1b, v_load16(w1 + i + W16)));*/
             }
-            h[j] = SCReLUHidden((int64_t)net->l1Bias[0][j] + v_reduce32(v_add32(a0a, a0b)));
-            h[L2 + j] = SCReLUHidden((int64_t)net->l1Bias[1][j] + v_reduce32(v_add32(a1a, a1b)));
+            h[j] = SCReLU_L1((int64_t)net->l1Bias[0][j] + v_reduce32(v_add32(a0a, a0b)));
+            h[L2 + j] = SCReLU_L1((int64_t)net->l1Bias[1][j] + v_reduce32(v_add32(a1a, a1b)));
         }
 
         int32_t h2[L3];
         for (int j = 0; j < L3; ++j) {
-            int64_t s = net->l2Bias[j];
+            int64_t s = (int64_t)net->l2Bias[j];
             const int16_t* w = net->l2W[j];
-            for (int i = 0; i < 2 * L2; ++i)
+            for (int i = 0; i < 2 * L2; ++i) {
                 s += (int64_t)h[i] * w[i];
-            h2[j] = SCReLUHidden(s);
+            }
+            h2[j] = SCReLU(s);
         }
 
-        int64_t out = net->outBias;
-        for (int i = 0; i < L3; ++i)
+        int64_t out = (int64_t)net->outBias;
+        for (int i = 0; i < L3; ++i) {
             out += (int64_t)h2[i] * net->outW[i];
+        }
 
-        //formule corrigée
-        out /= QA;
-        out += net->outBias;
-        out *= SCALE;
-        out /= (QA * QB);
-
-        return (int)out;
+        return (int)(out * SCALE / ((int64_t)QA * QA * QB));
     }
 
     template <class Board>
@@ -334,161 +347,28 @@ namespace nnue {
     }
 
     inline bool loadWeights(const char* path) {
-        if (!net)
-            net = new Network();
+        if (!net) net = new Network();
 
-        std::ifstream f(path, std::ios::binary | std::ios::ate);
-
+        std::ifstream f(path, std::ios::binary);
         if (!f) {
             std::printf("NNUE: cannot open %s\n", path);
             return false;
         }
 
-        const std::streamsize fileSize = f.tellg();
-
-        constexpr size_t ftWSize = sizeof(net->ftW);
-        constexpr size_t ftBiasSize = sizeof(net->ftBias);
-        constexpr size_t l1WSize = sizeof(net->l1W);
-        constexpr size_t l1BiasSize = sizeof(net->l1Bias);
-        constexpr size_t l2WSize = sizeof(net->l2W);
-        constexpr size_t l2BiasSize = sizeof(net->l2Bias);
-        constexpr size_t outWSize = sizeof(net->outW);
-        constexpr size_t outBiasSize = sizeof(net->outBias);
-
-        const size_t expectedSize =
-            ftWSize
-            + ftBiasSize
-            + l1WSize
-            + l1BiasSize
-            + l2WSize
-            + l2BiasSize
-            + outWSize
-            + outBiasSize;
-
-        std::printf("\n=== NNUE FILE ===\n");
-        std::printf("file size:     %lld\n", (long long)fileSize);
-        std::printf("expected data: %zu\n", expectedSize);
-        std::printf("remaining:     %lld\n",
-            (long long)fileSize - (long long)expectedSize);
-
-        f.seekg(0, std::ios::beg);
-
-        auto readBlock = [&](const char* name, void* dst, size_t size) {
-            const std::streamoff pos = f.tellg();
-
-            std::printf(
-                "%-12s offset=%lld size=%zu\n",
-                name,
-                (long long)pos,
-                size
-            );
-
+        auto readBlock = [&](void* dst, size_t size) {
             f.read(reinterpret_cast<char*>(dst), size);
-
-            if (!f) {
-                std::printf("ERROR reading %s\n", name);
-                return false;
-            }
-
-            return true;
+            return (bool)f;
             };
 
-        if (!readBlock("ftW", net->ftW, sizeof(net->ftW)))      return false;
-        if (!readBlock("ftBias", net->ftBias, sizeof(net->ftBias)))   return false;
+        if (!readBlock(net->ftW, sizeof(net->ftW)))       return false;
+        if (!readBlock(net->ftBias, sizeof(net->ftBias))) return false;
+        if (!readBlock(net->l1W, sizeof(net->l1W))) return false;
+        if (!readBlock(net->l1Bias, sizeof(net->l1Bias))) return false;
+        if (!readBlock(net->l2W, sizeof(net->l2W))) return false;
+        if (!readBlock(net->l2Bias, sizeof(net->l2Bias))) return false;
 
-        if (!readBlock("l1W", net->l1W, sizeof(net->l1W)))      return false;
-        if (!readBlock("l1Bias", net->l1Bias, sizeof(net->l1Bias)))   return false;
-
-        if (!readBlock("l2W", net->l2W, sizeof(net->l2W)))      return false;
-        if (!readBlock("l2Bias", net->l2Bias, sizeof(net->l2Bias)))   return false;
-
-        if (!readBlock("outW", net->outW, sizeof(net->outW)))     return false;
-        if (!readBlock("outBias", &net->outBias, sizeof(net->outBias))) return false;
-
-        std::printf("\n=== FIRST VALUES ===\n");
-
-        std::printf("ftW[0][0..15] = ");
-        for (int i = 0; i < 16; ++i)
-            std::printf("%d ", (int)net->ftW[0][i]);
-        std::printf("\n");
-
-        std::printf("ftBias[0..15] = ");
-        for (int i = 0; i < 16; ++i)
-            std::printf("%d ", (int)net->ftBias[i]);
-        std::printf("\n");
-
-        std::printf("l1W[0][0][0..15] = ");
-        for (int i = 0; i < 16; ++i)
-            std::printf("%d ", (int)net->l1W[0][0][i]);
-        std::printf("\n");
-
-        std::printf("l1W[1][0][0..15] = ");
-        for (int i = 0; i < 16; ++i)
-            std::printf("%d ", (int)net->l1W[1][0][i]);
-        std::printf("\n");
-
-        std::printf("l1Bias[0][0..15] = ");
-        for (int i = 0; i < 16; ++i)
-            std::printf("%d ", (int)net->l1Bias[0][i]);
-        std::printf("\n");
-
-        std::printf("l1Bias[1][0..15] = ");
-        for (int i = 0; i < 16; ++i)
-            std::printf("%d ", (int)net->l1Bias[1][i]);
-        std::printf("\n");
-
-        std::printf("l2W[0][0..15] = ");
-        for (int i = 0; i < 16; ++i)
-            std::printf("%d ", (int)net->l2W[0][i]);
-        std::printf("\n");
-
-        std::printf("l2Bias[0..15] = ");
-        for (int i = 0; i < 16; ++i)
-            std::printf("%d ", (int)net->l2Bias[i]);
-        std::printf("\n");
-
-        std::printf("outW[0..15] = ");
-        for (int i = 0; i < 16; ++i)
-            std::printf("%d ", (int)net->outW[i]);
-        std::printf("\n");
-
-        std::printf("outBias = %d\n", net->outBias);
-
-        auto range16 = [](const char* name, const int16_t* p, size_t n) {
-            int16_t mn = INT16_MAX;
-            int16_t mx = INT16_MIN;
-
-            for (size_t i = 0; i < n; ++i) {
-                mn = std::min(mn, p[i]);
-                mx = std::max(mx, p[i]);
-            }
-
-            std::printf("%-12s min=%d max=%d\n", name, (int)mn, (int)mx);
-            };
-
-        auto range32 = [](const char* name, const int32_t* p, size_t n) {
-            int32_t mn = INT32_MAX;
-            int32_t mx = INT32_MIN;
-
-            for (size_t i = 0; i < n; ++i) {
-                mn = std::min(mn, p[i]);
-                mx = std::max(mx, p[i]);
-            }
-
-            std::printf("%-12s min=%d max=%d\n", name, mn, mx);
-            };
-
-        range16("ftW", &net->ftW[0][0], FT_IN * L1);
-        range16("ftBias", net->ftBias, L1);
-
-        range16("l1W", &net->l1W[0][0][0], 2 * L2 * L1);
-        range32("l1Bias", &net->l1Bias[0][0], 2 * L2);
-
-        range16("l2W", &net->l2W[0][0], L3 * 2 * L2);
-        range32("l2Bias", net->l2Bias, L3);
-
-        range16("outW", net->outW, L3);
-        range32("outBias", &net->outBias, 1);
+        if (!readBlock(net->outW, sizeof(net->outW)))         return false;
+        if (!readBlock(&net->outBias, sizeof(net->outBias)))  return false;
 
         return true;
     }

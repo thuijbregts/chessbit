@@ -9,6 +9,13 @@ int main() {
     engine::initLmr();
     nnue::loadWeights("quantised.bin");
 
+    printf("%d\n", board.score);
+
+    nnue::initRoot(game::board);
+    printf("%d\n",  nnue::evaluate<white>(0, game::board));
+    nnue::initRoot(game::board);
+    printf("%d\n", nnue::evaluate<black>(0, game::board));
+
     /*datagen::Config cfg;
     datagen::run(cfg, game::board);*/
 
