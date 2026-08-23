@@ -186,10 +186,13 @@ namespace engine {
 
         constexpr uint8_t kMovedK = kMoved | KING_MOVED[side];
         bool doTT = ttEnabled && depth > 1;
+
+        bool pvNode = beta - alpha > 1;
         
         const int   alphaOrig = alpha;
         tt::Bucket* ttBucket = nullptr;
         uint16_t    ttMove = 0;
+        int         eval = NO_EVAL;
 
         if (doTT) {
             const Zobrist z = board.zobrist;
@@ -197,6 +200,7 @@ namespace engine {
             tt::TTData e;
             if (tt::probe(*ttBucket, z, e)) {
                 ttMove = e.move;
+                eval = e.eval;
 
                 if (e.depth >= depth) {
                     const int s = valueFromTT(e.score, ply);
@@ -210,22 +214,20 @@ namespace engine {
             }
         }
 
-        bool pvNode = beta - alpha > 1;
-
         if constexpr (!first) {
             if (!pvNode && !board.checks) {
-                int score = nnue::evaluate<side>(ply, board);
+                if (eval == NO_EVAL) eval = nnue::evaluate<side>(ply, board);
 
                 //Reverse futility pruning
-                if (depth <= RFP_MAX_DEPTH && beta < MATE_IN_MAX && score - RFP_MARGIN * depth >= beta) return score;
+                if (depth <= RFP_MAX_DEPTH && beta < MATE_IN_MAX && eval - RFP_MARGIN * depth >= beta) return eval;
 
                 //Razoring
-                if (score + RAZOR_MARGIN + RAZOR_VAR * depth * depth < alpha) return quiescence<side, kMoved>(board, ply, alpha, beta);
+                if (eval + RAZOR_MARGIN + RAZOR_VAR * depth * depth < alpha) return quiescence<side, kMoved>(board, ply, alpha, beta);
             
                 //Null move pruning
                 if constexpr (!null) {
                     int nullDepth = depth - NULL_REDUCTION - 1;
-                    if (nullDepth >= 0 && score >= beta && BoardState::hasEnoughMaterial(board)) {
+                    if (nullDepth >= 0 && eval >= beta && BoardState::hasEnoughMaterial(board)) {
                         const BoardState nullBoard = board.makeNull<side>(board);
 
                         nnue::accumulators[ply + 1].dirty.clear();
@@ -374,7 +376,7 @@ namespace engine {
         if (doTT) {
             const uint8_t bound = (best >= beta) ? tt::BOUND_LOWER : (best > alphaOrig) ? tt::BOUND_EXACT : tt::BOUND_UPPER;
             uint16_t ttMove = packMove(bestMoveTT->from, bestMoveTT->to);
-            tt::write(depth, *ttBucket, board.zobrist, valueToTT(best, ply), bound, ttMove, tt::GENERATION);
+            tt::write(depth, *ttBucket, board.zobrist, valueToTT(best, ply), eval, bound, ttMove, tt::GENERATION);
         }
 
         return best;

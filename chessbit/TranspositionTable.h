@@ -41,18 +41,21 @@ namespace tt {
     };
 
     constexpr U64 SCORE_MASK  = 0xFFFF;
+    constexpr U64 EVAL_MASK  = 0xFFFF;
     constexpr U64 MOVE_MASK  = 0xFFFF;
     constexpr U64 DEPTH_MASK  = 0xFF;
     constexpr U64 BOUND_MASK  = 0x3;
     constexpr U64 GEN_MASK = 0x3F;
 
-    constexpr U64 MOVE_SHIFT  = 16;
-    constexpr U64 DEPTH_SHIFT = 32;
-    constexpr U64 BOUND_SHIFT = 40;
-    constexpr U64 GEN_SHIFT   = 42;
+    constexpr U64 EVAL_SHIFT  = 16;
+    constexpr U64 MOVE_SHIFT  = 32;
+    constexpr U64 DEPTH_SHIFT = 48;
+    constexpr U64 BOUND_SHIFT = 56;
+    constexpr U64 GEN_SHIFT   = 58;
 
     struct TTData {
-        int      score;
+        int16_t  score;
+        int16_t  eval;
         uint16_t move;
         uint8_t  depth;
         uint8_t  bound;
@@ -71,6 +74,7 @@ namespace tt {
             const U64 d = b.data[i];
             if (b.key[i] == (z.high ^ d)) {
                 out.score = (int16_t)(d & SCORE_MASK);
+                out.eval = (int16_t)((d >> EVAL_SHIFT) & EVAL_MASK);
                 out.move  = (d >> MOVE_SHIFT)  & MOVE_MASK;
                 out.depth = (d >> DEPTH_SHIFT) & DEPTH_MASK;
                 out.bound = (d >> BOUND_SHIFT) & BOUND_MASK;
@@ -80,7 +84,7 @@ namespace tt {
         return false;
     }
 
-    Inline void write(int depth, Bucket& b, Zobrist z, int score, uint8_t bound, uint16_t move, uint8_t gen) noexcept {
+    Inline void write(int depth, Bucket& b, Zobrist z, int score, int eval, uint8_t bound, uint16_t move, uint8_t gen) noexcept {
         int v    = 0;
         int lowest = INT_MAX;
 
@@ -109,6 +113,7 @@ namespace tt {
 
         const U64 data =
               ((U64)(uint16_t)(int16_t)score)
+            | ((U64)(uint16_t)(int16_t)eval << EVAL_SHIFT)
             | ((U64)move                << MOVE_SHIFT)
             | ((U64)(uint8_t)depth       << DEPTH_SHIFT)
             | ((U64)(bound & 0x3u)       << BOUND_SHIFT)

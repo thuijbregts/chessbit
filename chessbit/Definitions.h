@@ -37,6 +37,8 @@ namespace defs {
 	inline constexpr int MATE = 29000;
 	inline constexpr int MATE_IN_MAX = MATE - MAX_PLY;
 
+	inline constexpr int NO_EVAL = INF;
+
 	inline constexpr int ID_MOVE_SCORE = 2'000'000;
 	inline constexpr int PROMOTION_BASE = 1'500'000;
 	inline constexpr int CAPTURE_BASE = 1'000'000;

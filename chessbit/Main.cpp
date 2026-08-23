@@ -5,7 +5,7 @@
 #include "Datagen.h"
 
 int main() {
-    game::setFen(KiwiPete);
+    game::setFen(StartPosition);
     engine::initLmr();
     nnue::loadWeights("nnue.bin");
 
