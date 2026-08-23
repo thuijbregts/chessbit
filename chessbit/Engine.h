@@ -1,10 +1,8 @@
 #pragma once
 
 #include "MoveGenerator.h"
-#include "Eval.h"
 #include "Utils.h"
 #include "Nnue.h"
-#include "NnueOracle.h"
 #include "See.h"
 #include <chrono>
 #include <cstdint>
@@ -37,7 +35,7 @@ namespace engine {
     inline std::chrono::steady_clock::time_point searchDeadline;
     inline bool useDeadline = false;
 
-    ForceInline bool checkTime() {
+    Inline bool checkTime() {
         if (stopSearch.load(std::memory_order_relaxed)) return true;
         if (useDeadline && std::chrono::steady_clock::now() >= searchDeadline) {
             stopSearch.store(true, std::memory_order_relaxed);
@@ -53,7 +51,7 @@ namespace engine {
     inline SearchStats stats;
     inline int lmrTable[MAX_PLY][256];
 
-    ForceInline void initLmr() {
+    Inline void initLmr() {
         for (int d = 1; d < MAX_PLY; ++d) {
             for (int i = 1; i < 256; ++i) {
                 lmrTable[d][i] = int(0.75 + std::log(d) * std::log(i) * 0.5);
@@ -61,18 +59,18 @@ namespace engine {
         }
     }
     
-    ForceInline int valueToTT(int v, int ply) {
+    Inline int valueToTT(int v, int ply) {
         if (v >= MATE_IN_MAX) return v + ply;
         if (v <= -MATE_IN_MAX) return v - ply;
         return v;
     }
-    ForceInline int valueFromTT(int v, int ply) {
+    Inline int valueFromTT(int v, int ply) {
         if (v >= MATE_IN_MAX) return v - ply;
         if (v <= -MATE_IN_MAX) return v + ply;
         return v;
     }
 
-    ForceInline void clearHeuristics() {
+    Inline void clearHeuristics() {
         std::memset(killers, 0, sizeof(killers));
         std::memset(history, 0, sizeof(history));
         std::memset(captHistory, 0, sizeof(captHistory));
@@ -80,7 +78,7 @@ namespace engine {
         std::memset(counterMove, 0, sizeof(counterMove));
     }
 
-    ForceInline bool isRepetition(const BoardState& board, int ply) {
+    Inline bool isRepetition(const BoardState& board, int ply) {
         int current = repCount + ply;
         int lower = std::max(0, current - board.halfClock);
 
@@ -92,11 +90,11 @@ namespace engine {
     }
 
     template <bool side, uint8_t kMoved>
-    static int quiescence(const BoardState& board, int ply, int alpha, int beta) {
+    Inline int quiescence(const BoardState& board, int ply, int alpha, int beta) {
         stats.nodes++;
         if ((stats.nodes & 2047) == 0 && checkTime()) throw StopSearch{};
 
-        if (ply >= MAX_PLY - 1) { stats.leaves++; return board.score; }
+        if (ply >= MAX_PLY - 1) { stats.leaves++; return nnue::evaluate<side>(ply, board); }
 
         constexpr uint8_t kMovedK = kMoved | KING_MOVED[side];
 
@@ -161,8 +159,8 @@ namespace engine {
     }
 
     template <bool first, bool side, uint8_t kMoved, bool null = false>
-    static int alphaBeta(int depth, const BoardState& board, int ply, int alpha, int beta, int extensions, BoardState* bestMove = nullptr) {
-        if (ply >= MAX_PLY - 1) return board.score;
+    Inline int alphaBeta(int depth, const BoardState& board, int ply, int alpha, int beta, int extensions, BoardState* bestMove = nullptr) {
+        if (ply >= MAX_PLY - 1) return nnue::evaluate<side>(ply, board);
 
         if constexpr (!first) {
             if (isRepetition(board, ply)) return 0;
@@ -216,29 +214,31 @@ namespace engine {
 
         if constexpr (!first) {
             if (!pvNode && !board.checks) {
+                int score = nnue::evaluate<side>(ply, board);
+
                 //Reverse futility pruning
-                if (depth <= RFP_MAX_DEPTH && beta < MATE_IN_MAX && board.score - RFP_MARGIN * depth >= beta) return board.score;
+                if (depth <= RFP_MAX_DEPTH && beta < MATE_IN_MAX && score - RFP_MARGIN * depth >= beta) return score;
 
                 //Razoring
-                if (board.score + RAZOR_MARGIN + RAZOR_VAR * depth * depth < alpha) return quiescence<side, kMoved>(board, ply, alpha, beta);
-            }
-        }
+                if (score + RAZOR_MARGIN + RAZOR_VAR * depth * depth < alpha) return quiescence<side, kMoved>(board, ply, alpha, beta);
+            
+                //Null move pruning
+                if constexpr (!null) {
+                    int nullDepth = depth - NULL_REDUCTION - 1;
+                    if (nullDepth >= 0 && score >= beta && BoardState::hasEnoughMaterial(board)) {
+                        const BoardState nullBoard = board.makeNull<side>(board);
 
-        //Null move pruning
-        if constexpr (!null && !first) {
-            int nullDepth = depth - NULL_REDUCTION - 1;
-            if (nullDepth >= 0 && !pvNode && !board.checks && board.score >= beta && BoardState::hasEnoughMaterial(board)) {
-                const BoardState nullBoard = board.makeNull<side>(board);
+                        nnue::accumulators[ply + 1].dirty.clear();
+                        nnue::accumulators[ply + 1].computed[white] = false;
+                        nnue::accumulators[ply + 1].computed[black] = false;
 
-                nnue::accumulators[ply + 1].dirty.clear();
-                nnue::accumulators[ply + 1].computed[white] = false;
-                nnue::accumulators[ply + 1].computed[black] = false;
+                        int score;
+                        if (nullDepth == 0) score = -quiescence<!side, kMoved>(nullBoard, ply + 1, -beta, -beta + 1);
+                        else                score = -alphaBeta<false, !side, kMoved, true>(nullDepth, nullBoard, ply + 1, -beta, -beta + 1, extensions);
 
-                int score;
-                if (nullDepth == 0) score = -quiescence<!side, kMoved>(nullBoard, ply + 1, -beta, -beta + 1);
-                else                score = -alphaBeta<false, !side, kMoved, true>(nullDepth, nullBoard, ply + 1, -beta, -beta + 1, extensions);
-
-                if (score >= beta) return score >= MATE_IN_MAX ? beta : score;
+                        if (score >= beta) return score >= MATE_IN_MAX ? beta : score;
+                    }
+                }
             }
         }
 
@@ -381,7 +381,7 @@ namespace engine {
     }
 
     template <bool side>
-    ForceInline int search(int depth, const BoardState& board, int ply, int alpha, int beta, BoardState* bestMove) {
+    Inline int search(int depth, const BoardState& board, int ply, int alpha, int beta, BoardState* bestMove) {
         const uint8_t kMoved = (!(board.casPerms & (wk | wq)) ? KING_MOVED[white] : 0)
             | (!(board.casPerms & (bk | bq)) ? KING_MOVED[black] : 0);
 
@@ -472,7 +472,7 @@ namespace engine {
     }
 
     template <bool side>
-    ForceInline void start(int maxDepth, const BoardState& board, BoardState* bestMove, long long budgetMs = 0) {
+    Inline void start(int maxDepth, const BoardState& board, BoardState* bestMove, long long budgetMs = 0) {
         printf("depth   score  bestmove       nodes         generated     time      nps        EBF   iir          cutoffs      1st-move\n");
         printf("----------------------------------------------------------------------------------------------------------------------------\n");
 

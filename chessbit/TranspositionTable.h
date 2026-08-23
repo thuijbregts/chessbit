@@ -66,7 +66,7 @@ namespace tt {
         return TABLE[index(z)];
     }
 
-    ForceInline bool probe(Bucket& b, Zobrist z, TTData& out) noexcept {
+    Inline bool probe(Bucket& b, Zobrist z, TTData& out) noexcept {
         for (int i = 0; i < MAX_ENTRIES; ++i) {
             const U64 d = b.data[i];
             if (b.key[i] == (z.high ^ d)) {
@@ -80,7 +80,7 @@ namespace tt {
         return false;
     }
 
-    ForceInline void write(int depth, Bucket& b, Zobrist z, int score, uint8_t bound, uint16_t move, uint8_t gen) noexcept {
+    Inline void write(int depth, Bucket& b, Zobrist z, int score, uint8_t bound, uint16_t move, uint8_t gen) noexcept {
         int v    = 0;
         int lowest = INT_MAX;
 

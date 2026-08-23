@@ -7,7 +7,6 @@
 #include <iostream>
 #include "Game.h"
 #include "Zobrist.h"
-#include "Eval.h"
 
 using std::string;
 
@@ -260,14 +259,12 @@ namespace game {
         int kES = SquareOf(pieces[!side][k]);
 
         Zobrist zobrist = zobrist::init(pieces, side, castlingPermissions, enPassant);
-        int mg = 0, eg = 0; int8_t phase = 0;
-        int score = eval::init(pieces, side, mg, eg, phase);
 
         board = bstate::BoardState(0, 0, 0, pieces[side][p], pieces[side][n], pieces[side][b], pieces[side][r], pieces[side][q], pieces[side][k],
             pieces[!side][p], pieces[!side][n], pieces[!side][b], pieces[!side][r], pieces[!side][q], pieces[!side][k],
             kMS, kES, getKingAttacks(kMS), getKingAttacks(kES),
             occupancies[side], occupancies[!side], occupancies[both],
-            checks, castlingPermissions, enPassant, 0, 0, 0, noPiece, side, false, false, false, score, mg, eg, phase, halfClock, zobrist);
+            checks, castlingPermissions, enPassant, 0, 0, 0, noPiece, side, false, false, false, halfClock, zobrist);
 
         movesPlayed[0] = board;
     }

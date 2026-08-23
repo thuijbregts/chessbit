@@ -5,16 +5,14 @@
 #include "Datagen.h"
 
 int main() {
-    game::setFen(StartPosition);
+    game::setFen(KiwiPete);
     engine::initLmr();
-    nnue::loadWeights("quantised.bin");
+    nnue::loadWeights("nnue.bin");
 
-    printf("%d\n", board.score);
-
-    nnue::initRoot(game::board);
+    /*nnue::initRoot(game::board);
     printf("%d\n",  nnue::evaluate<white>(0, game::board));
     nnue::initRoot(game::board);
-    printf("%d\n", nnue::evaluate<black>(0, game::board));
+    printf("%d\n", nnue::evaluate<black>(0, game::board));*/
 
     /*datagen::Config cfg;
     datagen::run(cfg, game::board);*/

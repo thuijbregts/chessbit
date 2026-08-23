@@ -27,9 +27,8 @@ namespace defs {
 #define ClearBit(X, S) (X &= ~(1ULL << S))//SQUARE_BITS[S]) same perf
 #define MoveBit(X, F, T) (X ^= 1ULL << F | 1ULL << T)// faster than U64 matrix
 
-#define ForceInline inline static
-//#define ForceInline __forceinline static
 #define Inline inline static
+#define ForceInline __forceinline static
 
 	inline bool ttEnabled = false;
 

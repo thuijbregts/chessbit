@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Eval.h"
 #include "TranspositionTable.h"
 #include "See.h"
 #include <new>
@@ -23,7 +22,7 @@ namespace batch {
         uint16_t ttMove;
 
         template <bool side, bool cap, bool promo = false, class Build>
-        __forceinline void add(Build&& build) noexcept {
+        inline void add(Build&& build) noexcept {
             BoardState& b = *::new (&moves[size]) BoardState(build());
 
             if (useTT) tt::prefetch(b.zobrist, depth - 1);
@@ -38,7 +37,7 @@ namespace batch {
                             int mvvLva = MVV_LVA[b.vctm][b.atkr];
                             if (mvvLva > 0) score += mvvLva + captHistory[side][b.atkr][b.to][b.vctm] / 32;
                             else {
-                                if (!see::seeGE(b, 0))  score = -b.score - 1000;
+                                if (!see::seeGE(b, 0))  score = -1000;
                                 else                    score += captHistory[side][b.atkr][b.to][b.vctm] / 32;
                             }
                         }
@@ -47,7 +46,7 @@ namespace batch {
                         int mvvLva = MVV_LVA[b.vctm][b.atkr];
                         if (mvvLva > 0) score = CAPTURE_BASE + mvvLva + captHistory[side][b.atkr][b.to][b.vctm] / 32;
                         else {
-                            if (!see::seeGE(b, 0))  score = -b.score - 1000;
+                            if (!see::seeGE(b, 0))  score = -1000;
                             else                    score = CAPTURE_BASE + captHistory[side][b.atkr][b.to][b.vctm] / 32;
                         }
                     }
@@ -58,9 +57,7 @@ namespace batch {
                             if (pm == killers[ply][0])        score = KILLER_1;
                             else if (pm == killers[ply][1])   score = KILLER_2;
                             else {
-                                score = -b.score
-                                    + history[side][b.from][b.to]
-                                    + continuationHistory[b.atkrPrev][b.toPrev][b.atkr][b.to] * depth / 8;
+                                score = history[side][b.from][b.to] + continuationHistory[b.atkrPrev][b.toPrev][b.atkr][b.to] * depth / 8;
 
                                 if (pm == counterMove[side][b.atkrPrev][b.toPrev]) score += COUNTER_MOVE_BONUS;
                             }
@@ -73,11 +70,11 @@ namespace batch {
             ++size;
         }
 
-        __forceinline void reset() noexcept { 
+        inline void reset() noexcept { 
             size = 0; 
         }
 
-        __forceinline void init(bool useTT, uint16_t ttMove, uint16_t idMove, int depth, int ply) noexcept {
+        inline void init(bool useTT, uint16_t ttMove, uint16_t idMove, int depth, int ply) noexcept {
             size = 0;
             this->useTT = useTT;
             this->ttMove = ttMove;
@@ -86,15 +83,15 @@ namespace batch {
             this->ply = ply;
         }
 
-        __forceinline BoardState& operator[](int i) noexcept { 
+        inline BoardState& operator[](int i) noexcept { 
             return moves[keys[i] & 0xFFFF]; 
         }
 
-        __forceinline const BoardState& operator[](int i) const noexcept { 
+        inline const BoardState& operator[](int i) const noexcept { 
             return moves[keys[i] & 0xFFFF]; 
         }
 
-        __forceinline void pick(int i) noexcept {
+        inline void pick(int i) noexcept {
             int best = i;
             uint64_t bestKey = keys[i];
             for (int j = i + 1; j < size; ++j) {

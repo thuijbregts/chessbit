@@ -121,7 +121,7 @@ namespace movegen {
     }
 
     template <bool side, uint8_t kMoved, Piece piece, bool capture>
-    ForceInline void enumMoves(U64& nodes, U64 moves, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
+    Inline void enumMoves(U64& nodes, U64 moves, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         Bitloop(moves) {
             int to = SquareOf(moves);
  
@@ -130,29 +130,29 @@ namespace movegen {
     }
 
     template <bool side, uint8_t kMoved, Piece piece, bool capsOnly>
-    ForceInline void makeMoves(U64& nodes, U64 attacks, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
+    Inline void makeMoves(U64& nodes, U64 attacks, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         if constexpr (!capsOnly)
             enumMoves<side, kMoved, piece, false>(nodes, attacks & ~board.occE, from, board, discovers, batch);
         enumMoves<side, kMoved, piece, true>(nodes, attacks & board.occE, from, board, discovers, batch);
     }
 
     template <bool side, uint8_t kMoved, bool capture, Piece piece>
-    ForceInline void makeMove(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
+    Inline void makeMove(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         batch->add<side, capture>([&] { return board.make<piece, side, capture, kMoved>(from, to, board, discovers); });
     }
 
     template <bool side, uint8_t kMoved>
-    ForceInline void makeEnPassant(U64& nodes, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
+    Inline void makeEnPassant(U64& nodes, int from, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         batch->add<side, true>([&] { return board.makeEnPassant<side>(from, board.eP, board); });
     }
 
     template <bool side, uint8_t kMoved>
-    ForceInline void makeDoublePush(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
+    Inline void makeDoublePush(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         batch->add<side, false>([&] { return board.makeDoublePush<side>(from, to, board, discovers); });
     }
 
     template <bool side, uint8_t kMoved, bool capture>
-    ForceInline void makePromotionMoves(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
+    Inline void makePromotionMoves(U64& nodes, int from, int to, const BoardState& board, U64 discovers, Batch* batch) noexcept {
         batch->add<side, capture, true>([&] { return board.makePromotion<Piece::Knight, side, capture, kMoved>(from, to, board, discovers); });
         batch->add<side, capture, true>([&] { return board.makePromotion<Piece::Bishop, side, capture, kMoved>(from, to, board, discovers); });
         batch->add<side, capture, true>([&] { return board.makePromotion<Piece::Rook, side, capture, kMoved>(from, to, board, discovers); });
@@ -160,12 +160,12 @@ namespace movegen {
     }
 
     template <bool side, uint8_t kMoved, int castlingSide>
-    ForceInline void makeCastling(U64& nodes, const BoardState& board, Batch* batch) noexcept {
+    Inline void makeCastling(U64& nodes, const BoardState& board, Batch* batch) noexcept {
         batch->add<side, false>([&] { return board.makeCastling<castlingSide>(board); });
     }
 
     template <bool count, bool side, uint8_t kMoved, bool capsOnly = false>
-    ForceInline U64 generate(const BoardState& board, Batch* batch = nullptr) noexcept {
+    Inline U64 generate(const BoardState& board, Batch* batch = nullptr) noexcept {
         int from, to;
         U64 bitboard, attacks;
 
